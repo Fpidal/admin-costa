@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, User, Phone, Mail, Users, Calendar, Pencil, Trash2, History, FileText } from 'lucide-react'
+import { Plus, User, Phone, Mail, Users, Calendar, Pencil, Trash2, History, FileText, ChevronDown, ChevronUp, Check } from 'lucide-react'
 
 interface Reserva {
   id: number
@@ -14,6 +14,13 @@ interface Reserva {
   precio_noche: number
   estado: string
   propiedades?: { nombre: string }
+}
+
+interface Acompanante {
+  nombre: string
+  apellido: string
+  documento: string
+  edad: number | string
 }
 
 interface Inquilino {
@@ -26,9 +33,12 @@ interface Inquilino {
   nacionalidad: string | null
   estado_civil: string | null
   domicilio: string | null
+  modelo_auto: string | null
+  patente: string | null
   cantidad_personas: number
   origen: string
   observaciones: string
+  acompanantes: Acompanante[]
   reservas?: Reserva[]
 }
 
@@ -83,10 +93,14 @@ const initialForm = {
   nacionalidad: 'argentina',
   estado_civil: '',
   domicilio: '',
+  modelo_auto: '',
+  patente: '',
   cantidad_personas: 1,
   origen: 'directo',
   observaciones: '',
 }
+
+const emptyAcompanante: Acompanante = { nombre: '', apellido: '', documento: '', edad: '' }
 
 export default function InquilinosPage() {
   const [inquilinos, setInquilinos] = useState<Inquilino[]>([])
@@ -96,6 +110,10 @@ export default function InquilinosPage() {
   const [selectedInquilino, setSelectedInquilino] = useState<Inquilino | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(initialForm)
+  const [acompanantes, setAcompanantes] = useState<Acompanante[]>([])
+  const [acompanantesExpanded, setAcompanantesExpanded] = useState(false)
+  const [nuevoAcompanante, setNuevoAcompanante] = useState<Acompanante>({ nombre: '', apellido: '', documento: '', edad: '' })
+  const [editingAcompIdx, setEditingAcompIdx] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -143,13 +161,17 @@ export default function InquilinosPage() {
         nacionalidad: inquilino.nacionalidad || 'argentina',
         estado_civil: inquilino.estado_civil || '',
         domicilio: inquilino.domicilio || '',
+        modelo_auto: inquilino.modelo_auto || '',
+        patente: inquilino.patente || '',
         cantidad_personas: inquilino.cantidad_personas || 1,
         origen: inquilino.origen || 'directo',
         observaciones: inquilino.observaciones || '',
       })
+      setAcompanantes(inquilino.acompanantes || [])
     } else {
       setEditingId(null)
       setForm(initialForm)
+      setAcompanantes([])
     }
     setModalOpen(true)
   }
@@ -158,6 +180,42 @@ export default function InquilinosPage() {
     setModalOpen(false)
     setEditingId(null)
     setForm(initialForm)
+    setAcompanantes([])
+    setAcompanantesExpanded(false)
+    setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
+    setEditingAcompIdx(null)
+  }
+
+  function confirmarAcompanante() {
+    if (!nuevoAcompanante.nombre.trim() && !nuevoAcompanante.apellido.trim()) return
+
+    if (editingAcompIdx !== null) {
+      const updated = [...acompanantes]
+      updated[editingAcompIdx] = { ...nuevoAcompanante }
+      setAcompanantes(updated)
+      setEditingAcompIdx(null)
+    } else {
+      setAcompanantes([...acompanantes, { ...nuevoAcompanante }])
+    }
+    setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
+  }
+
+  function editarAcompanante(index: number) {
+    setNuevoAcompanante({ ...acompanantes[index] })
+    setEditingAcompIdx(index)
+  }
+
+  function cancelarEdicion() {
+    setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
+    setEditingAcompIdx(null)
+  }
+
+  function removeAcompanante(index: number) {
+    setAcompanantes(acompanantes.filter((_, i) => i !== index))
+    if (editingAcompIdx === index) {
+      setEditingAcompIdx(null)
+      setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
+    }
   }
 
   function openHistorial(inquilino: Inquilino) {
@@ -169,6 +227,9 @@ export default function InquilinosPage() {
     e.preventDefault()
     setSaving(true)
 
+    // Filtrar acompañantes vacíos
+    const acompanantesValidos = acompanantes.filter(a => a.nombre.trim() || a.apellido.trim())
+
     const data = {
       nombre: form.nombre,
       email: form.email,
@@ -178,9 +239,12 @@ export default function InquilinosPage() {
       nacionalidad: form.nacionalidad || null,
       estado_civil: form.estado_civil || null,
       domicilio: form.domicilio || null,
-      cantidad_personas: Number(form.cantidad_personas),
+      modelo_auto: form.modelo_auto || null,
+      patente: form.patente || null,
+      cantidad_personas: 1 + acompanantesValidos.length,
       origen: form.origen,
       observaciones: form.observaciones,
+      acompanantes: acompanantesValidos,
     }
 
     if (editingId) {
@@ -336,11 +400,126 @@ export default function InquilinosPage() {
           </div>
           <Input label="Domicilio habitual" value={form.domicilio} onChange={(e) => setForm({ ...form, domicilio: e.target.value })} placeholder="Calle, número, ciudad, provincia" />
 
-          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Información adicional</p>
+          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Vehículo</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Cantidad de personas (titular + acomp.)" type="number" min="1" value={form.cantidad_personas} onChange={(e) => setForm({ ...form, cantidad_personas: Number(e.target.value) })} />
-            <Select label="Origen de la reserva" value={form.origen} onChange={(e) => setForm({ ...form, origen: e.target.value })} options={origenes} />
+            <Input label="Modelo de auto" value={form.modelo_auto} onChange={(e) => setForm({ ...form, modelo_auto: e.target.value })} placeholder="Ej: Toyota Corolla 2020" />
+            <Input label="Patente" value={form.patente} onChange={(e) => setForm({ ...form, patente: e.target.value })} placeholder="Ej: AB123CD" />
           </div>
+
+          {/* Acompañantes - Colapsable */}
+          <div className="border rounded-lg">
+            <button
+              type="button"
+              onClick={() => setAcompanantesExpanded(!acompanantesExpanded)}
+              className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg"
+            >
+              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Users size={16} />
+                Acompañantes ({acompanantes.length})
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">
+                  Total: {1 + acompanantes.length} personas
+                </span>
+                {acompanantesExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </div>
+            </button>
+
+            {acompanantesExpanded && (
+              <div className="p-3 pt-0 border-t space-y-3">
+                {/* Lista de acompañantes registrados */}
+                {acompanantes.length > 0 && (
+                  <div className="space-y-2">
+                    {acompanantes.map((acomp, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Check size={16} className="text-green-600" />
+                          <div>
+                            <p className="font-medium text-gray-900">{acomp.nombre} {acomp.apellido}</p>
+                            <p className="text-xs text-gray-500">
+                              {acomp.documento && `DNI: ${acomp.documento}`}
+                              {acomp.documento && acomp.edad && ' · '}
+                              {acomp.edad && `${acomp.edad} años`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => editarAcompanante(idx)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeAcompanante(idx)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Formulario para agregar/editar */}
+                <div className={`p-3 rounded-lg ${editingAcompIdx !== null ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                  <p className="text-xs font-medium text-gray-500 mb-2">
+                    {editingAcompIdx !== null ? 'Editando acompañante' : 'Agregar acompañante'}
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <Input
+                      label="Nombre"
+                      value={nuevoAcompanante.nombre}
+                      onChange={(e) => setNuevoAcompanante({ ...nuevoAcompanante, nombre: e.target.value })}
+                      placeholder="Nombre"
+                    />
+                    <Input
+                      label="Apellido"
+                      value={nuevoAcompanante.apellido}
+                      onChange={(e) => setNuevoAcompanante({ ...nuevoAcompanante, apellido: e.target.value })}
+                      placeholder="Apellido"
+                    />
+                    <Input
+                      label="DNI/Pasaporte"
+                      value={nuevoAcompanante.documento}
+                      onChange={(e) => setNuevoAcompanante({ ...nuevoAcompanante, documento: e.target.value })}
+                      placeholder="Documento"
+                    />
+                    <Input
+                      label="Edad"
+                      type="number"
+                      min="0"
+                      value={nuevoAcompanante.edad}
+                      onChange={(e) => setNuevoAcompanante({ ...nuevoAcompanante, edad: e.target.value })}
+                      placeholder="Edad"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 mt-2">
+                    {editingAcompIdx !== null && (
+                      <Button type="button" variant="secondary" size="sm" onClick={cancelarEdicion}>
+                        Cancelar
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={confirmarAcompanante}
+                      disabled={!nuevoAcompanante.nombre.trim() && !nuevoAcompanante.apellido.trim()}
+                    >
+                      <Check size={14} />
+                      {editingAcompIdx !== null ? 'Actualizar' : 'Agregar'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Información adicional</p>
+          <Select label="Origen de la reserva" value={form.origen} onChange={(e) => setForm({ ...form, origen: e.target.value })} options={origenes} />
           <Textarea label="Observaciones" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} placeholder="Notas sobre el huésped, preferencias, restricciones, etc." />
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="secondary" onClick={closeModal}>Cancelar</Button>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X } from 'lucide-react'
+import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface Propiedad {
   id: number
@@ -18,6 +18,7 @@ interface Propiedad {
   estado: string
   descripcion: string
   imagen_url: string | null
+  imagenes: string[]
 }
 
 const tiposPropiedad = [
@@ -53,7 +54,7 @@ const initialForm = {
   precio_alquiler: 0,
   estado: 'disponible',
   descripcion: '',
-  imagen_url: '',
+  imagenes: [] as string[],
 }
 
 export default function PropiedadesPage() {
@@ -64,6 +65,7 @@ export default function PropiedadesPage() {
   const [form, setForm] = useState(initialForm)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
 
   useEffect(() => {
     fetchPropiedades()
@@ -94,7 +96,7 @@ export default function PropiedadesPage() {
         precio_alquiler: propiedad.precio_alquiler || 0,
         estado: propiedad.estado || 'disponible',
         descripcion: propiedad.descripcion || '',
-        imagen_url: propiedad.imagen_url || '',
+        imagenes: propiedad.imagenes || (propiedad.imagen_url ? [propiedad.imagen_url] : []),
       })
     } else {
       setEditingId(null)
@@ -113,12 +115,17 @@ export default function PropiedadesPage() {
     const file = e.target.files?.[0]
     if (!file) return
 
+    if (form.imagenes.length >= 6) {
+      alert('Máximo 6 imágenes permitidas')
+      return
+    }
+
     setUploading(true)
     const fileExt = file.name.split('.').pop()
     const fileName = `${Date.now()}.${fileExt}`
 
     const { error: uploadError } = await supabase.storage
-      .from('imagenes')
+      .from('Imagenes')
       .upload(fileName, file)
 
     if (uploadError) {
@@ -128,11 +135,23 @@ export default function PropiedadesPage() {
     }
 
     const { data: { publicUrl } } = supabase.storage
-      .from('imagenes')
+      .from('Imagenes')
       .getPublicUrl(fileName)
 
-    setForm({ ...form, imagen_url: publicUrl })
+    setForm({ ...form, imagenes: [...form.imagenes, publicUrl] })
     setUploading(false)
+  }
+
+  function removeImage(index: number) {
+    setForm({ ...form, imagenes: form.imagenes.filter((_, i) => i !== index) })
+  }
+
+  function setMainImage(index: number) {
+    if (index === 0) return
+    const newImagenes = [...form.imagenes]
+    const [selected] = newImagenes.splice(index, 1)
+    newImagenes.unshift(selected)
+    setForm({ ...form, imagenes: newImagenes })
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -149,7 +168,8 @@ export default function PropiedadesPage() {
       precio_alquiler: Number(form.precio_alquiler),
       estado: form.estado,
       descripcion: form.descripcion,
-      imagen_url: form.imagen_url || null,
+      imagenes: form.imagenes,
+      imagen_url: form.imagenes[0] || null,
     }
 
     if (editingId) {
@@ -226,14 +246,52 @@ export default function PropiedadesPage() {
           {propiedades.map((propiedad) => (
             <Card key={propiedad.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-0">
-                {/* Imagen */}
-                <div className="h-40 bg-gradient-to-br from-blue-100 to-blue-200 rounded-t-xl flex items-center justify-center overflow-hidden">
-                  {propiedad.imagen_url ? (
-                    <img
-                      src={propiedad.imagen_url}
-                      alt={propiedad.nombre}
-                      className="w-full h-full object-cover"
-                    />
+                {/* Imagen con carrusel */}
+                <div className="h-40 bg-gradient-to-br from-blue-100 to-blue-200 rounded-t-xl flex items-center justify-center overflow-hidden relative group">
+                  {(propiedad.imagenes?.length > 0 || propiedad.imagen_url) ? (
+                    <>
+                      <img
+                        src={propiedad.imagenes?.[imageIndexes[propiedad.id] || 0] || propiedad.imagen_url || ''}
+                        alt={propiedad.nombre}
+                        className="w-full h-full object-cover"
+                      />
+                      {propiedad.imagenes?.length > 1 && (
+                        <>
+                          {/* Flechas de navegación */}
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const current = imageIndexes[propiedad.id] || 0
+                              const prev = current === 0 ? propiedad.imagenes.length - 1 : current - 1
+                              setImageIndexes({ ...imageIndexes, [propiedad.id]: prev })
+                            }}
+                            className="absolute left-2 top-1/2 -translate-y-1/2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                          >
+                            <ChevronLeft size={20} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              const current = imageIndexes[propiedad.id] || 0
+                              const next = current === propiedad.imagenes.length - 1 ? 0 : current + 1
+                              setImageIndexes({ ...imageIndexes, [propiedad.id]: next })
+                            }}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                          >
+                            <ChevronRight size={20} />
+                          </button>
+                          {/* Indicador de posición */}
+                          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+                            {propiedad.imagenes.map((_, idx) => (
+                              <span
+                                key={idx}
+                                className={`w-1.5 h-1.5 rounded-full ${idx === (imageIndexes[propiedad.id] || 0) ? 'bg-white' : 'bg-white/50'}`}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
                   ) : (
                     <span className="text-blue-400 text-sm">Sin imagen</span>
                   )}
@@ -370,25 +428,55 @@ export default function PropiedadesPage() {
             onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
           />
 
-          {/* Upload de imagen */}
+          {/* Upload de imágenes */}
           <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Imagen</label>
-            {form.imagen_url ? (
-              <div className="relative w-full h-40 rounded-lg overflow-hidden bg-gray-100">
-                <img src={form.imagen_url} alt="Preview" className="w-full h-full object-cover" />
-                <button
-                  type="button"
-                  onClick={() => setForm({ ...form, imagen_url: '' })}
-                  className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                >
-                  <X size={16} />
-                </button>
+            <label className="block text-sm font-medium text-gray-700">
+              Imágenes ({form.imagenes.length}/6)
+            </label>
+
+            {/* Grid de imágenes */}
+            {form.imagenes.length > 0 && (
+              <div className="grid grid-cols-3 gap-2 mb-2">
+                {form.imagenes.map((url, index) => (
+                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group">
+                    <img src={url} alt={`Imagen ${index + 1}`} className="w-full h-full object-cover" />
+                    {/* Botón eliminar */}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(index)}
+                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                    >
+                      <X size={14} />
+                    </button>
+                    {/* Botón hacer principal */}
+                    {index !== 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setMainImage(index)}
+                        className="absolute top-1 left-1 p-1 bg-black/50 text-white rounded-full hover:bg-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Hacer principal"
+                      >
+                        <Star size={14} />
+                      </button>
+                    )}
+                    {/* Badge principal */}
+                    {index === 0 && (
+                      <span className="absolute bottom-1 left-1 text-xs bg-yellow-500 text-white px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Star size={10} fill="white" />
+                        Principal
+                      </span>
+                    )}
+                  </div>
+                ))}
               </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                <Upload size={24} className="text-gray-400 mb-2" />
+            )}
+
+            {/* Botón de subir si hay espacio */}
+            {form.imagenes.length < 6 && (
+              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
+                <Upload size={20} className="text-gray-400 mb-1" />
                 <span className="text-sm text-gray-500">
-                  {uploading ? 'Subiendo...' : 'Click para subir imagen'}
+                  {uploading ? 'Subiendo...' : 'Click para agregar imagen'}
                 </span>
                 <input
                   type="file"

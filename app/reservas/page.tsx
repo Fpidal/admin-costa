@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText } from 'lucide-react'
+import { jsPDF } from 'jspdf'
 
 interface Propiedad {
   id: number
@@ -17,6 +18,7 @@ interface Inquilino {
   documento: string
   telefono: string
   email: string
+  acompanantes: Acompanante[]
 }
 
 interface Acompanante {
@@ -28,14 +30,25 @@ interface Acompanante {
 
 interface Reserva {
   id: number
-  propiedad_id: number
-  inquilino_id: number | null
-  check_in: string
-  check_out: string
+  propiedad_id: string
+  inquilino_id: string | null
+  fecha_inicio: string
+  fecha_fin: string
+  horario_ingreso: string
+  horario_salida: string
   cantidad_personas: number
   precio_noche: number
+  monto_usd: number
+  moneda: string
+  deposito: number
   sena: number
   forma_pago: string
+  ropa_blanca: boolean
+  limpieza_final: number
+  lavadero: boolean
+  kw_inicial: number
+  kw_final: number
+  costo_kw: number
   estado: string
   notas: string
   acompanantes: Acompanante[]
@@ -56,14 +69,21 @@ const formasPago = [
   { value: 'tarjeta', label: 'Tarjeta' },
 ]
 
+const monedas = [
+  { value: 'ARS', label: '$ Pesos' },
+  { value: 'USD', label: 'U$D Dólares' },
+]
+
 const estadoVariant = {
   'confirmada': 'success',
   'pendiente': 'warning',
   'cancelada': 'danger',
 } as const
 
-const formatMonto = (monto: number) => {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto || 0)
+const formatMonto = (monto: number, moneda: string = 'ARS') => {
+  if (!monto) return moneda === 'USD' ? 'U$D 0' : '$ 0'
+  const formatted = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(monto)
+  return moneda === 'USD' ? `U$D ${formatted}` : `$ ${formatted}`
 }
 
 const formatFecha = (fecha: string) => {
@@ -82,10 +102,20 @@ const initialForm = {
   inquilino_id: '',
   check_in: '',
   check_out: '',
+  horario_ingreso: '14:00',
+  horario_salida: '10:00',
   cantidad_personas: 1,
+  moneda: 'ARS',
   precio_noche: 0,
+  deposito: 0,
   sena: 0,
   forma_pago: 'efectivo',
+  ropa_blanca: false,
+  limpieza_final: 0,
+  lavadero: false,
+  kw_inicial: 0,
+  kw_final: 0,
+  costo_kw: 0,
   estado: 'pendiente',
   notas: '',
 }
@@ -101,6 +131,9 @@ export default function ReservasPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(initialForm)
   const [acompanantes, setAcompanantes] = useState<Acompanante[]>([])
+  const [acompanantesExpanded, setAcompanantesExpanded] = useState(false)
+  const [nuevoAcompanante, setNuevoAcompanante] = useState<Acompanante>({ nombre: '', apellido: '', documento: '', edad: '' })
+  const [editingAcompIdx, setEditingAcompIdx] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -109,9 +142,9 @@ export default function ReservasPage() {
 
   async function fetchData() {
     const [resReservas, resPropiedades, resInquilinos] = await Promise.all([
-      supabase.from('reservas').select('*, acompanantes, propiedades(id, nombre), inquilinos(id, nombre, documento, telefono, email)').order('check_in', { ascending: false }),
+      supabase.from('reservas').select('*, propiedades(id, nombre), inquilinos(id, nombre, documento, telefono, email, acompanantes)').order('fecha_inicio', { ascending: false }),
       supabase.from('propiedades').select('id, nombre').order('nombre'),
-      supabase.from('inquilinos').select('id, nombre, documento, telefono, email').order('nombre')
+      supabase.from('inquilinos').select('id, nombre, documento, telefono, email, acompanantes').order('nombre')
     ])
 
     if (resReservas.data) setReservas(resReservas.data)
@@ -126,12 +159,22 @@ export default function ReservasPage() {
       setForm({
         propiedad_id: reserva.propiedad_id?.toString() || '',
         inquilino_id: reserva.inquilino_id?.toString() || '',
-        check_in: reserva.check_in || '',
-        check_out: reserva.check_out || '',
+        check_in: reserva.fecha_inicio || '',
+        check_out: reserva.fecha_fin || '',
+        horario_ingreso: reserva.horario_ingreso || '14:00',
+        horario_salida: reserva.horario_salida || '10:00',
         cantidad_personas: reserva.cantidad_personas || 1,
-        precio_noche: reserva.precio_noche || 0,
+        moneda: reserva.moneda || 'ARS',
+        precio_noche: reserva.monto_usd || reserva.precio_noche || 0,
+        deposito: reserva.deposito || 0,
         sena: reserva.sena || 0,
         forma_pago: reserva.forma_pago || 'efectivo',
+        ropa_blanca: reserva.ropa_blanca || false,
+        limpieza_final: reserva.limpieza_final || 0,
+        lavadero: reserva.lavadero || false,
+        kw_inicial: reserva.kw_inicial || 0,
+        kw_final: reserva.kw_final || 0,
+        costo_kw: reserva.costo_kw || 0,
         estado: reserva.estado || 'pendiente',
         notas: reserva.notas || '',
       })
@@ -149,20 +192,56 @@ export default function ReservasPage() {
     setEditingId(null)
     setForm(initialForm)
     setAcompanantes([])
+    setAcompanantesExpanded(false)
+    setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
+    setEditingAcompIdx(null)
   }
 
-  function addAcompanante() {
-    setAcompanantes([...acompanantes, { ...emptyAcompanante }])
+  function confirmarAcompanante() {
+    if (!nuevoAcompanante.nombre.trim() && !nuevoAcompanante.apellido.trim()) return
+
+    if (editingAcompIdx !== null) {
+      // Editando existente
+      const updated = [...acompanantes]
+      updated[editingAcompIdx] = { ...nuevoAcompanante }
+      setAcompanantes(updated)
+      setEditingAcompIdx(null)
+    } else {
+      // Agregando nuevo
+      setAcompanantes([...acompanantes, { ...nuevoAcompanante }])
+    }
+    setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
+  }
+
+  function editarAcompanante(index: number) {
+    setNuevoAcompanante({ ...acompanantes[index] })
+    setEditingAcompIdx(index)
+  }
+
+  function cancelarEdicion() {
+    setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
+    setEditingAcompIdx(null)
   }
 
   function removeAcompanante(index: number) {
     setAcompanantes(acompanantes.filter((_, i) => i !== index))
+    if (editingAcompIdx === index) {
+      setEditingAcompIdx(null)
+      setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
+    }
   }
 
-  function updateAcompanante(index: number, field: keyof Acompanante, value: string | number) {
-    const updated = [...acompanantes]
-    updated[index] = { ...updated[index], [field]: value }
-    setAcompanantes(updated)
+  function handleInquilinoChange(inquilinoId: string) {
+    setForm({ ...form, inquilino_id: inquilinoId })
+
+    // Cargar acompañantes del inquilino si tiene
+    if (inquilinoId) {
+      const inquilino = inquilinos.find(i => i.id.toString() === inquilinoId)
+      if (inquilino?.acompanantes && inquilino.acompanantes.length > 0) {
+        setAcompanantes(inquilino.acompanantes)
+        setAcompanantesExpanded(true)
+      }
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -186,10 +265,20 @@ export default function ReservasPage() {
       inquilino_id: form.inquilino_id || null,
       fecha_inicio: form.check_in,
       fecha_fin: form.check_out,
-      cantidad_personas: 1 + acompanantesValidos.length, // Titular + acompañantes
+      horario_ingreso: form.horario_ingreso,
+      horario_salida: form.horario_salida,
+      cantidad_personas: 1 + acompanantesValidos.length,
+      moneda: form.moneda,
       precio_noche: Number(form.precio_noche),
+      deposito: Number(form.deposito),
       sena: Number(form.sena),
       forma_pago: form.forma_pago,
+      ropa_blanca: form.ropa_blanca,
+      limpieza_final: Number(form.limpieza_final),
+      lavadero: form.lavadero,
+      kw_inicial: Number(form.kw_inicial),
+      kw_final: Number(form.kw_final),
+      costo_kw: Number(form.costo_kw),
       monto: monto,
       monto_usd: Number(form.precio_noche),
       estado: form.estado,
@@ -205,6 +294,17 @@ export default function ReservasPage() {
       if (error) alert('Error al crear: ' + error.message)
     }
 
+    // Actualizar acompañantes en el inquilino también
+    if (form.inquilino_id && acompanantesValidos.length > 0) {
+      await supabase
+        .from('inquilinos')
+        .update({
+          acompanantes: acompanantesValidos,
+          cantidad_personas: 1 + acompanantesValidos.length
+        })
+        .eq('id', form.inquilino_id)
+    }
+
     setSaving(false)
     closeModal()
     fetchData()
@@ -215,6 +315,268 @@ export default function ReservasPage() {
     const { error } = await supabase.from('reservas').delete().eq('id', id)
     if (error) alert('Error al eliminar: ' + error.message)
     else fetchData()
+  }
+
+  function generarReciboPDF(reserva: Reserva) {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+
+    const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
+    const total = noches * (reserva.precio_noche || 0)
+    const saldo = total - (reserva.sena || 0)
+    const moneda = reserva.moneda || 'ARS'
+    const simbolo = moneda === 'USD' ? 'U$D' : '$'
+
+    // Datos de la propiedad
+    const nombrePropiedad = reserva.propiedades?.nombre || 'Propiedad'
+    const esGolf = nombrePropiedad.toLowerCase().includes('golf')
+    const contacto = esGolf
+      ? { direccion: 'Golf 234, Costa Esmeralda', tel: '+54 11 1234-5678' }
+      : { direccion: 'Deportiva 9, Costa Esmeralda', tel: '+54 11 1234-5678' }
+
+    let y = 20
+
+    // ===== ENCABEZADO =====
+    doc.setFillColor(30, 64, 175) // Azul
+    doc.rect(0, 0, pageWidth, 45, 'F')
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(24)
+    doc.setFont('helvetica', 'bold')
+    doc.text(nombrePropiedad.toUpperCase(), pageWidth / 2, 18, { align: 'center' })
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(contacto.direccion, pageWidth / 2, 28, { align: 'center' })
+    doc.text(contacto.tel, pageWidth / 2, 35, { align: 'center' })
+
+    y = 55
+
+    // ===== TÍTULO RECIBO =====
+    doc.setTextColor(30, 64, 175)
+    doc.setFontSize(28)
+    doc.setFont('helvetica', 'bold')
+    doc.text('RECIBO', pageWidth / 2, y, { align: 'center' })
+
+    y += 10
+    doc.setTextColor(100, 100, 100)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`N° ${String(reserva.id).padStart(6, '0')}`, pageWidth / 2, y, { align: 'center' })
+
+    y += 6
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, pageWidth / 2, y, { align: 'center' })
+
+    y += 15
+
+    // ===== DATOS DEL TITULAR =====
+    doc.setFillColor(245, 245, 245)
+    doc.rect(15, y - 5, pageWidth - 30, 35, 'F')
+
+    doc.setTextColor(60, 60, 60)
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DATOS DEL TITULAR', 20, y + 3)
+
+    y += 12
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`Nombre: ${reserva.inquilinos?.nombre || '-'}`, 20, y)
+    y += 6
+    doc.text(`Email: ${reserva.inquilinos?.email || '-'}`, 20, y)
+    doc.text(`Teléfono: ${reserva.inquilinos?.telefono || '-'}`, 110, y)
+
+    y += 20
+
+    // ===== DETALLES DE LA RESERVA =====
+    doc.setTextColor(60, 60, 60)
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DETALLES DE LA RESERVA', 20, y)
+
+    y += 8
+    doc.setDrawColor(200, 200, 200)
+    doc.line(20, y, pageWidth - 20, y)
+
+    y += 10
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+
+    // Columna izquierda
+    doc.text('Check-in:', 20, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text(formatFecha(reserva.fecha_inicio), 55, y)
+
+    doc.setFont('helvetica', 'normal')
+    doc.text('Hora:', 90, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text(reserva.horario_ingreso || '14:00', 105, y)
+
+    y += 7
+    doc.setFont('helvetica', 'normal')
+    doc.text('Check-out:', 20, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text(formatFecha(reserva.fecha_fin), 55, y)
+
+    doc.setFont('helvetica', 'normal')
+    doc.text('Hora:', 90, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text(reserva.horario_salida || '10:00', 105, y)
+
+    y += 7
+    doc.setFont('helvetica', 'normal')
+    doc.text('Noches:', 20, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text(String(noches), 55, y)
+
+    doc.setFont('helvetica', 'normal')
+    doc.text('Huéspedes:', 90, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text(String(reserva.cantidad_personas || 1), 120, y)
+
+    y += 7
+    doc.setFont('helvetica', 'normal')
+    doc.text('Propiedad:', 20, y)
+    doc.setFont('helvetica', 'bold')
+    doc.text(nombrePropiedad, 55, y)
+
+    y += 15
+
+    // ===== DETALLE DE MONTOS =====
+    doc.setFillColor(30, 64, 175)
+    doc.rect(15, y - 5, pageWidth - 30, 10, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DETALLE DE MONTOS', 20, y + 2)
+
+    y += 15
+    doc.setTextColor(60, 60, 60)
+    doc.setFontSize(10)
+
+    // Líneas de detalle
+    const drawLine = (label: string, value: string, yPos: number, bold = false) => {
+      doc.setFont('helvetica', 'normal')
+      doc.text(label, 20, yPos)
+      doc.setFont('helvetica', bold ? 'bold' : 'normal')
+      doc.text(value, pageWidth - 20, yPos, { align: 'right' })
+    }
+
+    drawLine(`Precio por noche (${simbolo})`, `${simbolo} ${(reserva.precio_noche || 0).toLocaleString('es-AR')}`, y)
+    y += 7
+    drawLine(`Total ${noches} noche${noches !== 1 ? 's' : ''}`, `${simbolo} ${total.toLocaleString('es-AR')}`, y)
+
+    if (reserva.deposito && reserva.deposito > 0) {
+      y += 7
+      drawLine('Depósito', `${simbolo} ${reserva.deposito.toLocaleString('es-AR')}`, y)
+    }
+
+    y += 7
+    doc.setDrawColor(200, 200, 200)
+    doc.line(20, y, pageWidth - 20, y)
+
+    y += 7
+    drawLine('Seña pagada', `- ${simbolo} ${(reserva.sena || 0).toLocaleString('es-AR')}`, y)
+
+    y += 3
+    doc.setDrawColor(60, 60, 60)
+    doc.line(120, y, pageWidth - 20, y)
+
+    y += 8
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'bold')
+    doc.text('SALDO PENDIENTE', 20, y)
+    doc.setTextColor(saldo > 0 ? 200 : 34, saldo > 0 ? 100 : 139, saldo > 0 ? 0 : 34)
+    doc.text(`${simbolo} ${saldo.toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
+
+    y += 15
+
+    // ===== ACOMPAÑANTES =====
+    if (reserva.acompanantes && reserva.acompanantes.length > 0) {
+      doc.setTextColor(60, 60, 60)
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text('ACOMPAÑANTES', 20, y)
+
+      y += 7
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+
+      reserva.acompanantes.forEach((acomp, idx) => {
+        const nombre = `${acomp.nombre} ${acomp.apellido}`.trim()
+        const doc_edad = [acomp.documento, acomp.edad ? `${acomp.edad} años` : ''].filter(Boolean).join(' - ')
+        doc.text(`${idx + 1}. ${nombre}${doc_edad ? ` (${doc_edad})` : ''}`, 25, y)
+        y += 5
+      })
+
+      y += 5
+    }
+
+    // ===== SERVICIOS =====
+    const servicios = []
+    if (reserva.ropa_blanca) servicios.push('Ropa blanca incluida')
+    if (reserva.lavadero) servicios.push('Acceso a lavadero')
+    if (reserva.limpieza_final && reserva.limpieza_final > 0) servicios.push(`Limpieza final: ${simbolo} ${reserva.limpieza_final.toLocaleString('es-AR')}`)
+
+    if (servicios.length > 0) {
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text('SERVICIOS', 20, y)
+      y += 6
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      servicios.forEach(s => {
+        doc.text(`• ${s}`, 25, y)
+        y += 5
+      })
+      y += 5
+    }
+
+    // ===== NOTAS =====
+    if (reserva.notas) {
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text('OBSERVACIONES', 20, y)
+      y += 6
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(9)
+      const notasLines = doc.splitTextToSize(reserva.notas, pageWidth - 45)
+      doc.text(notasLines, 25, y)
+      y += notasLines.length * 5 + 5
+    }
+
+    // ===== CONDICIONES =====
+    y = Math.max(y, 230)
+    doc.setFillColor(250, 250, 250)
+    doc.rect(15, y - 3, pageWidth - 30, 35, 'F')
+
+    doc.setTextColor(100, 100, 100)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CONDICIONES DEL ALQUILER', 20, y + 3)
+
+    y += 10
+    doc.setFont('helvetica', 'normal')
+    const condiciones = [
+      '• Horario de ingreso: 14:00 hs - Horario de salida: 10:00 hs',
+      '• Se incluyen 110 kW de electricidad cada 7 días. El excedente se cobra al valor vigente.',
+      '• Prohibido fumar dentro de la propiedad.',
+      '• No se admiten mascotas sin autorización previa.',
+      '• El depósito se devuelve al verificar el estado de la propiedad.'
+    ]
+    condiciones.forEach(c => {
+      doc.text(c, 20, y)
+      y += 4
+    })
+
+    // ===== PIE =====
+    doc.setTextColor(150, 150, 150)
+    doc.setFontSize(8)
+    doc.text('Admin Costa - Sistema de Gestión de Alquileres', pageWidth / 2, 285, { align: 'center' })
+    doc.text(`Generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 290, { align: 'center' })
+
+    // Guardar
+    doc.save(`Recibo_${reserva.id}_${reserva.inquilinos?.nombre?.replace(/\s/g, '_') || 'reserva'}.pdf`)
   }
 
   // Calcular totales
@@ -297,9 +659,10 @@ export default function ReservasPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {reservas.map((reserva) => {
-                    const noches = calcularNoches(reserva.check_in, reserva.check_out)
+                    const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const total = noches * (reserva.precio_noche || 0)
                     const saldo = total - (reserva.sena || 0)
+                    const moneda = reserva.moneda || 'ARS'
                     return (
                       <tr key={reserva.id} className="hover:bg-gray-50">
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -323,8 +686,8 @@ export default function ReservasPage() {
                           <div className="flex items-center gap-2">
                             <Calendar size={16} className="text-gray-400" />
                             <div>
-                              <span className="text-gray-700">{formatFecha(reserva.check_in)} → {formatFecha(reserva.check_out)}</span>
-                              <p className="text-xs text-gray-500">{noches} noches · {formatMonto(reserva.precio_noche || 0)}/noche</p>
+                              <span className="text-gray-700">{formatFecha(reserva.fecha_inicio)} → {formatFecha(reserva.fecha_fin)}</span>
+                              <p className="text-xs text-gray-500">{noches} noches · {formatMonto(reserva.precio_noche || 0, moneda)}/noche</p>
                             </div>
                           </div>
                         </td>
@@ -332,14 +695,14 @@ export default function ReservasPage() {
                           {reserva.cantidad_personas || 1}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-gray-900">
-                          {formatMonto(total)}
+                          {formatMonto(total, moneda)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-green-600">
-                          {formatMonto(reserva.sena || 0)}
+                          {formatMonto(reserva.sena || 0, moneda)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <span className={saldo > 0 ? 'font-semibold text-amber-600' : 'text-green-600'}>
-                            {formatMonto(saldo)}
+                            {formatMonto(saldo, moneda)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
@@ -349,6 +712,11 @@ export default function ReservasPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
                           <div className="flex justify-end gap-1">
+                            {reserva.estado === 'confirmada' && (
+                              <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Generar Recibo PDF">
+                                <FileText size={16} className="text-blue-600" />
+                              </Button>
+                            )}
                             <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={16} /></Button>
                             <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={16} className="text-red-500" /></Button>
                           </div>
@@ -378,15 +746,17 @@ export default function ReservasPage() {
             <Select
               label="Titular de la reserva"
               value={form.inquilino_id}
-              onChange={(e) => setForm({ ...form, inquilino_id: e.target.value })}
+              onChange={(e) => handleInquilinoChange(e.target.value)}
               options={inquilinos.map(i => ({ value: i.id.toString(), label: i.nombre }))}
             />
           </div>
 
-          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Fechas y tarifas</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Fechas y horarios</p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Input label="Check-in" type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value, check_out: form.check_out && form.check_out < e.target.value ? e.target.value : form.check_out })} required />
+            <Input label="Hora ingreso" type="time" value={form.horario_ingreso} onChange={(e) => setForm({ ...form, horario_ingreso: e.target.value })} />
             <Input label="Check-out" type="date" value={form.check_out} min={form.check_in || undefined} onChange={(e) => setForm({ ...form, check_out: e.target.value })} required />
+            <Input label="Hora salida" type="time" value={form.horario_salida} onChange={(e) => setForm({ ...form, horario_salida: e.target.value })} />
             <div className="flex items-end">
               <div className="w-full px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-center">
                 <span className="text-2xl font-bold text-blue-600">{formNoches}</span>
@@ -394,90 +764,210 @@ export default function ReservasPage() {
               </div>
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Input label="Precio por noche" type="number" min="0" value={form.precio_noche} onChange={(e) => setForm({ ...form, precio_noche: Number(e.target.value) })} />
-            <Input label="Seña" type="number" min="0" value={form.sena} onChange={(e) => setForm({ ...form, sena: Number(e.target.value) })} />
+
+          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Tarifas y pagos</p>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <Select label="Moneda" value={form.moneda} onChange={(e) => setForm({ ...form, moneda: e.target.value })} options={monedas} />
+            <Input label="Precio por noche" type="number" min="0" value={form.precio_noche || ''} onChange={(e) => setForm({ ...form, precio_noche: Number(e.target.value) })} />
+            <Input label="Depósito" type="number" min="0" value={form.deposito || ''} onChange={(e) => setForm({ ...form, deposito: Number(e.target.value) })} />
+            <Input label="Seña" type="number" min="0" value={form.sena || ''} onChange={(e) => setForm({ ...form, sena: Number(e.target.value) })} />
             <Select label="Forma de pago" value={form.forma_pago} onChange={(e) => setForm({ ...form, forma_pago: e.target.value })} options={formasPago} />
           </div>
 
           {/* Resumen calculado */}
           {form.check_in && form.check_out && form.precio_noche > 0 && (
-            <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-3 gap-4 text-center">
+            <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-4 gap-4 text-center">
               <div>
                 <p className="text-sm text-gray-500">Noches</p>
                 <p className="text-xl font-bold text-gray-900">{formNoches}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500">Total</p>
-                <p className="text-xl font-bold text-gray-900">{formatMonto(formTotal)}</p>
+                <p className="text-sm text-gray-500">Total alquiler</p>
+                <p className="text-xl font-bold text-gray-900">{formatMonto(formTotal, form.moneda)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Depósito</p>
+                <p className="text-xl font-bold text-blue-600">{formatMonto(Number(form.deposito), form.moneda)}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Saldo pendiente</p>
-                <p className={`text-xl font-bold ${formSaldo > 0 ? 'text-amber-600' : 'text-green-600'}`}>{formatMonto(formSaldo)}</p>
+                <p className={`text-xl font-bold ${formSaldo > 0 ? 'text-amber-600' : 'text-green-600'}`}>{formatMonto(formSaldo, form.moneda)}</p>
               </div>
             </div>
           )}
 
-          {/* Acompañantes */}
-          <div className="pt-2">
-            <div className="flex items-center justify-between border-b pb-2">
-              <p className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          {/* Acompañantes - Colapsable */}
+          <div className="border rounded-lg">
+            <button
+              type="button"
+              onClick={() => setAcompanantesExpanded(!acompanantesExpanded)}
+              className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg"
+            >
+              <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Users size={16} />
                 Acompañantes ({acompanantes.length})
-              </p>
-              <Button type="button" variant="secondary" size="sm" onClick={addAcompanante}>
-                <Plus size={14} />
-                Agregar
-              </Button>
-            </div>
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">
+                  Total: {1 + acompanantes.length} personas
+                </span>
+                {acompanantesExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+              </div>
+            </button>
 
-            {acompanantes.length > 0 && (
-              <div className="space-y-3 mt-3">
-                {acompanantes.map((acomp, idx) => (
-                  <div key={idx} className="flex gap-2 items-start p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2">
-                      <Input
-                        label="Nombre"
-                        value={acomp.nombre}
-                        onChange={(e) => updateAcompanante(idx, 'nombre', e.target.value)}
-                        placeholder="Nombre"
-                      />
-                      <Input
-                        label="Apellido"
-                        value={acomp.apellido}
-                        onChange={(e) => updateAcompanante(idx, 'apellido', e.target.value)}
-                        placeholder="Apellido"
-                      />
-                      <Input
-                        label="DNI/Pasaporte"
-                        value={acomp.documento}
-                        onChange={(e) => updateAcompanante(idx, 'documento', e.target.value)}
-                        placeholder="Documento"
-                      />
-                      <Input
-                        label="Edad"
-                        type="number"
-                        min="0"
-                        value={acomp.edad}
-                        onChange={(e) => updateAcompanante(idx, 'edad', e.target.value)}
-                        placeholder="Edad"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeAcompanante(idx)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded mt-6"
-                    >
-                      <X size={18} />
-                    </button>
+            {acompanantesExpanded && (
+              <div className="p-3 pt-0 border-t space-y-3">
+                {/* Lista de acompañantes registrados */}
+                {acompanantes.length > 0 && (
+                  <div className="space-y-2">
+                    {acompanantes.map((acomp, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <Check size={16} className="text-green-600" />
+                          <div>
+                            <p className="font-medium text-gray-900">{acomp.nombre} {acomp.apellido}</p>
+                            <p className="text-xs text-gray-500">
+                              {acomp.documento && `DNI: ${acomp.documento}`}
+                              {acomp.documento && acomp.edad && ' · '}
+                              {acomp.edad && `${acomp.edad} años`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <button
+                            type="button"
+                            onClick={() => editarAcompanante(idx)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => removeAcompanante(idx)}
+                            className="p-2 text-red-500 hover:bg-red-50 rounded"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
+
+                {/* Formulario para agregar/editar */}
+                <div className={`p-3 rounded-lg ${editingAcompIdx !== null ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
+                  <p className="text-xs font-medium text-gray-500 mb-2">
+                    {editingAcompIdx !== null ? 'Editando acompañante' : 'Agregar acompañante'}
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    <Input
+                      label="Nombre"
+                      value={nuevoAcompanante.nombre}
+                      onChange={(e) => setNuevoAcompanante({ ...nuevoAcompanante, nombre: e.target.value })}
+                      placeholder="Nombre"
+                    />
+                    <Input
+                      label="Apellido"
+                      value={nuevoAcompanante.apellido}
+                      onChange={(e) => setNuevoAcompanante({ ...nuevoAcompanante, apellido: e.target.value })}
+                      placeholder="Apellido"
+                    />
+                    <Input
+                      label="DNI/Pasaporte"
+                      value={nuevoAcompanante.documento}
+                      onChange={(e) => setNuevoAcompanante({ ...nuevoAcompanante, documento: e.target.value })}
+                      placeholder="Documento"
+                    />
+                    <Input
+                      label="Edad"
+                      type="number"
+                      min="0"
+                      value={nuevoAcompanante.edad}
+                      onChange={(e) => setNuevoAcompanante({ ...nuevoAcompanante, edad: e.target.value })}
+                      placeholder="Edad"
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2 mt-2">
+                    {editingAcompIdx !== null && (
+                      <Button type="button" variant="secondary" size="sm" onClick={cancelarEdicion}>
+                        Cancelar
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={confirmarAcompanante}
+                      disabled={!nuevoAcompanante.nombre.trim() && !nuevoAcompanante.apellido.trim()}
+                    >
+                      <Check size={14} />
+                      {editingAcompIdx !== null ? 'Actualizar' : 'Agregar'}
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
+          </div>
 
-            <p className="text-xs text-gray-500 mt-2">
-              Total personas: {1 + acompanantes.filter(a => a.nombre.trim() || a.apellido.trim()).length} (titular + {acompanantes.filter(a => a.nombre.trim() || a.apellido.trim()).length} acompañante{acompanantes.filter(a => a.nombre.trim() || a.apellido.trim()).length !== 1 ? 's' : ''})
+          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Servicios adicionales</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+              <input
+                type="checkbox"
+                id="ropa_blanca"
+                checked={form.ropa_blanca}
+                onChange={(e) => setForm({ ...form, ropa_blanca: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="ropa_blanca" className="text-sm text-gray-700">Ropa blanca</label>
+            </div>
+            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+              <input
+                type="checkbox"
+                id="lavadero"
+                checked={form.lavadero}
+                onChange={(e) => setForm({ ...form, lavadero: e.target.checked })}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="lavadero" className="text-sm text-gray-700">Lavadero</label>
+            </div>
+            <Input label="Limpieza final" type="number" min="0" value={form.limpieza_final || ''} onChange={(e) => setForm({ ...form, limpieza_final: Number(e.target.value) })} />
+          </div>
+
+          {/* Control de electricidad */}
+          <div className="border rounded-lg p-4 bg-yellow-50/50">
+            <p className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-3">
+              <Zap size={16} className="text-yellow-600" />
+              Control de Luz (110 kW cada 7 días, proporcional)
             </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Input label="KW Inicial" type="number" min="0" value={form.kw_inicial || ''} onChange={(e) => setForm({ ...form, kw_inicial: Number(e.target.value) })} />
+              <Input label="KW Final" type="number" min="0" value={form.kw_final || ''} onChange={(e) => setForm({ ...form, kw_final: Number(e.target.value) })} />
+              <Input label="Costo por KW" type="number" min="0" step="0.01" value={form.costo_kw || ''} onChange={(e) => setForm({ ...form, costo_kw: Number(e.target.value) })} />
+              <div className="flex items-end">
+                {form.kw_final > 0 && form.kw_inicial >= 0 && formNoches > 0 && (
+                  <div className="w-full px-3 py-2 rounded-lg bg-white border text-center">
+                    {(() => {
+                      const consumido = form.kw_final - form.kw_inicial
+                      const kwPorDia = 110 / 7
+                      const incluido = Math.round(formNoches * kwPorDia)
+                      const excedente = Math.max(0, consumido - incluido)
+                      const aPagar = excedente * (form.costo_kw || 0)
+                      return (
+                        <div>
+                          <p className="text-xs text-gray-500">Consumo: {consumido} kW</p>
+                          <p className="text-xs text-gray-500">Incluido ({formNoches} días): {incluido} kW</p>
+                          {excedente > 0 ? (
+                            <p className="text-sm font-bold text-red-600">Excedente: {excedente} kW = {formatMonto(aPagar, 'ARS')}</p>
+                          ) : (
+                            <p className="text-sm font-bold text-green-600">Sin excedente</p>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
           <Select label="Estado" value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} options={estadosReserva} />
