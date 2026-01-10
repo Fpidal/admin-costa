@@ -274,18 +274,18 @@ export default function Dashboard() {
                   <div
                     key={i}
                     className={`flex items-start gap-3 p-3 rounded-lg ${
-                      alerta.tipo === 'danger' ? 'bg-red-50' : 'bg-amber-50'
+                      alerta.tipo === 'danger' ? 'bg-costa-coral/10' : 'bg-costa-beige'
                     }`}
                   >
                     <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                      alerta.tipo === 'danger' ? 'text-red-500' : 'text-amber-500'
+                      alerta.tipo === 'danger' ? 'text-costa-coral' : 'text-costa-gris'
                     }`} />
                     <div>
                       <p className={`font-medium ${
-                        alerta.tipo === 'danger' ? 'text-red-800' : 'text-amber-800'
+                        alerta.tipo === 'danger' ? 'text-costa-coral' : 'text-costa-navy'
                       }`}>{alerta.titulo}</p>
                       <p className={`text-sm ${
-                        alerta.tipo === 'danger' ? 'text-red-700' : 'text-amber-700'
+                        alerta.tipo === 'danger' ? 'text-costa-coral' : 'text-costa-gris'
                       }`}>{alerta.mensaje}</p>
                     </div>
                   </div>

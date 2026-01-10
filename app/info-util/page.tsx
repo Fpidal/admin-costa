@@ -22,7 +22,7 @@ const categoriasContacto = [
 ]
 
 const categoriaConfig = {
-  emergencias: { icon: Shield, color: 'text-red-600', bg: 'bg-red-100' },
+  emergencias: { icon: Shield, color: 'text-costa-coral', bg: 'bg-costa-coral/20' },
   servicios: { icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-100' },
   mantenimiento: { icon: Wrench, color: 'text-blue-600', bg: 'bg-blue-100' },
 } as const
@@ -174,7 +174,7 @@ export default function InfoUtilPage() {
                             </a>
                           )}
                           <Button variant="ghost" size="sm" onClick={() => openModal(contacto)}><Pencil size={14} /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(contacto.id)}><Trash2 size={14} className="text-red-500" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(contacto.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
                         </div>
                       </div>
                     ))}

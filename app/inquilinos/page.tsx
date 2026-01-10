@@ -367,7 +367,7 @@ export default function InquilinosPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="sm" onClick={() => openModal(inquilino)}><Pencil size={16} /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(inquilino.id)}><Trash2 size={16} className="text-red-500" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(inquilino.id)}><Trash2 size={16} className="text-costa-gris" /></Button>
                         </div>
                       </td>
                     </tr>
@@ -454,7 +454,7 @@ export default function InquilinosPage() {
                           <button
                             type="button"
                             onClick={() => removeAcompanante(idx)}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded"
+                            className="p-2 text-costa-gris hover:bg-costa-beige rounded"
                           >
                             <Trash2 size={14} />
                           </button>

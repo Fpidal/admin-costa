@@ -8,8 +8,8 @@ export function Badge({ children, variant = 'default', className = '' }: BadgePr
   const variants = {
     default: 'bg-costa-beige text-costa-navy',
     success: 'bg-costa-olivo/20 text-costa-olivo',
-    warning: 'bg-amber-100 text-amber-700',
-    danger: 'bg-red-100 text-red-700',
+    warning: 'bg-costa-coral/20 text-costa-coral',
+    danger: 'bg-costa-coral/20 text-costa-coral',
     info: 'bg-costa-navy/10 text-costa-navy',
   }
 

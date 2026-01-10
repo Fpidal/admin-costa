@@ -172,12 +172,12 @@ export default function GastosPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <Card>
           <CardContent className="py-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-red-100">
-              <TrendingDown className="w-6 h-6 text-red-600" />
+            <div className="p-3 rounded-lg bg-costa-coral/20">
+              <TrendingDown className="w-6 h-6 text-costa-coral" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Total pendiente</p>
-              <p className="text-2xl font-bold text-red-600">{formatMonto(totalPendiente)}</p>
+              <p className="text-2xl font-bold text-costa-coral">{formatMonto(totalPendiente)}</p>
             </div>
           </CardContent>
         </Card>
@@ -236,7 +236,7 @@ export default function GastosPage() {
                             <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>Pagar</Button>
                           )}
                           <Button variant="ghost" size="sm" onClick={() => openModal(gasto)}><Pencil size={16} /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(gasto.id)}><Trash2 size={16} className="text-red-500" /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(gasto.id)}><Trash2 size={16} className="text-costa-gris" /></Button>
                         </div>
                       </td>
                     </tr>

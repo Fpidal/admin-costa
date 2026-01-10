@@ -341,7 +341,7 @@ export default function PropiedadesPage() {
                         <Pencil size={16} />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDelete(propiedad.id)}>
-                        <Trash2 size={16} className="text-red-500" />
+                        <Trash2 size={16} className="text-costa-gris" />
                       </Button>
                     </div>
                   </div>
@@ -444,7 +444,7 @@ export default function PropiedadesPage() {
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                      className="absolute top-1 right-1 p-1 bg-costa-gris text-white rounded-full hover:bg-costa-navy"
                     >
                       <X size={14} />
                     </button>

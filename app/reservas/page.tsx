@@ -720,7 +720,7 @@ export default function ReservasPage() {
                               </Button>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={16} /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={16} className="text-red-500" /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={16} className="text-costa-gris" /></Button>
                           </div>
                         </td>
                       </tr>
@@ -846,7 +846,7 @@ export default function ReservasPage() {
                           <button
                             type="button"
                             onClick={() => removeAcompanante(idx)}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded"
+                            className="p-2 text-costa-gris hover:bg-costa-beige rounded"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -959,7 +959,7 @@ export default function ReservasPage() {
                           <p className="text-xs text-gray-500">Consumo: {consumido} kW</p>
                           <p className="text-xs text-gray-500">Incluido ({formNoches} días): {incluido} kW</p>
                           {excedente > 0 ? (
-                            <p className="text-sm font-bold text-red-600">Excedente: {excedente} kW = {formatMonto(aPagar, 'ARS')}</p>
+                            <p className="text-sm font-bold text-costa-coral">Excedente: {excedente} kW = {formatMonto(aPagar, 'ARS')}</p>
                           ) : (
                             <p className="text-sm font-bold text-costa-olivo">Sin excedente</p>
                           )}
