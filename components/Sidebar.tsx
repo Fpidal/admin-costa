@@ -48,14 +48,14 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-40
-        w-64 bg-white border-r border-gray-200
+        w-64 bg-sky-100 border-r border-sky-200
         transform transition-transform duration-200 ease-in-out
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-16 flex items-center px-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-gray-900">Admin Costa</h1>
+          <div className="h-16 flex items-center px-6 border-b border-sky-200">
+            <h1 className="text-xl font-bold text-blue-900">Admin Costa</h1>
           </div>
 
           {/* Navigation */}
@@ -71,12 +71,12 @@ export default function Sidebar() {
                     flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                     transition-colors duration-150
                     ${isActive
-                      ? 'bg-blue-50 text-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-blue-800 text-white'
+                      : 'text-blue-900 hover:bg-sky-200'
                     }
                   `}
                 >
-                  <item.icon size={20} className={isActive ? 'text-blue-700' : 'text-gray-500'} />
+                  <item.icon size={20} className={isActive ? 'text-white' : 'text-blue-800'} />
                   {item.name}
                 </Link>
               )
@@ -84,8 +84,8 @@ export default function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-gray-200">
-            <p className="text-xs text-gray-500 text-center">
+          <div className="p-4 border-t border-sky-200">
+            <p className="text-xs text-blue-800 text-center">
               Admin Costa v1.0
             </p>
           </div>
