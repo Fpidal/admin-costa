@@ -644,7 +644,7 @@ export default function ReservasPage() {
           {reservas.length === 0 ? (
             <div className="py-12 text-center text-gray-500">No hay reservas registradas</div>
           ) : (
-            <div className="overflow-x-auto">
+            <div>
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>

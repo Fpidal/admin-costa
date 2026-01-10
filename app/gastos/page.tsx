@@ -290,7 +290,7 @@ export default function AdministracionPage() {
             {gastos.length === 0 ? (
               <div className="py-8 text-center text-costa-gris">No hay gastos registrados</div>
             ) : (
-              <div className="overflow-x-auto">
+              <div>
                 <table className="w-full text-sm">
                   <thead className="bg-costa-beige/50 border-b border-costa-beige">
                     <tr>
