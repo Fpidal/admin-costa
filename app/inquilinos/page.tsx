@@ -103,12 +103,31 @@ export default function InquilinosPage() {
   }, [])
 
   async function fetchData() {
-    const { data, error } = await supabase
+    // Primero traemos los inquilinos
+    const { data: inquilinosData, error: inquilinosError } = await supabase
       .from('inquilinos')
-      .select('*, reservas(id, check_in, check_out, monto, precio_noche, estado, propiedades(nombre))')
+      .select('*')
       .order('nombre')
 
-    if (!error && data) setInquilinos(data)
+    if (inquilinosError) {
+      console.error('Error fetching inquilinos:', inquilinosError)
+      alert('Error al cargar huéspedes: ' + inquilinosError.message)
+      setLoading(false)
+      return
+    }
+
+    // Luego traemos las reservas por separado
+    const { data: reservasData } = await supabase
+      .from('reservas')
+      .select('id, inquilino_id, check_in, check_out, monto, precio_noche, estado, propiedad_id, propiedades(nombre)')
+
+    // Combinamos los datos
+    const inquilinosConReservas = (inquilinosData || []).map(inquilino => ({
+      ...inquilino,
+      reservas: (reservasData || []).filter(r => r.inquilino_id === inquilino.id)
+    }))
+
+    setInquilinos(inquilinosConReservas)
     setLoading(false)
   }
 
