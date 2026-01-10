@@ -173,7 +173,15 @@ export default function Dashboard() {
   }
 
   return (
-    <div>
+    <div className="relative min-h-screen">
+      {/* Fondo de pantalla */}
+      <div
+        className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: 'url(https://dpghrdgippisgzvlahwi.supabase.co/storage/v1/object/public/Imagenes/foto%20playa%20costa.JPG)' }}
+      >
+        <div className="absolute inset-0 bg-white/85" />
+      </div>
+
       <PageHeader
         title="Dashboard"
         description="Resumen general de tu gestión de propiedades"
