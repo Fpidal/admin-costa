@@ -19,7 +19,7 @@ const navigation = [
   { name: 'Reservas', href: '/reservas', icon: CalendarDays },
   { name: 'Inquilinos', href: '/inquilinos', icon: Users },
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Gastos', href: '/gastos', icon: Receipt },
+  { name: 'Administración', href: '/gastos', icon: Receipt },
   { name: 'Info útil', href: '/info-util', icon: Info },
 ]
 
