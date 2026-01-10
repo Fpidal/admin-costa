@@ -391,7 +391,7 @@ export default function PropiedadesPage() {
             const disponible = estaDisponible(propiedad.id)
 
             return (
-            <Card key={propiedad.id} className={`hover:shadow-md transition-shadow ${fechaBusqueda.inicio && fechaBusqueda.fin && !disponible ? 'opacity-50' : ''}`}>
+            <Card key={propiedad.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-0">
                 {/* Imagen con carrusel */}
                 <div className="h-40 bg-gradient-to-br from-costa-beige to-costa-beige-light rounded-t-xl flex items-center justify-center overflow-hidden relative group">
@@ -443,14 +443,8 @@ export default function PropiedadesPage() {
 
                   {/* Badge de estado de reserva */}
                   {reservaActual ? (
-                    <div className="absolute top-2 left-2 px-2 py-1 bg-costa-coral text-white text-xs rounded-full flex items-center gap-1">
-                      <Calendar size={10} />
-                      <span>Reservada hasta {formatFechaCorta(reservaActual.fecha_fin)}</span>
-                    </div>
-                  ) : proximaReserva ? (
-                    <div className="absolute top-2 left-2 px-2 py-1 bg-costa-navy/80 text-white text-xs rounded-full flex items-center gap-1">
-                      <Calendar size={10} />
-                      <span>Próx: {formatFechaCorta(proximaReserva.fecha_inicio)}</span>
+                    <div className="absolute top-2 left-2 px-2 py-1 bg-costa-coral text-white text-xs rounded-full">
+                      Reservada
                     </div>
                   ) : (
                     <div className="absolute top-2 left-2 px-2 py-1 bg-costa-olivo/80 text-white text-xs rounded-full">
