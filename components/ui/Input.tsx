@@ -7,17 +7,17 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export function Input({ label, error, className = '', ...props }: InputProps) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
       {label && (
-        <label className="block text-sm font-medium text-costa-navy">
+        <label className="block text-xs font-medium text-costa-navy">
           {label}
         </label>
       )}
       <input
         className={`
-          w-full px-3 py-2.5 rounded-xl border border-costa-gris/30
+          w-full px-2.5 py-1.5 rounded-lg border border-costa-gris/30 text-sm
           text-costa-navy placeholder-costa-gris bg-costa-white
-          focus:outline-none focus:ring-2 focus:ring-costa-navy focus:border-transparent
+          focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-transparent
           disabled:bg-costa-beige disabled:text-costa-gris
           ${error ? 'border-costa-coral focus:ring-costa-coral' : ''}
           ${className}
@@ -25,7 +25,7 @@ export function Input({ label, error, className = '', ...props }: InputProps) {
         {...props}
       />
       {error && (
-        <p className="text-sm text-costa-coral">{error}</p>
+        <p className="text-xs text-costa-coral">{error}</p>
       )}
     </div>
   )
