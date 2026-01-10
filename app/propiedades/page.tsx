@@ -13,12 +13,28 @@ interface Propiedad {
   tipo: string
   habitaciones: number
   banos: number
+  camas: number
   cochera: boolean
   precio_alquiler: number
   estado: string
   descripcion: string
   imagen_url: string | null
   imagenes: string[]
+  // Amenities
+  pileta: boolean
+  pileta_climatizada: boolean
+  parrilla: boolean
+  grupo_electrogeno: boolean
+  toilette: boolean
+  lavadero: boolean
+  lavavajillas: boolean
+  aire_acondicionado: boolean
+  calefaccion: boolean
+  fogonero: boolean
+  // Metros
+  metros_cubiertos: number
+  metros_semicubiertos: number
+  metros_lote: number
 }
 
 const tiposPropiedad = [
@@ -50,11 +66,27 @@ const initialForm = {
   tipo: '',
   habitaciones: 0,
   banos: 0,
+  camas: 0,
   cochera: false,
   precio_alquiler: 0,
   estado: 'disponible',
   descripcion: '',
   imagenes: [] as string[],
+  // Amenities
+  pileta: false,
+  pileta_climatizada: false,
+  parrilla: false,
+  grupo_electrogeno: false,
+  toilette: false,
+  lavadero: false,
+  lavavajillas: false,
+  aire_acondicionado: false,
+  calefaccion: false,
+  fogonero: false,
+  // Metros
+  metros_cubiertos: 0,
+  metros_semicubiertos: 0,
+  metros_lote: 0,
 }
 
 export default function PropiedadesPage() {
@@ -92,11 +124,25 @@ export default function PropiedadesPage() {
         tipo: propiedad.tipo || '',
         habitaciones: propiedad.habitaciones || 0,
         banos: propiedad.banos || 0,
+        camas: propiedad.camas || 0,
         cochera: propiedad.cochera || false,
         precio_alquiler: propiedad.precio_alquiler || 0,
         estado: propiedad.estado || 'disponible',
         descripcion: propiedad.descripcion || '',
         imagenes: propiedad.imagenes || (propiedad.imagen_url ? [propiedad.imagen_url] : []),
+        pileta: propiedad.pileta || false,
+        pileta_climatizada: propiedad.pileta_climatizada || false,
+        parrilla: propiedad.parrilla || false,
+        grupo_electrogeno: propiedad.grupo_electrogeno || false,
+        toilette: propiedad.toilette || false,
+        lavadero: propiedad.lavadero || false,
+        lavavajillas: propiedad.lavavajillas || false,
+        aire_acondicionado: propiedad.aire_acondicionado || false,
+        calefaccion: propiedad.calefaccion || false,
+        fogonero: propiedad.fogonero || false,
+        metros_cubiertos: propiedad.metros_cubiertos || 0,
+        metros_semicubiertos: propiedad.metros_semicubiertos || 0,
+        metros_lote: propiedad.metros_lote || 0,
       })
     } else {
       setEditingId(null)
@@ -164,12 +210,26 @@ export default function PropiedadesPage() {
       tipo: form.tipo,
       habitaciones: Number(form.habitaciones),
       banos: Number(form.banos),
+      camas: Number(form.camas),
       cochera: form.cochera,
       precio_alquiler: Number(form.precio_alquiler),
       estado: form.estado,
       descripcion: form.descripcion,
       imagenes: form.imagenes,
       imagen_url: form.imagenes[0] || null,
+      pileta: form.pileta,
+      pileta_climatizada: form.pileta_climatizada,
+      parrilla: form.parrilla,
+      grupo_electrogeno: form.grupo_electrogeno,
+      toilette: form.toilette,
+      lavadero: form.lavadero,
+      lavavajillas: form.lavavajillas,
+      aire_acondicionado: form.aire_acondicionado,
+      calefaccion: form.calefaccion,
+      fogonero: form.fogonero,
+      metros_cubiertos: Number(form.metros_cubiertos),
+      metros_semicubiertos: Number(form.metros_semicubiertos),
+      metros_lote: Number(form.metros_lote),
     }
 
     if (editingId) {
@@ -357,9 +417,9 @@ export default function PropiedadesPage() {
         isOpen={modalOpen}
         onClose={closeModal}
         title={editingId ? 'Editar Propiedad' : 'Nueva Propiedad'}
-        size="lg"
+        size="xl"
       >
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Nombre"
@@ -381,7 +441,7 @@ export default function PropiedadesPage() {
             onChange={(e) => setForm({ ...form, direccion: e.target.value })}
           />
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             <Input
               label="Habitaciones"
               type="number"
@@ -395,6 +455,13 @@ export default function PropiedadesPage() {
               min="0"
               value={form.banos}
               onChange={(e) => setForm({ ...form, banos: Number(e.target.value) })}
+            />
+            <Input
+              label="Camas"
+              type="number"
+              min="0"
+              value={form.camas}
+              onChange={(e) => setForm({ ...form, camas: Number(e.target.value) })}
             />
             <Input
               label="Precio/mes"
@@ -411,15 +478,59 @@ export default function PropiedadesPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="cochera"
-              checked={form.cochera}
-              onChange={(e) => setForm({ ...form, cochera: e.target.checked })}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+          {/* Metros */}
+          <div className="grid grid-cols-3 gap-3">
+            <Input
+              label="M² cubiertos"
+              type="number"
+              min="0"
+              value={form.metros_cubiertos}
+              onChange={(e) => setForm({ ...form, metros_cubiertos: Number(e.target.value) })}
             />
-            <label htmlFor="cochera" className="text-sm text-gray-700">Tiene cochera</label>
+            <Input
+              label="M² semicubiertos"
+              type="number"
+              min="0"
+              value={form.metros_semicubiertos}
+              onChange={(e) => setForm({ ...form, metros_semicubiertos: Number(e.target.value) })}
+            />
+            <Input
+              label="M² lote"
+              type="number"
+              min="0"
+              value={form.metros_lote}
+              onChange={(e) => setForm({ ...form, metros_lote: Number(e.target.value) })}
+            />
+          </div>
+
+          {/* Amenities */}
+          <div className="border border-costa-beige rounded-lg p-3">
+            <p className="text-xs font-medium text-costa-navy mb-2">Amenities</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {[
+                { id: 'cochera', label: 'Cochera', key: 'cochera' },
+                { id: 'pileta', label: 'Pileta', key: 'pileta' },
+                { id: 'pileta_climatizada', label: 'Pileta climatizada', key: 'pileta_climatizada' },
+                { id: 'parrilla', label: 'Parrilla', key: 'parrilla' },
+                { id: 'fogonero', label: 'Fogonero', key: 'fogonero' },
+                { id: 'grupo_electrogeno', label: 'Grupo electrógeno', key: 'grupo_electrogeno' },
+                { id: 'toilette', label: 'Toilette', key: 'toilette' },
+                { id: 'lavadero', label: 'Lavadero', key: 'lavadero' },
+                { id: 'lavavajillas', label: 'Lavavajillas', key: 'lavavajillas' },
+                { id: 'aire_acondicionado', label: 'Aire acondicionado', key: 'aire_acondicionado' },
+                { id: 'calefaccion', label: 'Calefacción', key: 'calefaccion' },
+              ].map((amenity) => (
+                <label key={amenity.id} className="flex items-center gap-1.5 text-xs text-costa-navy cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={form[amenity.key as keyof typeof form] as boolean}
+                    onChange={(e) => setForm({ ...form, [amenity.key]: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded border-costa-gris text-costa-navy focus:ring-costa-navy"
+                  />
+                  {amenity.label}
+                </label>
+              ))}
+            </div>
           </div>
 
           <Textarea
