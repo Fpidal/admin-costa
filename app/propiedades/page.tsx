@@ -444,15 +444,8 @@ export default function PropiedadesPage() {
                 </div>
 
                 <div className="p-4">
-                  <h3 className="text-lg font-bold text-costa-navy mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>{propiedad.nombre}</h3>
-
-                  <div className="flex items-center justify-between mb-3">
-                    {propiedad.direccion && (
-                      <div className="flex items-center gap-1 text-sm text-gray-500">
-                        <MapPin size={14} />
-                        <span className="truncate">{propiedad.direccion}</span>
-                      </div>
-                    )}
+                  <div className="flex items-start justify-between mb-2">
+                    <h3 className="text-lg font-bold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>{propiedad.nombre}</h3>
                     {reservaActual ? (
                       <span className="px-2 py-0.5 bg-costa-coral text-white text-xs rounded-full">
                         Reservada
@@ -463,6 +456,13 @@ export default function PropiedadesPage() {
                       </span>
                     )}
                   </div>
+
+                  {propiedad.direccion && (
+                    <div className="flex items-center gap-1 text-sm text-gray-500 mb-3">
+                      <MapPin size={14} />
+                      <span className="truncate">{propiedad.direccion}</span>
+                    </div>
+                  )}
 
                   {/* Info básica */}
                   <div className="flex flex-wrap items-center gap-3 text-sm text-costa-gris mb-2">
