@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search } from 'lucide-react'
+import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed } from 'lucide-react'
 
 interface Propiedad {
   id: number
@@ -31,6 +31,7 @@ interface Propiedad {
   aire_acondicionado: boolean
   calefaccion: boolean
   fogonero: boolean
+  wifi: boolean
   // Metros
   metros_cubiertos: number
   metros_semicubiertos: number
@@ -92,6 +93,7 @@ const initialForm = {
   aire_acondicionado: false,
   calefaccion: false,
   fogonero: false,
+  wifi: false,
   // Metros
   metros_cubiertos: 0,
   metros_semicubiertos: 0,
@@ -182,6 +184,7 @@ export default function PropiedadesPage() {
         aire_acondicionado: propiedad.aire_acondicionado || false,
         calefaccion: propiedad.calefaccion || false,
         fogonero: propiedad.fogonero || false,
+        wifi: propiedad.wifi || false,
         metros_cubiertos: propiedad.metros_cubiertos || 0,
         metros_semicubiertos: propiedad.metros_semicubiertos || 0,
         metros_lote: propiedad.metros_lote || 0,
@@ -542,6 +545,24 @@ export default function PropiedadesPage() {
                         <span>Generador</span>
                       </div>
                     )}
+                    {propiedad.wifi && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-costa-beige text-costa-gris text-xs" title="WiFi">
+                        <Wifi size={12} />
+                        <span>WiFi</span>
+                      </div>
+                    )}
+                    {propiedad.lavadero && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-costa-beige text-costa-gris text-xs" title="Lavadero">
+                        <WashingMachine size={12} />
+                        <span>Lavadero</span>
+                      </div>
+                    )}
+                    {propiedad.lavavajillas && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-costa-beige text-costa-gris text-xs" title="Lavavajillas">
+                        <UtensilsCrossed size={12} />
+                        <span>Lavavaj.</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-2 border-t border-costa-beige flex items-center justify-between">
@@ -691,6 +712,7 @@ export default function PropiedadesPage() {
                   { id: 'lavavajillas', label: 'Lavavajillas', key: 'lavavajillas' },
                   { id: 'aire_acondicionado', label: 'A/C', key: 'aire_acondicionado' },
                   { id: 'calefaccion', label: 'Calefacción', key: 'calefaccion' },
+                  { id: 'wifi', label: 'WiFi', key: 'wifi' },
                 ].map((amenity) => (
                   <label key={amenity.id} className="flex items-center gap-1 text-xs text-costa-navy cursor-pointer">
                     <input
