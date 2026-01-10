@@ -159,7 +159,7 @@ export default function Dashboard() {
 
   const stats = [
     { name: 'Propiedades', value: propiedadesCount.toString(), icon: Building2, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { name: 'Reservas activas', value: reservasCount.toString(), icon: CalendarDays, color: 'text-green-600', bg: 'bg-green-100' },
+    { name: 'Reservas activas', value: reservasCount.toString(), icon: CalendarDays, color: 'text-costa-olivo', bg: 'bg-costa-olivo/20' },
     { name: 'Inquilinos', value: inquilinosCount.toString(), icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' },
     { name: 'Ingresos del mes', value: formatMonto(ingresosMes), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100' },
   ]
@@ -217,7 +217,7 @@ export default function Dashboard() {
                     </div>
                     <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
                       reserva.estado === 'confirmada'
-                        ? 'bg-green-100 text-green-700'
+                        ? 'bg-costa-olivo/20 text-costa-olivo'
                         : 'bg-yellow-100 text-yellow-700'
                     }`}>
                       {reserva.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}

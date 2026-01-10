@@ -7,7 +7,7 @@ interface BadgeProps {
 export function Badge({ children, variant = 'default', className = '' }: BadgeProps) {
   const variants = {
     default: 'bg-costa-beige text-costa-navy',
-    success: 'bg-green-100 text-green-700',
+    success: 'bg-costa-olivo/20 text-costa-olivo',
     warning: 'bg-amber-100 text-amber-700',
     danger: 'bg-red-100 text-red-700',
     info: 'bg-costa-navy/10 text-costa-navy',

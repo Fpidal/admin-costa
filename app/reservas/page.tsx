@@ -626,7 +626,7 @@ export default function ReservasPage() {
         <Card>
           <CardContent className="py-4">
             <p className="text-sm text-gray-500">Ingresos confirmados</p>
-            <p className="text-2xl font-bold text-green-600">{formatMonto(totalConfirmadas)}</p>
+            <p className="text-2xl font-bold text-costa-olivo">{formatMonto(totalConfirmadas)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -699,11 +699,11 @@ export default function ReservasPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-gray-900">
                           {formatMonto(total, moneda)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-green-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-costa-olivo">
                           {formatMonto(reserva.sena || 0, moneda)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <span className={saldo > 0 ? 'font-semibold text-amber-600' : 'text-green-600'}>
+                          <span className={saldo > 0 ? 'font-semibold text-amber-600' : 'text-costa-olivo'}>
                             {formatMonto(saldo, moneda)}
                           </span>
                         </td>
@@ -793,7 +793,7 @@ export default function ReservasPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Saldo pendiente</p>
-                <p className={`text-xl font-bold ${formSaldo > 0 ? 'text-amber-600' : 'text-green-600'}`}>{formatMonto(formSaldo, form.moneda)}</p>
+                <p className={`text-xl font-bold ${formSaldo > 0 ? 'text-amber-600' : 'text-costa-olivo'}`}>{formatMonto(formSaldo, form.moneda)}</p>
               </div>
             </div>
           )}
@@ -823,9 +823,9 @@ export default function ReservasPage() {
                 {acompanantes.length > 0 && (
                   <div className="space-y-2">
                     {acompanantes.map((acomp, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div key={idx} className="flex items-center justify-between p-3 bg-costa-olivo/10 border border-costa-olivo/30 rounded-lg">
                         <div className="flex items-center gap-3">
-                          <Check size={16} className="text-green-600" />
+                          <Check size={16} className="text-costa-olivo" />
                           <div>
                             <p className="font-medium text-gray-900">{acomp.nombre} {acomp.apellido}</p>
                             <p className="text-xs text-gray-500">
@@ -961,7 +961,7 @@ export default function ReservasPage() {
                           {excedente > 0 ? (
                             <p className="text-sm font-bold text-red-600">Excedente: {excedente} kW = {formatMonto(aPagar, 'ARS')}</p>
                           ) : (
-                            <p className="text-sm font-bold text-green-600">Sin excedente</p>
+                            <p className="text-sm font-bold text-costa-olivo">Sin excedente</p>
                           )}
                         </div>
                       )

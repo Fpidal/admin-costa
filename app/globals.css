@@ -13,6 +13,8 @@
   --costa-coral-dark: #c9684a;
   --costa-white: #ffffff;
   --costa-gris: #6b7c93;
+  --costa-olivo: #5c6b4a;
+  --costa-olivo-light: #7a8c66;
 }
 
 @theme inline {
@@ -30,6 +32,8 @@
   --color-costa-coral-dark: var(--costa-coral-dark);
   --color-costa-white: var(--costa-white);
   --color-costa-gris: var(--costa-gris);
+  --color-costa-olivo: var(--costa-olivo);
+  --color-costa-olivo-light: var(--costa-olivo-light);
 }
 
 body {

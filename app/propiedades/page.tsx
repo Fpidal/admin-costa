@@ -299,7 +299,7 @@ export default function PropiedadesPage() {
 
                 <div className="p-4">
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="font-semibold text-gray-900">{propiedad.nombre}</h3>
+                    <h3 className="text-lg font-bold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>{propiedad.nombre}</h3>
                     <Badge variant={estadoVariant[propiedad.estado as keyof typeof estadoVariant] || 'default'}>
                       {propiedad.estado}
                     </Badge>
