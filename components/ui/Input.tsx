@@ -15,17 +15,17 @@ export function Input({ label, error, className = '', ...props }: InputProps) {
       )}
       <input
         className={`
-          w-full px-3 py-2.5 rounded-xl border border-costa-beige
+          w-full px-3 py-2.5 rounded-xl border border-costa-gris/30
           text-costa-navy placeholder-costa-gris bg-costa-white
-          focus:outline-none focus:ring-2 focus:ring-costa-coral focus:border-transparent
+          focus:outline-none focus:ring-2 focus:ring-costa-navy focus:border-transparent
           disabled:bg-costa-beige disabled:text-costa-gris
-          ${error ? 'border-red-500 focus:ring-red-500' : ''}
+          ${error ? 'border-costa-coral focus:ring-costa-coral' : ''}
           ${className}
         `}
         {...props}
       />
       {error && (
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-costa-coral">{error}</p>
       )}
     </div>
   )

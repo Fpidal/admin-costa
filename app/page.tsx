@@ -158,10 +158,10 @@ export default function Dashboard() {
   }, [])
 
   const stats = [
-    { name: 'Propiedades', value: propiedadesCount.toString(), icon: Building2, color: 'text-blue-600', bg: 'bg-blue-100' },
-    { name: 'Reservas activas', value: reservasCount.toString(), icon: CalendarDays, color: 'text-costa-olivo', bg: 'bg-costa-olivo/20' },
-    { name: 'Inquilinos', value: inquilinosCount.toString(), icon: Users, color: 'text-purple-600', bg: 'bg-purple-100' },
-    { name: 'Ingresos del mes', value: formatMonto(ingresosMes), icon: DollarSign, color: 'text-emerald-600', bg: 'bg-emerald-100' },
+    { name: 'Propiedades', value: propiedadesCount.toString(), icon: Building2, color: 'text-costa-navy', bg: 'bg-costa-beige' },
+    { name: 'Reservas activas', value: reservasCount.toString(), icon: CalendarDays, color: 'text-costa-olivo', bg: 'bg-costa-beige' },
+    { name: 'Inquilinos', value: inquilinosCount.toString(), icon: Users, color: 'text-costa-navy', bg: 'bg-costa-beige' },
+    { name: 'Ingresos del mes', value: formatMonto(ingresosMes), icon: DollarSign, color: 'text-costa-olivo', bg: 'bg-costa-beige' },
   ]
 
   if (loading) {
@@ -188,8 +188,8 @@ export default function Dashboard() {
                 <stat.icon className={`w-6 h-6 ${stat.color}`} />
               </div>
               <div>
-                <p className="text-sm text-gray-500">{stat.name}</p>
-                <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                <p className="text-sm text-costa-gris">{stat.name}</p>
+                <p className="text-2xl font-bold text-costa-navy">{stat.value}</p>
               </div>
             </CardContent>
           </Card>

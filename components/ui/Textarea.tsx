@@ -9,24 +9,24 @@ export function Textarea({ label, error, className = '', ...props }: TextareaPro
   return (
     <div className="space-y-1">
       {label && (
-        <label className="block text-sm font-medium text-gray-700">
+        <label className="block text-sm font-medium text-costa-navy">
           {label}
         </label>
       )}
       <textarea
         className={`
-          w-full px-3 py-2 rounded-lg border border-gray-300
-          text-gray-900 placeholder-gray-400
-          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent
-          disabled:bg-gray-50 disabled:text-gray-500
-          ${error ? 'border-red-500 focus:ring-red-500' : ''}
+          w-full px-3 py-2.5 rounded-xl border border-costa-gris/30
+          text-costa-navy placeholder-costa-gris bg-costa-white
+          focus:outline-none focus:ring-2 focus:ring-costa-navy focus:border-transparent
+          disabled:bg-costa-beige disabled:text-costa-gris
+          ${error ? 'border-costa-coral focus:ring-costa-coral' : ''}
           ${className}
         `}
         rows={3}
         {...props}
       />
       {error && (
-        <p className="text-sm text-red-600">{error}</p>
+        <p className="text-sm text-costa-coral">{error}</p>
       )}
     </div>
   )

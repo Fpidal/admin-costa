@@ -16,8 +16,8 @@ export function Button({
 
   const variants = {
     primary: 'bg-costa-coral text-white hover:bg-costa-coral-dark active:bg-costa-coral-dark shadow-md',
-    secondary: 'bg-costa-beige text-costa-navy hover:bg-costa-beige-light active:bg-costa-beige border border-costa-beige',
-    danger: 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800',
+    secondary: 'bg-costa-navy text-white hover:bg-costa-navy-light active:bg-costa-navy shadow-md',
+    danger: 'bg-costa-coral text-white hover:bg-costa-coral-dark active:bg-costa-coral-dark',
     ghost: 'text-costa-navy hover:bg-costa-beige active:bg-costa-beige-light',
   }
 

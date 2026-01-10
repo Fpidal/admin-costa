@@ -613,26 +613,26 @@ export default function ReservasPage() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="py-4">
-            <p className="text-sm text-gray-500">Total reservas</p>
-            <p className="text-2xl font-bold text-gray-900">{reservas.length}</p>
+            <p className="text-sm text-costa-gris">Total reservas</p>
+            <p className="text-2xl font-bold text-costa-navy">{reservas.length}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-4">
-            <p className="text-sm text-gray-500">Pendientes</p>
-            <p className="text-2xl font-bold text-amber-600">{pendientes}</p>
+            <p className="text-sm text-costa-gris">Pendientes</p>
+            <p className="text-2xl font-bold text-costa-coral">{pendientes}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-4">
-            <p className="text-sm text-gray-500">Ingresos confirmados</p>
+            <p className="text-sm text-costa-gris">Ingresos confirmados</p>
             <p className="text-2xl font-bold text-costa-olivo">{formatMonto(totalConfirmadas)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-4">
-            <p className="text-sm text-gray-500">Total señas</p>
-            <p className="text-2xl font-bold text-blue-600">{formatMonto(totalSenas)}</p>
+            <p className="text-sm text-costa-gris">Total señas</p>
+            <p className="text-2xl font-bold text-costa-navy">{formatMonto(totalSenas)}</p>
           </CardContent>
         </Card>
       </div>

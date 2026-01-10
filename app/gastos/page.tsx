@@ -172,23 +172,23 @@ export default function GastosPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <Card>
           <CardContent className="py-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-costa-coral/20">
+            <div className="p-3 rounded-lg bg-costa-beige">
               <TrendingDown className="w-6 h-6 text-costa-coral" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total pendiente</p>
+              <p className="text-sm text-costa-gris">Total pendiente</p>
               <p className="text-2xl font-bold text-costa-coral">{formatMonto(totalPendiente)}</p>
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-100">
-              <DollarSign className="w-6 h-6 text-blue-600" />
+            <div className="p-3 rounded-lg bg-costa-beige">
+              <DollarSign className="w-6 h-6 text-costa-navy" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total gastos</p>
-              <p className="text-2xl font-bold text-gray-900">{formatMonto(totalMes)}</p>
+              <p className="text-sm text-costa-gris">Total gastos</p>
+              <p className="text-2xl font-bold text-costa-navy">{formatMonto(totalMes)}</p>
             </div>
           </CardContent>
         </Card>
