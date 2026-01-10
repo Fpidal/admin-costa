@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 
 interface Propiedad {
@@ -18,6 +18,7 @@ interface Inquilino {
   documento: string
   telefono: string
   email: string
+  domicilio: string | null
   acompanantes: Acompanante[]
 }
 
@@ -41,6 +42,7 @@ interface Reserva {
   monto_usd: number
   moneda: string
   deposito: number
+  deposito_pesos: number
   sena: number
   forma_pago: string
   ropa_blanca: boolean
@@ -108,6 +110,7 @@ const initialForm = {
   moneda: 'ARS',
   precio_noche: 0,
   deposito: 0,
+  deposito_pesos: 0,
   sena: 0,
   forma_pago: 'efectivo',
   ropa_blanca: false,
@@ -167,6 +170,7 @@ export default function ReservasPage() {
         moneda: reserva.moneda || 'ARS',
         precio_noche: reserva.monto_usd || reserva.precio_noche || 0,
         deposito: reserva.deposito || 0,
+        deposito_pesos: reserva.deposito_pesos || 0,
         sena: reserva.sena || 0,
         forma_pago: reserva.forma_pago || 'efectivo',
         ropa_blanca: reserva.ropa_blanca || false,
@@ -271,6 +275,7 @@ export default function ReservasPage() {
       moneda: form.moneda,
       precio_noche: Number(form.precio_noche),
       deposito: Number(form.deposito),
+      deposito_pesos: Number(form.deposito_pesos),
       sena: Number(form.sena),
       forma_pago: form.forma_pago,
       ropa_blanca: form.ropa_blanca,
@@ -581,6 +586,159 @@ export default function ReservasPage() {
     doc.save(`Recibo_${numRecibo}_${reserva.inquilinos?.nombre?.replace(/\s/g, '_') || 'reserva'}.pdf`)
   }
 
+  function generarContratoPDF(reserva: Reserva) {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const margin = 20
+    const contentWidth = pageWidth - margin * 2
+
+    // Colores
+    const azulNavy = { r: 30, g: 58, b: 95 }
+
+    // Datos calculados
+    const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
+    const total = noches * (reserva.precio_noche || 0)
+    const saldo = total - (reserva.sena || 0)
+
+    // Datos del locador (configurables)
+    const locador = {
+      nombre: 'Francisco Pidal',
+      domicilio: 'Av. Libertador 1234, CABA'
+    }
+
+    // Datos del locatario
+    const locatario = {
+      nombre: reserva.inquilinos?.nombre || '-',
+      dni: reserva.inquilinos?.documento || '-',
+      domicilio: reserva.inquilinos?.domicilio || '-'
+    }
+
+    // Datos de la propiedad
+    const propiedad = reserva.propiedades?.nombre || 'Propiedad'
+    const barrioLote = reserva.propiedades?.nombre || 'Barrio y Lote'
+
+    // Formato de fechas
+    const formatFechaLarga = (fecha: string) => {
+      return new Date(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+    }
+
+    let y = 20
+
+    // Título
+    doc.setFillColor(azulNavy.r, azulNavy.g, azulNavy.b)
+    doc.rect(0, 0, pageWidth, 25, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(16)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CONTRATO DE LOCACIÓN TEMPORARIA', pageWidth / 2, 16, { align: 'center' })
+
+    y = 35
+
+    // Entre
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Entre:', margin, y)
+    y += 7
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.text(`Locador: ${locador.nombre}, ${locador.domicilio}`, margin, y)
+    y += 5
+    doc.text(`Locatario: ${locatario.nombre}, DNI ${locatario.dni}, ${locatario.domicilio}`, margin, y)
+    y += 10
+
+    // Función para agregar secciones
+    const addSection = (num: string, title: string, content: string) => {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(azulNavy.r, azulNavy.g, azulNavy.b)
+      doc.text(`${num}. ${title}`, margin, y)
+      y += 5
+
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(60, 60, 60)
+      doc.setFontSize(9)
+
+      const lines = doc.splitTextToSize(content, contentWidth)
+      doc.text(lines, margin, y)
+      y += lines.length * 4 + 5
+    }
+
+    // 1. Objeto
+    addSection('1', 'Objeto',
+      `${locador.nombre} da en alquiler temporario su casa ubicada en Costa Esmeralda, Km 380 Ruta 11, ${barrioLote}, Partido de la Costa, Buenos Aires. Se entrega amueblada y en buen estado, con todo su equipamiento. El locatario dispone de 24 hs desde el ingreso para informar cualquier desperfecto.`)
+
+    // 2. Destino
+    addSection('2', 'Destino',
+      `Uso exclusivo como vivienda temporaria de descanso, para un máximo de ${reserva.cantidad_personas || 1} personas. Se prohíbe subalquilar, sobre-ocupar, cambiar el destino o realizar fiestas/eventos. El locatario debe cumplir el Reglamento de Convivencia de Costa Esmeralda y solicitar autorización para ingresar animales.`)
+
+    // 3. Plazo
+    addSection('3', 'Plazo',
+      `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${reserva.horario_ingreso || '16:00'} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${reserva.horario_salida || '10:00'} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.`)
+
+    // 4. Precio y pago
+    const fechaLimiteSena = new Date(reserva.fecha_inicio)
+    fechaLimiteSena.setDate(fechaLimiteSena.getDate() - 15)
+
+    addSection('4', 'Precio y pago',
+      `Total: USD ${total.toLocaleString('es-AR')}. Reserva: USD ${(reserva.sena || 0).toLocaleString('es-AR')} antes del ${formatFechaLarga(fechaLimiteSena.toISOString())} (transferencia). Saldo: USD ${saldo.toLocaleString('es-AR')} al ingresar (efectivo). Incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza de piscina semanal, TV, Internet, vigilancia y electricidad hasta 120 kWh. ${reserva.ropa_blanca ? 'Incluye ropa blanca.' : 'No incluye ropa blanca.'} Falta de suministro de servicios no es responsabilidad del locador.`)
+
+    // 5. Depósito
+    const depositoTexto = reserva.deposito_pesos
+      ? `USD ${(reserva.deposito || 0).toLocaleString('es-AR')} (o echeq $${(reserva.deposito_pesos || 0).toLocaleString('es-AR')})`
+      : `USD ${(reserva.deposito || 0).toLocaleString('es-AR')}`
+
+    addSection('5', 'Depósito',
+      `El locatario entrega un depósito de ${depositoTexto} que se devolverá al finalizar, descontando daños, faltantes, exceso de consumo eléctrico o multas.`)
+
+    // Salto de página si es necesario
+    if (y > 240) {
+      doc.addPage()
+      y = 20
+    }
+
+    // 6. Obligaciones del locatario
+    addSection('6', 'Obligaciones del locatario',
+      `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. Pagar limpieza de salida de $${(reserva.limpieza_final || 0).toLocaleString('es-AR')}. Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.`)
+
+    // 7. Responsabilidad
+    addSection('7', 'Responsabilidad',
+      `El locador no responde por accidentes, robos, incendios o cortes de servicios. El locatario asume todos los riesgos de su estadía.`)
+
+    // 8. Jurisdicción
+    addSection('8', 'Jurisdicción',
+      `Las partes fijan domicilio en los indicados arriba y se someten a los tribunales ordinarios de la Ciudad Autónoma de Buenos Aires.`)
+
+    // Salto de página si es necesario
+    if (y > 220) {
+      doc.addPage()
+      y = 20
+    }
+
+    // Firmas
+    y += 15
+    doc.setDrawColor(100, 100, 100)
+
+    // Firma locador
+    doc.line(margin, y + 15, margin + 70, y + 15)
+    doc.setFontSize(9)
+    doc.setTextColor(60, 60, 60)
+    doc.text(`${locador.nombre} – Locador`, margin, y + 22)
+
+    // Firma locatario
+    doc.line(pageWidth - margin - 70, y + 15, pageWidth - margin, y + 15)
+    doc.text(`${locatario.nombre} – Locatario`, pageWidth - margin - 70, y + 22)
+
+    // Pie de página
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 150)
+    doc.text(`Contrato generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 285, { align: 'center' })
+
+    // Guardar
+    doc.save(`Contrato_${reserva.id}_${locatario.nombre.replace(/\s/g, '_')}.pdf`)
+  }
+
   // Calcular totales
   const calcularTotal = (r: Reserva) => {
     const noches = calcularNoches(r.fecha_inicio, r.fecha_fin)
@@ -701,9 +859,14 @@ export default function ReservasPage() {
                         <td className="px-2 py-2 text-right">
                           <div className="flex justify-end gap-0.5">
                             {reserva.estado === 'confirmada' && (
-                              <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Generar Recibo PDF">
-                                <FileText size={14} className="text-costa-navy" />
-                              </Button>
+                              <>
+                                <Button variant="ghost" size="sm" onClick={() => generarContratoPDF(reserva)} title="Generar Contrato PDF">
+                                  <FileSignature size={14} className="text-costa-olivo" />
+                                </Button>
+                                <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Generar Recibo PDF">
+                                  <FileText size={14} className="text-costa-navy" />
+                                </Button>
+                              </>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={14} /></Button>
                             <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
@@ -757,7 +920,8 @@ export default function ReservasPage() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <Select label="Moneda" value={form.moneda} onChange={(e) => setForm({ ...form, moneda: e.target.value })} options={monedas} />
             <Input label="Precio por noche" type="number" min="0" value={form.precio_noche || ''} onChange={(e) => setForm({ ...form, precio_noche: Number(e.target.value) })} />
-            <Input label="Depósito" type="number" min="0" value={form.deposito || ''} onChange={(e) => setForm({ ...form, deposito: Number(e.target.value) })} />
+            <Input label="Depósito USD" type="number" min="0" value={form.deposito || ''} onChange={(e) => setForm({ ...form, deposito: Number(e.target.value) })} />
+            <Input label="Depósito $" type="number" min="0" value={form.deposito_pesos || ''} onChange={(e) => setForm({ ...form, deposito_pesos: Number(e.target.value) })} />
             <Input label="Seña" type="number" min="0" value={form.sena || ''} onChange={(e) => setForm({ ...form, sena: Number(e.target.value) })} />
             <Select label="Forma de pago" value={form.forma_pago} onChange={(e) => setForm({ ...form, forma_pago: e.target.value })} options={formasPago} />
           </div>
