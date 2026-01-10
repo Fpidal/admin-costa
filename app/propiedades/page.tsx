@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun } from 'lucide-react'
 
 interface Propiedad {
   id: number
@@ -372,28 +372,75 @@ export default function PropiedadesPage() {
                     </div>
                   )}
 
-                  <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
+                  {/* Info básica */}
+                  <div className="flex items-center gap-3 text-sm text-costa-gris mb-2">
                     {propiedad.habitaciones > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Bed size={16} />
+                      <div className="flex items-center gap-1" title="Habitaciones">
+                        <Bed size={14} />
                         <span>{propiedad.habitaciones}</span>
                       </div>
                     )}
+                    {propiedad.camas > 0 && (
+                      <div className="flex items-center gap-1" title="Camas">
+                        <Bed size={14} className="text-costa-navy" />
+                        <span>{propiedad.camas}</span>
+                      </div>
+                    )}
                     {propiedad.banos > 0 && (
-                      <div className="flex items-center gap-1">
-                        <Bath size={16} />
+                      <div className="flex items-center gap-1" title="Baños">
+                        <Bath size={14} />
                         <span>{propiedad.banos}</span>
                       </div>
                     )}
                     {propiedad.cochera && (
-                      <div className="flex items-center gap-1">
-                        <Car size={16} />
+                      <div className="flex items-center gap-1" title="Cochera">
+                        <Car size={14} />
+                      </div>
+                    )}
+                    {propiedad.metros_cubiertos > 0 && (
+                      <div className="flex items-center gap-1" title="Metros cubiertos">
+                        <Ruler size={14} />
+                        <span>{propiedad.metros_cubiertos}m²</span>
                       </div>
                     )}
                   </div>
 
-                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                    <p className="text-lg font-bold text-blue-600">
+                  {/* Amenities */}
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {propiedad.pileta && (
+                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${propiedad.pileta_climatizada ? 'bg-costa-coral/10 text-costa-coral' : 'bg-costa-navy/10 text-costa-navy'}`} title={propiedad.pileta_climatizada ? 'Pileta climatizada' : 'Pileta'}>
+                        <Waves size={12} />
+                        <span>{propiedad.pileta_climatizada ? 'Climatizada' : 'Pileta'}</span>
+                      </div>
+                    )}
+                    {propiedad.aire_acondicionado && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 text-xs" title="Aire acondicionado">
+                        <Snowflake size={12} />
+                        <span>A/C</span>
+                      </div>
+                    )}
+                    {propiedad.calefaccion && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-xs" title="Calefacción">
+                        <ThermometerSun size={12} />
+                        <span>Calef.</span>
+                      </div>
+                    )}
+                    {propiedad.parrilla && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs" title="Parrilla">
+                        <Flame size={12} />
+                        <span>Parrilla</span>
+                      </div>
+                    )}
+                    {propiedad.grupo_electrogeno && (
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs" title="Grupo electrógeno">
+                        <Zap size={12} />
+                        <span>Generador</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-costa-beige flex items-center justify-between">
+                    <p className="text-lg font-bold text-costa-coral">
                       {propiedad.precio_alquiler ? `${formatMonto(propiedad.precio_alquiler)}/mes` : '-'}
                     </p>
                     <div className="flex gap-1">
