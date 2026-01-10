@@ -651,18 +651,18 @@ export default function ReservasPage() {
     // Función para agregar secciones
     const addSection = (num: string, title: string, content: string) => {
       doc.setFont('helvetica', 'bold')
-      doc.setFontSize(10)
+      doc.setFontSize(11)
       doc.setTextColor(azulNavy.r, azulNavy.g, azulNavy.b)
       doc.text(`${num}. ${title}`, margin, y)
-      y += 5
+      y += 6
 
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(60, 60, 60)
-      doc.setFontSize(9)
+      doc.setFontSize(10)
 
       const lines = doc.splitTextToSize(content, contentWidth)
       doc.text(lines, margin, y)
-      y += lines.length * 4 + 5
+      y += lines.length * 5 + 8
     }
 
     // 1. Objeto
@@ -692,11 +692,17 @@ export default function ReservasPage() {
     addSection('5', 'Depósito',
       `El locatario entrega un depósito de ${depositoTexto} que se devolverá al finalizar, descontando daños, faltantes, exceso de consumo eléctrico o multas.`)
 
-    // Salto de página si es necesario
-    if (y > 240) {
-      doc.addPage()
-      y = 20
-    }
+    // === PÁGINA 2 ===
+    doc.addPage()
+    y = 25
+
+    // Encabezado página 2
+    doc.setFillColor(azulNavy.r, azulNavy.g, azulNavy.b)
+    doc.rect(0, 0, pageWidth, 15, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('CONTRATO DE LOCACIÓN TEMPORARIA - Continuación', pageWidth / 2, 10, { align: 'center' })
 
     // 6. Obligaciones del locatario
     addSection('6', 'Obligaciones del locatario',
@@ -710,14 +716,15 @@ export default function ReservasPage() {
     addSection('8', 'Jurisdicción',
       `Las partes fijan domicilio en los indicados arriba y se someten a los tribunales ordinarios de la Ciudad Autónoma de Buenos Aires.`)
 
-    // Salto de página si es necesario
-    if (y > 220) {
-      doc.addPage()
-      y = 20
-    }
+    // Lugar y fecha
+    y += 10
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(60, 60, 60)
+    doc.text(`En la Ciudad Autónoma de Buenos Aires, a los ${new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}.`, margin, y)
 
     // Firmas
-    y += 15
+    y += 25
     doc.setDrawColor(100, 100, 100)
 
     // Firma locador
