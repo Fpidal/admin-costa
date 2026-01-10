@@ -48,13 +48,13 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-40
-        w-64 bg-sky-100 border-r border-sky-200
+        w-64 bg-slate-200 border-r border-slate-300
         transform transition-transform duration-200 ease-in-out
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-16 flex items-center px-6 border-b border-sky-200">
+          <div className="h-16 flex items-center px-6 border-b border-slate-300">
             <h1 className="text-xl font-bold text-blue-900">Admin Costa</h1>
           </div>
 
@@ -72,7 +72,7 @@ export default function Sidebar() {
                     transition-colors duration-150
                     ${isActive
                       ? 'bg-blue-800 text-white'
-                      : 'text-blue-900 hover:bg-sky-200'
+                      : 'text-blue-900 hover:bg-slate-300'
                     }
                   `}
                 >
@@ -84,7 +84,7 @@ export default function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-sky-200">
+          <div className="p-4 border-t border-slate-300">
             <p className="text-xs text-blue-800 text-center">
               Admin Costa v1.0
             </p>
