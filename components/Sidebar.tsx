@@ -15,10 +15,10 @@ import {
 import { useState } from 'react'
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Propiedades', href: '/propiedades', icon: Building2 },
   { name: 'Reservas', href: '/reservas', icon: CalendarDays },
   { name: 'Inquilinos', href: '/inquilinos', icon: Users },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Gastos', href: '/gastos', icon: Receipt },
   { name: 'Info útil', href: '/info-util', icon: Info },
 ]
