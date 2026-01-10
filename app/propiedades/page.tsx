@@ -298,7 +298,7 @@ export default function PropiedadesPage() {
 
     setSaving(false)
     closeModal()
-    fetchPropiedades()
+    fetchData()
   }
 
   async function handleDelete(id: number) {
@@ -312,7 +312,7 @@ export default function PropiedadesPage() {
     if (error) {
       alert('Error al eliminar: ' + error.message)
     } else {
-      fetchPropiedades()
+      fetchData()
     }
   }
 
