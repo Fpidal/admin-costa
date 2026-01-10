@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun } from 'lucide-react'
+import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search } from 'lucide-react'
 
 interface Propiedad {
   id: number
@@ -37,11 +37,20 @@ interface Propiedad {
   metros_lote: number
 }
 
+interface Reserva {
+  id: number
+  propiedad_id: number
+  fecha_inicio: string
+  fecha_fin: string
+  estado: string
+}
+
 const tiposPropiedad = [
   { value: 'casa', label: 'Casa' },
   { value: 'departamento', label: 'Departamento' },
   { value: 'monoambiente', label: 'Monoambiente' },
   { value: 'local', label: 'Local' },
+  { value: 'lote', label: 'Lote' },
 ]
 
 const estadosPropiedad = [
@@ -91,6 +100,7 @@ const initialForm = {
 
 export default function PropiedadesPage() {
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
+  const [reservas, setReservas] = useState<Reserva[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -98,21 +108,53 @@ export default function PropiedadesPage() {
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
+  const [fechaBusqueda, setFechaBusqueda] = useState({ inicio: '', fin: '' })
 
   useEffect(() => {
-    fetchPropiedades()
+    fetchData()
   }, [])
 
-  async function fetchPropiedades() {
-    const { data, error } = await supabase
-      .from('propiedades')
-      .select('*')
-      .order('created_at', { ascending: false })
+  async function fetchData() {
+    const [resPropiedades, resReservas] = await Promise.all([
+      supabase.from('propiedades').select('*').order('created_at', { ascending: false }),
+      supabase.from('reservas').select('id, propiedad_id, fecha_inicio, fecha_fin, estado').in('estado', ['confirmada', 'pendiente'])
+    ])
 
-    if (!error && data) {
-      setPropiedades(data)
-    }
+    if (resPropiedades.data) setPropiedades(resPropiedades.data)
+    if (resReservas.data) setReservas(resReservas.data)
     setLoading(false)
+  }
+
+  // Obtener reserva actual o próxima de una propiedad
+  function getReservaActual(propiedadId: number): Reserva | null {
+    const hoy = new Date().toISOString().split('T')[0]
+    return reservas.find(r =>
+      r.propiedad_id === propiedadId &&
+      r.fecha_inicio <= hoy &&
+      r.fecha_fin >= hoy
+    ) || null
+  }
+
+  function getProximaReserva(propiedadId: number): Reserva | null {
+    const hoy = new Date().toISOString().split('T')[0]
+    const proximas = reservas
+      .filter(r => r.propiedad_id === propiedadId && r.fecha_inicio > hoy)
+      .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))
+    return proximas[0] || null
+  }
+
+  // Verificar disponibilidad para fechas buscadas
+  function estaDisponible(propiedadId: number): boolean {
+    if (!fechaBusqueda.inicio || !fechaBusqueda.fin) return true
+    return !reservas.some(r =>
+      r.propiedad_id === propiedadId &&
+      r.fecha_inicio < fechaBusqueda.fin &&
+      r.fecha_fin > fechaBusqueda.inicio
+    )
+  }
+
+  const formatFechaCorta = (fecha: string) => {
+    return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
   }
 
   function openModal(propiedad?: Propiedad) {
@@ -291,6 +333,43 @@ export default function PropiedadesPage() {
         </Button>
       </PageHeader>
 
+      {/* Buscador de disponibilidad */}
+      <Card className="mb-4">
+        <CardContent className="py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2 text-sm text-costa-navy">
+              <Search size={16} />
+              <span className="font-medium">Buscar disponibilidad:</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={fechaBusqueda.inicio}
+                onChange={(e) => setFechaBusqueda({ ...fechaBusqueda, inicio: e.target.value })}
+                className="px-2 py-1 text-sm border border-costa-gris/30 rounded focus:outline-none focus:ring-1 focus:ring-costa-navy"
+              />
+              <span className="text-costa-gris">→</span>
+              <input
+                type="date"
+                value={fechaBusqueda.fin}
+                onChange={(e) => setFechaBusqueda({ ...fechaBusqueda, fin: e.target.value })}
+                className="px-2 py-1 text-sm border border-costa-gris/30 rounded focus:outline-none focus:ring-1 focus:ring-costa-navy"
+              />
+              {(fechaBusqueda.inicio || fechaBusqueda.fin) && (
+                <Button variant="ghost" size="sm" onClick={() => setFechaBusqueda({ inicio: '', fin: '' })}>
+                  <X size={14} />
+                </Button>
+              )}
+            </div>
+            {fechaBusqueda.inicio && fechaBusqueda.fin && (
+              <span className="text-xs text-costa-gris">
+                {propiedades.filter(p => estaDisponible(p.id)).length} disponibles
+              </span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {propiedades.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -303,11 +382,16 @@ export default function PropiedadesPage() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {propiedades.map((propiedad) => (
-            <Card key={propiedad.id} className="hover:shadow-md transition-shadow">
+          {propiedades.map((propiedad) => {
+            const reservaActual = getReservaActual(propiedad.id)
+            const proximaReserva = getProximaReserva(propiedad.id)
+            const disponible = estaDisponible(propiedad.id)
+
+            return (
+            <Card key={propiedad.id} className={`hover:shadow-md transition-shadow ${fechaBusqueda.inicio && fechaBusqueda.fin && !disponible ? 'opacity-50' : ''}`}>
               <CardContent className="p-0">
                 {/* Imagen con carrusel */}
-                <div className="h-40 bg-gradient-to-br from-blue-100 to-blue-200 rounded-t-xl flex items-center justify-center overflow-hidden relative group">
+                <div className="h-40 bg-gradient-to-br from-costa-beige to-costa-beige-light rounded-t-xl flex items-center justify-center overflow-hidden relative group">
                   {(propiedad.imagenes?.length > 0 || propiedad.imagen_url) ? (
                     <>
                       <img
@@ -317,7 +401,6 @@ export default function PropiedadesPage() {
                       />
                       {propiedad.imagenes?.length > 1 && (
                         <>
-                          {/* Flechas de navegación */}
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
@@ -340,7 +423,6 @@ export default function PropiedadesPage() {
                           >
                             <ChevronRight size={20} />
                           </button>
-                          {/* Indicador de posición */}
                           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
                             {propiedad.imagenes.map((_, idx) => (
                               <span
@@ -353,7 +435,24 @@ export default function PropiedadesPage() {
                       )}
                     </>
                   ) : (
-                    <span className="text-blue-400 text-sm">Sin imagen</span>
+                    <span className="text-costa-gris text-sm">Sin imagen</span>
+                  )}
+
+                  {/* Badge de estado de reserva */}
+                  {reservaActual ? (
+                    <div className="absolute top-2 left-2 px-2 py-1 bg-costa-coral text-white text-xs rounded-full flex items-center gap-1">
+                      <Calendar size={10} />
+                      <span>Reservada hasta {formatFechaCorta(reservaActual.fecha_fin)}</span>
+                    </div>
+                  ) : proximaReserva ? (
+                    <div className="absolute top-2 left-2 px-2 py-1 bg-costa-navy/80 text-white text-xs rounded-full flex items-center gap-1">
+                      <Calendar size={10} />
+                      <span>Próx: {formatFechaCorta(proximaReserva.fecha_inicio)}</span>
+                    </div>
+                  ) : (
+                    <div className="absolute top-2 left-2 px-2 py-1 bg-costa-olivo/80 text-white text-xs rounded-full">
+                      Disponible
+                    </div>
                   )}
                 </div>
 
@@ -373,20 +472,20 @@ export default function PropiedadesPage() {
                   )}
 
                   {/* Info básica */}
-                  <div className="flex items-center gap-3 text-sm text-costa-gris mb-2">
-                    {propiedad.habitaciones > 0 && (
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-costa-gris mb-2">
+                    {propiedad.tipo !== 'lote' && propiedad.habitaciones > 0 && (
                       <div className="flex items-center gap-1" title="Habitaciones">
                         <Bed size={14} />
                         <span>{propiedad.habitaciones}</span>
                       </div>
                     )}
-                    {propiedad.camas > 0 && (
+                    {propiedad.tipo !== 'lote' && propiedad.camas > 0 && (
                       <div className="flex items-center gap-1" title="Camas">
-                        <Bed size={14} className="text-costa-navy" />
-                        <span>{propiedad.camas}</span>
+                        <Bed size={14} />
+                        <span>{propiedad.camas}c</span>
                       </div>
                     )}
-                    {propiedad.banos > 0 && (
+                    {propiedad.tipo !== 'lote' && propiedad.banos > 0 && (
                       <div className="flex items-center gap-1" title="Baños">
                         <Bath size={14} />
                         <span>{propiedad.banos}</span>
@@ -403,36 +502,42 @@ export default function PropiedadesPage() {
                         <span>{propiedad.metros_cubiertos}m²</span>
                       </div>
                     )}
+                    {propiedad.metros_lote > 0 && (
+                      <div className="flex items-center gap-1" title="Metros lote">
+                        <LandPlot size={14} />
+                        <span>{propiedad.metros_lote}m²</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Amenities */}
-                  <div className="flex flex-wrap gap-2 mb-3">
+                  <div className="flex flex-wrap gap-1.5 mb-3">
                     {propiedad.pileta && (
-                      <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs ${propiedad.pileta_climatizada ? 'bg-costa-coral/10 text-costa-coral' : 'bg-costa-navy/10 text-costa-navy'}`} title={propiedad.pileta_climatizada ? 'Pileta climatizada' : 'Pileta'}>
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-costa-beige text-costa-gris text-xs" title={propiedad.pileta_climatizada ? 'Pileta climatizada' : 'Pileta'}>
                         <Waves size={12} />
-                        <span>{propiedad.pileta_climatizada ? 'Climatizada' : 'Pileta'}</span>
+                        <span>{propiedad.pileta_climatizada ? 'Climat.' : 'Pileta'}</span>
                       </div>
                     )}
                     {propiedad.aire_acondicionado && (
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 text-xs" title="Aire acondicionado">
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-costa-beige text-costa-gris text-xs" title="Aire acondicionado">
                         <Snowflake size={12} />
                         <span>A/C</span>
                       </div>
                     )}
                     {propiedad.calefaccion && (
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-xs" title="Calefacción">
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-costa-beige text-costa-gris text-xs" title="Calefacción">
                         <ThermometerSun size={12} />
                         <span>Calef.</span>
                       </div>
                     )}
                     {propiedad.parrilla && (
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs" title="Parrilla">
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-costa-beige text-costa-gris text-xs" title="Parrilla">
                         <Flame size={12} />
                         <span>Parrilla</span>
                       </div>
                     )}
                     {propiedad.grupo_electrogeno && (
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 text-xs" title="Grupo electrógeno">
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-costa-beige text-costa-gris text-xs" title="Grupo electrógeno">
                         <Zap size={12} />
                         <span>Generador</span>
                       </div>
@@ -455,7 +560,8 @@ export default function PropiedadesPage() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -464,10 +570,20 @@ export default function PropiedadesPage() {
         isOpen={modalOpen}
         onClose={closeModal}
         title={editingId ? 'Editar Propiedad' : 'Nueva Propiedad'}
-        size="xl"
+        size="lg"
       >
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Botones arriba */}
+          <div className="flex justify-end gap-2 pb-2 border-b border-costa-beige">
+            <Button type="button" variant="ghost" size="sm" onClick={closeModal}>
+              Cancelar
+            </Button>
+            <Button type="submit" size="sm" disabled={saving}>
+              {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <Input
               label="Nombre"
               value={form.nombre}
@@ -488,97 +604,107 @@ export default function PropiedadesPage() {
             onChange={(e) => setForm({ ...form, direccion: e.target.value })}
           />
 
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            <Input
-              label="Habitaciones"
-              type="number"
-              min="0"
-              value={form.habitaciones}
-              onChange={(e) => setForm({ ...form, habitaciones: Number(e.target.value) })}
-            />
-            <Input
-              label="Baños"
-              type="number"
-              min="0"
-              value={form.banos}
-              onChange={(e) => setForm({ ...form, banos: Number(e.target.value) })}
-            />
-            <Input
-              label="Camas"
-              type="number"
-              min="0"
-              value={form.camas}
-              onChange={(e) => setForm({ ...form, camas: Number(e.target.value) })}
-            />
-            <Input
-              label="Precio/mes"
-              type="number"
-              min="0"
-              value={form.precio_alquiler}
-              onChange={(e) => setForm({ ...form, precio_alquiler: Number(e.target.value) })}
-            />
+          {/* Campos numéricos - ocultar si es lote */}
+          {form.tipo !== 'lote' && (
+            <div className="grid grid-cols-4 gap-2">
+              <Input
+                label="Habit."
+                type="number"
+                min="0"
+                value={form.habitaciones || ''}
+                onChange={(e) => setForm({ ...form, habitaciones: Number(e.target.value) || 0 })}
+              />
+              <Input
+                label="Baños"
+                type="number"
+                min="0"
+                value={form.banos || ''}
+                onChange={(e) => setForm({ ...form, banos: Number(e.target.value) || 0 })}
+              />
+              <Input
+                label="Camas"
+                type="number"
+                min="0"
+                value={form.camas || ''}
+                onChange={(e) => setForm({ ...form, camas: Number(e.target.value) || 0 })}
+              />
+              <Input
+                label="Precio/mes"
+                type="number"
+                min="0"
+                value={form.precio_alquiler || ''}
+                onChange={(e) => setForm({ ...form, precio_alquiler: Number(e.target.value) || 0 })}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
             <Select
               label="Estado"
               value={form.estado}
               onChange={(e) => setForm({ ...form, estado: e.target.value })}
               options={estadosPropiedad}
             />
-          </div>
-
-          {/* Metros */}
-          <div className="grid grid-cols-3 gap-3">
-            <Input
-              label="M² cubiertos"
-              type="number"
-              min="0"
-              value={form.metros_cubiertos}
-              onChange={(e) => setForm({ ...form, metros_cubiertos: Number(e.target.value) })}
-            />
-            <Input
-              label="M² semicubiertos"
-              type="number"
-              min="0"
-              value={form.metros_semicubiertos}
-              onChange={(e) => setForm({ ...form, metros_semicubiertos: Number(e.target.value) })}
-            />
             <Input
               label="M² lote"
               type="number"
               min="0"
-              value={form.metros_lote}
-              onChange={(e) => setForm({ ...form, metros_lote: Number(e.target.value) })}
+              value={form.metros_lote || ''}
+              onChange={(e) => setForm({ ...form, metros_lote: Number(e.target.value) || 0 })}
             />
           </div>
 
-          {/* Amenities */}
-          <div className="border border-costa-beige rounded-lg p-3">
-            <p className="text-xs font-medium text-costa-navy mb-2">Amenities</p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {[
-                { id: 'cochera', label: 'Cochera', key: 'cochera' },
-                { id: 'pileta', label: 'Pileta', key: 'pileta' },
-                { id: 'pileta_climatizada', label: 'Pileta climatizada', key: 'pileta_climatizada' },
-                { id: 'parrilla', label: 'Parrilla', key: 'parrilla' },
-                { id: 'fogonero', label: 'Fogonero', key: 'fogonero' },
-                { id: 'grupo_electrogeno', label: 'Grupo electrógeno', key: 'grupo_electrogeno' },
-                { id: 'toilette', label: 'Toilette', key: 'toilette' },
-                { id: 'lavadero', label: 'Lavadero', key: 'lavadero' },
-                { id: 'lavavajillas', label: 'Lavavajillas', key: 'lavavajillas' },
-                { id: 'aire_acondicionado', label: 'Aire acondicionado', key: 'aire_acondicionado' },
-                { id: 'calefaccion', label: 'Calefacción', key: 'calefaccion' },
-              ].map((amenity) => (
-                <label key={amenity.id} className="flex items-center gap-1.5 text-xs text-costa-navy cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={form[amenity.key as keyof typeof form] as boolean}
-                    onChange={(e) => setForm({ ...form, [amenity.key]: e.target.checked })}
-                    className="w-3.5 h-3.5 rounded border-costa-gris text-costa-navy focus:ring-costa-navy"
-                  />
-                  {amenity.label}
-                </label>
-              ))}
+          {/* Metros cubiertos - ocultar si es lote */}
+          {form.tipo !== 'lote' && (
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label="M² cubiertos"
+                type="number"
+                min="0"
+                value={form.metros_cubiertos || ''}
+                onChange={(e) => setForm({ ...form, metros_cubiertos: Number(e.target.value) || 0 })}
+              />
+              <Input
+                label="M² semicub."
+                type="number"
+                min="0"
+                value={form.metros_semicubiertos || ''}
+                onChange={(e) => setForm({ ...form, metros_semicubiertos: Number(e.target.value) || 0 })}
+              />
             </div>
-          </div>
+          )}
+
+          {/* Amenities - ocultar si es lote */}
+          {form.tipo !== 'lote' && (
+            <div className="border border-costa-beige rounded-lg p-2">
+              <p className="text-xs font-medium text-costa-navy mb-1.5">Amenities</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { id: 'cochera', label: 'Cochera', key: 'cochera' },
+                  { id: 'pileta', label: 'Pileta', key: 'pileta' },
+                  { id: 'pileta_climatizada', label: 'Pileta climat.', key: 'pileta_climatizada' },
+                  { id: 'parrilla', label: 'Parrilla', key: 'parrilla' },
+                  { id: 'fogonero', label: 'Fogonero', key: 'fogonero' },
+                  { id: 'grupo_electrogeno', label: 'Generador', key: 'grupo_electrogeno' },
+                  { id: 'toilette', label: 'Toilette', key: 'toilette' },
+                  { id: 'lavadero', label: 'Lavadero', key: 'lavadero' },
+                  { id: 'lavavajillas', label: 'Lavavajillas', key: 'lavavajillas' },
+                  { id: 'aire_acondicionado', label: 'A/C', key: 'aire_acondicionado' },
+                  { id: 'calefaccion', label: 'Calefacción', key: 'calefaccion' },
+                ].map((amenity) => (
+                  <label key={amenity.id} className="flex items-center gap-1 text-xs text-costa-navy cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form[amenity.key as keyof typeof form] as boolean}
+                      onChange={(e) => setForm({ ...form, [amenity.key]: e.target.checked })}
+                      className="w-3 h-3 rounded border-costa-gris text-costa-navy focus:ring-costa-navy"
+                    />
+                    {amenity.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <Textarea
             label="Descripción"
@@ -587,40 +713,36 @@ export default function PropiedadesPage() {
           />
 
           {/* Upload de imágenes */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-medium text-costa-navy">
               Imágenes ({form.imagenes.length}/6)
             </label>
 
-            {/* Grid de imágenes */}
+            {/* Grid de imágenes - más compacto */}
             {form.imagenes.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 mb-2">
+              <div className="grid grid-cols-4 gap-1.5">
                 {form.imagenes.map((url, index) => (
-                  <div key={index} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 group">
+                  <div key={index} className="relative aspect-video rounded overflow-hidden bg-costa-beige group">
                     <img src={url} alt={`Imagen ${index + 1}`} className="w-full h-full object-cover" />
-                    {/* Botón eliminar */}
                     <button
                       type="button"
                       onClick={() => removeImage(index)}
-                      className="absolute top-1 right-1 p-1 bg-costa-gris text-white rounded-full hover:bg-costa-navy"
+                      className="absolute top-0.5 right-0.5 p-0.5 bg-costa-gris/80 text-white rounded-full hover:bg-costa-navy"
                     >
-                      <X size={14} />
+                      <X size={10} />
                     </button>
-                    {/* Botón hacer principal */}
                     {index !== 0 && (
                       <button
                         type="button"
                         onClick={() => setMainImage(index)}
-                        className="absolute top-1 left-1 p-1 bg-black/50 text-white rounded-full hover:bg-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="absolute top-0.5 left-0.5 p-0.5 bg-black/50 text-white rounded-full hover:bg-yellow-500 opacity-0 group-hover:opacity-100 transition-opacity"
                         title="Hacer principal"
                       >
-                        <Star size={14} />
+                        <Star size={10} />
                       </button>
                     )}
-                    {/* Badge principal */}
                     {index === 0 && (
-                      <span className="absolute bottom-1 left-1 text-xs bg-yellow-500 text-white px-1.5 py-0.5 rounded flex items-center gap-1">
-                        <Star size={10} fill="white" />
+                      <span className="absolute bottom-0 left-0 right-0 text-[10px] bg-yellow-500/90 text-white text-center py-0.5">
                         Principal
                       </span>
                     )}
@@ -629,12 +751,12 @@ export default function PropiedadesPage() {
               </div>
             )}
 
-            {/* Botón de subir si hay espacio */}
+            {/* Botón de subir */}
             {form.imagenes.length < 6 && (
-              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
-                <Upload size={20} className="text-gray-400 mb-1" />
-                <span className="text-sm text-gray-500">
-                  {uploading ? 'Subiendo...' : 'Click para agregar imagen'}
+              <label className="flex items-center justify-center gap-2 w-full h-12 border border-dashed border-costa-gris/50 rounded cursor-pointer hover:border-costa-navy hover:bg-costa-beige/50 transition-colors">
+                <Upload size={14} className="text-costa-gris" />
+                <span className="text-xs text-costa-gris">
+                  {uploading ? 'Subiendo...' : 'Agregar imagen'}
                 </span>
                 <input
                   type="file"
@@ -645,15 +767,6 @@ export default function PropiedadesPage() {
                 />
               </label>
             )}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="secondary" onClick={closeModal}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}
-            </Button>
           </div>
         </form>
       </Modal>
