@@ -1,43 +1,31 @@
-import { PageHeader } from '@/components/PageHeader'
-import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui'
-import { Plus, Phone, Mail, MapPin, Clock, Wrench, Shield, Zap, Droplets, Flame, Wifi, ExternalLink } from 'lucide-react'
+'use client'
 
-const categorias = [
-  {
-    titulo: 'Emergencias',
-    icon: Shield,
-    color: 'text-red-600',
-    bg: 'bg-red-100',
-    contactos: [
-      { nombre: 'Policía', telefono: '911', descripcion: 'Emergencias policiales' },
-      { nombre: 'Bomberos', telefono: '100', descripcion: 'Incendios y rescates' },
-      { nombre: 'Emergencias Médicas', telefono: '107', descripcion: 'SAME' },
-    ]
-  },
-  {
-    titulo: 'Servicios',
-    icon: Zap,
-    color: 'text-yellow-600',
-    bg: 'bg-yellow-100',
-    contactos: [
-      { nombre: 'EDEA (Electricidad)', telefono: '0800-222-3332', descripcion: 'Cortes y emergencias eléctricas' },
-      { nombre: 'Camuzzi Gas', telefono: '0800-888-2829', descripcion: 'Emergencias de gas' },
-      { nombre: 'OSSE (Agua)', telefono: '0800-222-6773', descripcion: 'Cortes y reclamos' },
-    ]
-  },
-  {
-    titulo: 'Mantenimiento',
-    icon: Wrench,
-    color: 'text-blue-600',
-    bg: 'bg-blue-100',
-    contactos: [
-      { nombre: 'Carlos Plomero', telefono: '+54 223 555-1234', descripcion: 'Plomería en general' },
-      { nombre: 'Roberto Electricista', telefono: '+54 223 555-5678', descripcion: 'Instalaciones eléctricas' },
-      { nombre: 'Jardines del Mar', telefono: '+54 223 555-9999', descripcion: 'Mantenimiento de jardines' },
-      { nombre: 'Aire Pro', telefono: '+54 223 555-4444', descripcion: 'Aires acondicionados' },
-    ]
-  },
+import { useEffect, useState } from 'react'
+import { supabase } from '@/lib/supabase'
+import { PageHeader } from '@/components/PageHeader'
+import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select } from '@/components/ui'
+import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink } from 'lucide-react'
+
+interface Contacto {
+  id: number
+  nombre: string
+  categoria: string
+  telefono: string
+  email: string
+  descripcion: string
+}
+
+const categoriasContacto = [
+  { value: 'emergencias', label: 'Emergencias' },
+  { value: 'servicios', label: 'Servicios' },
+  { value: 'mantenimiento', label: 'Mantenimiento' },
 ]
+
+const categoriaConfig = {
+  emergencias: { icon: Shield, color: 'text-red-600', bg: 'bg-red-100' },
+  servicios: { icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-100' },
+  mantenimiento: { icon: Wrench, color: 'text-blue-600', bg: 'bg-blue-100' },
+} as const
 
 const linksUtiles = [
   { nombre: 'AFIP', url: 'https://www.afip.gob.ar', descripcion: 'Administración Federal de Ingresos Públicos' },
@@ -46,14 +34,103 @@ const linksUtiles = [
   { nombre: 'Municipalidad', url: '#', descripcion: 'Trámites municipales' },
 ]
 
+const initialForm = {
+  nombre: '',
+  categoria: 'mantenimiento',
+  telefono: '',
+  email: '',
+  descripcion: '',
+}
+
 export default function InfoUtilPage() {
+  const [contactos, setContactos] = useState<Contacto[]>([])
+  const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [form, setForm] = useState(initialForm)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    fetchContactos()
+  }, [])
+
+  async function fetchContactos() {
+    const { data, error } = await supabase.from('contactos').select('*').order('categoria, nombre')
+    if (!error && data) setContactos(data)
+    setLoading(false)
+  }
+
+  function openModal(contacto?: Contacto) {
+    if (contacto) {
+      setEditingId(contacto.id)
+      setForm({
+        nombre: contacto.nombre || '',
+        categoria: contacto.categoria || 'mantenimiento',
+        telefono: contacto.telefono || '',
+        email: contacto.email || '',
+        descripcion: contacto.descripcion || '',
+      })
+    } else {
+      setEditingId(null)
+      setForm(initialForm)
+    }
+    setModalOpen(true)
+  }
+
+  function closeModal() {
+    setModalOpen(false)
+    setEditingId(null)
+    setForm(initialForm)
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+
+    const data = {
+      nombre: form.nombre,
+      categoria: form.categoria,
+      telefono: form.telefono,
+      email: form.email,
+      descripcion: form.descripcion,
+    }
+
+    if (editingId) {
+      const { error } = await supabase.from('contactos').update(data).eq('id', editingId)
+      if (error) alert('Error al actualizar: ' + error.message)
+    } else {
+      const { error } = await supabase.from('contactos').insert([data])
+      if (error) alert('Error al crear: ' + error.message)
+    }
+
+    setSaving(false)
+    closeModal()
+    fetchContactos()
+  }
+
+  async function handleDelete(id: number) {
+    if (!confirm('¿Estás seguro de eliminar este contacto?')) return
+    const { error } = await supabase.from('contactos').delete().eq('id', id)
+    if (error) alert('Error al eliminar: ' + error.message)
+    else fetchContactos()
+  }
+
+  // Agrupar contactos por categoría
+  const contactosPorCategoria = contactos.reduce((acc, c) => {
+    const cat = c.categoria || 'mantenimiento'
+    if (!acc[cat]) acc[cat] = []
+    acc[cat].push(c)
+    return acc
+  }, {} as Record<string, Contacto[]>)
+
+  if (loading) {
+    return <div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>
+  }
+
   return (
     <div>
-      <PageHeader
-        title="Info Útil"
-        description="Contactos y recursos importantes para la gestión de propiedades"
-      >
-        <Button>
+      <PageHeader title="Info Útil" description="Contactos y recursos importantes para la gestión de propiedades">
+        <Button onClick={() => openModal()}>
           <Plus size={18} />
           Agregar Contacto
         </Button>
@@ -61,37 +138,52 @@ export default function InfoUtilPage() {
 
       {/* Categorías de contactos */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {categorias.map((categoria) => (
-          <Card key={categoria.titulo}>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <div className={`p-2 rounded-lg ${categoria.bg}`}>
-                  <categoria.icon className={`w-5 h-5 ${categoria.color}`} />
-                </div>
-                {categoria.titulo}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {categoria.contactos.map((contacto, idx) => (
-                  <div key={idx} className="flex items-start justify-between">
-                    <div>
-                      <p className="font-medium text-gray-900">{contacto.nombre}</p>
-                      <p className="text-sm text-gray-500">{contacto.descripcion}</p>
-                    </div>
-                    <a
-                      href={`tel:${contacto.telefono}`}
-                      className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700"
-                    >
-                      <Phone size={14} />
-                      {contacto.telefono}
-                    </a>
+        {categoriasContacto.map(({ value, label }) => {
+          const config = categoriaConfig[value as keyof typeof categoriaConfig]
+          const Icon = config.icon
+          const contactosCat = contactosPorCategoria[value] || []
+
+          return (
+            <Card key={value}>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2">
+                  <div className={`p-2 rounded-lg ${config.bg}`}>
+                    <Icon className={`w-5 h-5 ${config.color}`} />
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                  {label}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {contactosCat.length === 0 ? (
+                  <p className="text-sm text-gray-500">No hay contactos en esta categoría</p>
+                ) : (
+                  <div className="space-y-4">
+                    {contactosCat.map((contacto) => (
+                      <div key={contacto.id} className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{contacto.nombre}</p>
+                          {contacto.descripcion && (
+                            <p className="text-sm text-gray-500">{contacto.descripcion}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {contacto.telefono && (
+                            <a href={`tel:${contacto.telefono}`} className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
+                              <Phone size={14} />
+                              {contacto.telefono}
+                            </a>
+                          )}
+                          <Button variant="ghost" size="sm" onClick={() => openModal(contacto)}><Pencil size={14} /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(contacto.id)}><Trash2 size={14} className="text-red-500" /></Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       {/* Links útiles */}
@@ -120,22 +212,22 @@ export default function InfoUtilPage() {
         </CardContent>
       </Card>
 
-      {/* Notas */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Notas Importantes</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="prose prose-sm max-w-none text-gray-600">
-            <ul className="space-y-2">
-              <li>Recordar verificar vencimiento de matrículas de gas anualmente</li>
-              <li>Inspección de matafuegos cada 6 meses</li>
-              <li>Renovación de seguros de propiedades antes del vencimiento</li>
-              <li>Mantener actualizada la documentación de cada propiedad</li>
-            </ul>
+      {/* Modal */}
+      <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Contacto' : 'Nuevo Contacto'}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <Input label="Nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
+          <Select label="Categoría" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} options={categoriasContacto} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Teléfono" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
+            <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
-        </CardContent>
-      </Card>
+          <Input label="Descripción" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="secondary" onClick={closeModal}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }
