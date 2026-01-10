@@ -339,7 +339,7 @@ export default function InquilinosPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-1 text-gray-700">
                           <Users size={14} />
-                          <span>{inquilino.cantidad_personas || 1}</span>
+                          <span>{1 + (inquilino.acompanantes?.length || 0)}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">

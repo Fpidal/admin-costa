@@ -327,6 +327,10 @@ export default function ReservasPage() {
     const moneda = reserva.moneda || 'ARS'
     const simbolo = moneda === 'USD' ? 'U$D' : '$'
 
+    // Colores
+    const azulPrincipal = { r: 30, g: 64, b: 175 }
+    const celesteClaro = { r: 219, g: 234, b: 254 }
+
     // Datos de la propiedad
     const nombrePropiedad = reserva.propiedades?.nombre || 'Propiedad'
     const esGolf = nombrePropiedad.toLowerCase().includes('golf')
@@ -334,171 +338,166 @@ export default function ReservasPage() {
       ? { direccion: 'Golf 234, Costa Esmeralda', tel: '+54 11 1234-5678' }
       : { direccion: 'Deportiva 9, Costa Esmeralda', tel: '+54 11 1234-5678' }
 
-    let y = 20
+    // Número de recibo formato 001-000001
+    const numRecibo = `001-${String(reserva.id).padStart(6, '0')}`
 
-    // ===== ENCABEZADO =====
-    doc.setFillColor(30, 64, 175) // Azul
-    doc.rect(0, 0, pageWidth, 45, 'F')
+    let y = 15
+
+    // ===== ENCABEZADO COMPACTO =====
+    doc.setFillColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+    doc.rect(0, 0, pageWidth, 28, 'F')
 
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(24)
+    doc.setFontSize(18)
     doc.setFont('helvetica', 'bold')
-    doc.text(nombrePropiedad.toUpperCase(), pageWidth / 2, 18, { align: 'center' })
+    doc.text(nombrePropiedad.toUpperCase(), 15, 12)
 
-    doc.setFontSize(10)
+    doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text(contacto.direccion, pageWidth / 2, 28, { align: 'center' })
-    doc.text(contacto.tel, pageWidth / 2, 35, { align: 'center' })
+    doc.text(`${contacto.direccion} | ${contacto.tel}`, 15, 22)
 
-    y = 55
-
-    // ===== TÍTULO RECIBO =====
-    doc.setTextColor(30, 64, 175)
-    doc.setFontSize(28)
+    // Recibo a la derecha del encabezado
+    doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
-    doc.text('RECIBO', pageWidth / 2, y, { align: 'center' })
+    doc.text('RECIBO', pageWidth - 15, 12, { align: 'right' })
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`N° ${numRecibo}`, pageWidth - 15, 19, { align: 'right' })
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, pageWidth - 15, 25, { align: 'right' })
+
+    y = 38
+
+    // ===== DATOS DEL HUÉSPED =====
+    doc.setFillColor(245, 245, 245)
+    doc.rect(15, y - 3, pageWidth - 30, 22, 'F')
+
+    doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('DATOS DEL HUÉSPED', 20, y + 3)
 
     y += 10
-    doc.setTextColor(100, 100, 100)
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`N° ${String(reserva.id).padStart(6, '0')}`, pageWidth / 2, y, { align: 'center' })
-
-    y += 6
-    doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, pageWidth / 2, y, { align: 'center' })
-
-    y += 15
-
-    // ===== DATOS DEL TITULAR =====
-    doc.setFillColor(245, 245, 245)
-    doc.rect(15, y - 5, pageWidth - 30, 35, 'F')
-
     doc.setTextColor(60, 60, 60)
-    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('DATOS DEL TITULAR', 20, y + 3)
-
-    y += 12
-    doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    doc.text(`Nombre: ${reserva.inquilinos?.nombre || '-'}`, 20, y)
-    y += 6
-    doc.text(`Email: ${reserva.inquilinos?.email || '-'}`, 20, y)
-    doc.text(`Teléfono: ${reserva.inquilinos?.telefono || '-'}`, 110, y)
+    doc.text(reserva.inquilinos?.nombre || '-', 20, y)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(9)
+    doc.text(`${reserva.inquilinos?.email || '-'} | ${reserva.inquilinos?.telefono || '-'}`, 20, y + 5)
 
-    y += 20
+    y += 18
 
     // ===== DETALLES DE LA RESERVA =====
-    doc.setTextColor(60, 60, 60)
-    doc.setFontSize(12)
+    doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+    doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
     doc.text('DETALLES DE LA RESERVA', 20, y)
 
-    y += 8
+    y += 5
     doc.setDrawColor(200, 200, 200)
     doc.line(20, y, pageWidth - 20, y)
 
-    y += 10
+    y += 8
+    doc.setTextColor(60, 60, 60)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
+    doc.setFontSize(9)
 
-    // Columna izquierda
+    // Fila 1
     doc.text('Check-in:', 20, y)
     doc.setFont('helvetica', 'bold')
-    doc.text(formatFecha(reserva.fecha_inicio), 55, y)
+    doc.text(`${formatFecha(reserva.fecha_inicio)} - ${reserva.horario_ingreso || '14:00'} hs`, 45, y)
 
     doc.setFont('helvetica', 'normal')
-    doc.text('Hora:', 90, y)
+    doc.text('Check-out:', 110, y)
     doc.setFont('helvetica', 'bold')
-    doc.text(reserva.horario_ingreso || '14:00', 105, y)
+    doc.text(`${formatFecha(reserva.fecha_fin)} - ${reserva.horario_salida || '10:00'} hs`, 135, y)
 
-    y += 7
-    doc.setFont('helvetica', 'normal')
-    doc.text('Check-out:', 20, y)
-    doc.setFont('helvetica', 'bold')
-    doc.text(formatFecha(reserva.fecha_fin), 55, y)
-
-    doc.setFont('helvetica', 'normal')
-    doc.text('Hora:', 90, y)
-    doc.setFont('helvetica', 'bold')
-    doc.text(reserva.horario_salida || '10:00', 105, y)
-
-    y += 7
+    y += 6
     doc.setFont('helvetica', 'normal')
     doc.text('Noches:', 20, y)
     doc.setFont('helvetica', 'bold')
-    doc.text(String(noches), 55, y)
+    doc.text(String(noches), 45, y)
 
     doc.setFont('helvetica', 'normal')
-    doc.text('Huéspedes:', 90, y)
+    doc.text('Huéspedes:', 110, y)
     doc.setFont('helvetica', 'bold')
-    doc.text(String(reserva.cantidad_personas || 1), 120, y)
+    doc.text(String(reserva.cantidad_personas || 1), 135, y)
 
-    y += 7
+    y += 6
     doc.setFont('helvetica', 'normal')
     doc.text('Propiedad:', 20, y)
     doc.setFont('helvetica', 'bold')
-    doc.text(nombrePropiedad, 55, y)
+    doc.text(nombrePropiedad, 45, y)
 
-    y += 15
+    y += 12
 
-    // ===== DETALLE DE MONTOS =====
-    doc.setFillColor(30, 64, 175)
-    doc.rect(15, y - 5, pageWidth - 30, 10, 'F')
+    // ===== DETALLE DE MONTOS (con borde) =====
+    const montosStartY = y - 3
+    const montosHeight = 55 + (reserva.deposito && reserva.deposito > 0 ? 6 : 0)
+
+    // Borde del cuadro
+    doc.setDrawColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+    doc.setLineWidth(0.5)
+    doc.rect(15, montosStartY, pageWidth - 30, montosHeight)
+
+    // Título con fondo azul
+    doc.setFillColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+    doc.rect(15, montosStartY, pageWidth - 30, 8, 'F')
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(12)
+    doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
     doc.text('DETALLE DE MONTOS', 20, y + 2)
 
-    y += 15
+    y += 12
     doc.setTextColor(60, 60, 60)
-    doc.setFontSize(10)
+    doc.setFontSize(9)
 
     // Líneas de detalle
-    const drawLine = (label: string, value: string, yPos: number, bold = false) => {
-      doc.setFont('helvetica', 'normal')
-      doc.text(label, 20, yPos)
-      doc.setFont('helvetica', bold ? 'bold' : 'normal')
-      doc.text(value, pageWidth - 20, yPos, { align: 'right' })
-    }
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Precio por noche (${simbolo})`, 20, y)
+    doc.text(`${simbolo} ${(reserva.precio_noche || 0).toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
 
-    drawLine(`Precio por noche (${simbolo})`, `${simbolo} ${(reserva.precio_noche || 0).toLocaleString('es-AR')}`, y)
-    y += 7
-    drawLine(`Total ${noches} noche${noches !== 1 ? 's' : ''}`, `${simbolo} ${total.toLocaleString('es-AR')}`, y)
+    y += 6
+    doc.text(`Total ${noches} noche${noches !== 1 ? 's' : ''}`, 20, y)
+    doc.text(`${simbolo} ${total.toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
 
     if (reserva.deposito && reserva.deposito > 0) {
-      y += 7
-      drawLine('Depósito', `${simbolo} ${reserva.deposito.toLocaleString('es-AR')}`, y)
+      y += 6
+      doc.text('Depósito', 20, y)
+      doc.text(`${simbolo} ${reserva.deposito.toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
     }
 
-    y += 7
+    y += 6
     doc.setDrawColor(200, 200, 200)
     doc.line(20, y, pageWidth - 20, y)
 
-    y += 7
-    drawLine('Seña pagada', `- ${simbolo} ${(reserva.sena || 0).toLocaleString('es-AR')}`, y)
-
-    y += 3
-    doc.setDrawColor(60, 60, 60)
-    doc.line(120, y, pageWidth - 20, y)
+    y += 6
+    doc.text('Seña pagada', 20, y)
+    doc.text(`- ${simbolo} ${(reserva.sena || 0).toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
 
     y += 8
-    doc.setFontSize(12)
-    doc.setFont('helvetica', 'bold')
-    doc.text('SALDO PENDIENTE', 20, y)
-    doc.setTextColor(saldo > 0 ? 200 : 34, saldo > 0 ? 100 : 139, saldo > 0 ? 0 : 34)
-    doc.text(`${simbolo} ${saldo.toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
+    // Fila de TOTAL con fondo celeste
+    doc.setFillColor(celesteClaro.r, celesteClaro.g, celesteClaro.b)
+    doc.rect(16, y - 4, pageWidth - 32, 10, 'F')
 
-    y += 15
+    doc.setTextColor(60, 60, 60)
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'bold')
+    doc.text('SALDO PENDIENTE', 20, y + 2)
+    doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+    doc.text(`${simbolo} ${saldo.toLocaleString('es-AR')}`, pageWidth - 20, y + 2, { align: 'right' })
+
+    y += 18
 
     // ===== ACOMPAÑANTES =====
     if (reserva.acompanantes && reserva.acompanantes.length > 0) {
-      doc.setTextColor(60, 60, 60)
-      doc.setFontSize(11)
+      doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
       doc.text('ACOMPAÑANTES', 20, y)
 
-      y += 7
+      y += 6
+      doc.setTextColor(60, 60, 60)
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(9)
 
@@ -508,8 +507,7 @@ export default function ReservasPage() {
         doc.text(`${idx + 1}. ${nombre}${doc_edad ? ` (${doc_edad})` : ''}`, 25, y)
         y += 5
       })
-
-      y += 5
+      y += 3
     }
 
     // ===== SERVICIOS =====
@@ -519,49 +517,53 @@ export default function ReservasPage() {
     if (reserva.limpieza_final && reserva.limpieza_final > 0) servicios.push(`Limpieza final: ${simbolo} ${reserva.limpieza_final.toLocaleString('es-AR')}`)
 
     if (servicios.length > 0) {
-      doc.setFontSize(11)
+      doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
       doc.text('SERVICIOS', 20, y)
-      y += 6
+      y += 5
+      doc.setTextColor(60, 60, 60)
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(9)
       servicios.forEach(s => {
         doc.text(`• ${s}`, 25, y)
-        y += 5
+        y += 4
       })
-      y += 5
+      y += 3
     }
 
     // ===== NOTAS =====
     if (reserva.notas) {
-      doc.setFontSize(11)
+      doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+      doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
       doc.text('OBSERVACIONES', 20, y)
-      y += 6
+      y += 5
+      doc.setTextColor(60, 60, 60)
       doc.setFont('helvetica', 'normal')
       doc.setFontSize(9)
       const notasLines = doc.splitTextToSize(reserva.notas, pageWidth - 45)
       doc.text(notasLines, 25, y)
-      y += notasLines.length * 5 + 5
+      y += notasLines.length * 4 + 3
     }
 
-    // ===== CONDICIONES =====
-    y = Math.max(y, 230)
+    // ===== CONDICIONES (más arriba) =====
+    y = Math.max(y + 5, 200)
     doc.setFillColor(250, 250, 250)
-    doc.rect(15, y - 3, pageWidth - 30, 35, 'F')
+    doc.rect(15, y - 3, pageWidth - 30, 32, 'F')
 
     doc.setTextColor(100, 100, 100)
     doc.setFontSize(8)
     doc.setFont('helvetica', 'bold')
-    doc.text('CONDICIONES DEL ALQUILER', 20, y + 3)
+    doc.text('CONDICIONES DEL ALQUILER', 20, y + 2)
 
-    y += 10
+    y += 8
     doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
     const condiciones = [
       '• Horario de ingreso: 14:00 hs - Horario de salida: 10:00 hs',
       '• Se incluyen 110 kW de electricidad cada 7 días. El excedente se cobra al valor vigente.',
-      '• Prohibido fumar dentro de la propiedad.',
-      '• No se admiten mascotas sin autorización previa.',
+      '• Prohibido fumar dentro de la propiedad. No se admiten mascotas sin autorización previa.',
       '• El depósito se devuelve al verificar el estado de la propiedad.'
     ]
     condiciones.forEach(c => {
@@ -572,11 +574,11 @@ export default function ReservasPage() {
     // ===== PIE =====
     doc.setTextColor(150, 150, 150)
     doc.setFontSize(8)
-    doc.text('Admin Costa - Sistema de Gestión de Alquileres', pageWidth / 2, 285, { align: 'center' })
-    doc.text(`Generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 290, { align: 'center' })
+    doc.text('Admin Costa - Sistema de Gestión de Alquileres', pageWidth / 2, 280, { align: 'center' })
+    doc.text(`Generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 285, { align: 'center' })
 
     // Guardar
-    doc.save(`Recibo_${reserva.id}_${reserva.inquilinos?.nombre?.replace(/\s/g, '_') || 'reserva'}.pdf`)
+    doc.save(`Recibo_${numRecibo}_${reserva.inquilinos?.nombre?.replace(/\s/g, '_') || 'reserva'}.pdf`)
   }
 
   // Calcular totales
