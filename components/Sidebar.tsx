@@ -48,14 +48,14 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-40
-        w-64 bg-slate-200 border-r border-slate-300
+        w-64 bg-costa-blanco border-r border-costa-agua
         transform transition-transform duration-200 ease-in-out
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-16 flex items-center px-6 border-b border-slate-300">
-            <h1 className="text-xl font-bold text-blue-900">Admin Costa</h1>
+          <div className="h-16 flex items-center px-6 border-b border-costa-agua">
+            <h1 className="text-xl font-bold text-costa-navy">Admin Costa</h1>
           </div>
 
           {/* Navigation */}
@@ -71,12 +71,12 @@ export default function Sidebar() {
                     flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                     transition-colors duration-150
                     ${isActive
-                      ? 'bg-blue-800 text-white'
-                      : 'text-blue-900 hover:bg-slate-300'
+                      ? 'bg-costa-navy text-white'
+                      : 'text-costa-navy hover:bg-costa-agua'
                     }
                   `}
                 >
-                  <item.icon size={20} className={isActive ? 'text-white' : 'text-blue-800'} />
+                  <item.icon size={20} className={isActive ? 'text-white' : 'text-costa-gris'} />
                   {item.name}
                 </Link>
               )
@@ -84,8 +84,8 @@ export default function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-slate-300">
-            <p className="text-xs text-blue-800 text-center">
+          <div className="p-4 border-t border-costa-agua">
+            <p className="text-xs text-costa-gris text-center">
               Admin Costa v1.0
             </p>
           </div>

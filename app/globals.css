@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #C9DADD;
+  --foreground: #2E3F57;
+
+  /* Paleta Admin Costa */
+  --costa-navy: #2E3F57;
+  --costa-gris: #8FA6B3;
+  --costa-agua: #C9DADD;
+  --costa-arena: #E6D3B3;
+  --costa-blanco: #F8F8F6;
 }
 
 @theme inline {
@@ -10,14 +17,15 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Colores personalizados */
+  --color-costa-navy: var(--costa-navy);
+  --color-costa-gris: var(--costa-gris);
+  --color-costa-agua: var(--costa-agua);
+  --color-costa-arena: var(--costa-arena);
+  --color-costa-blanco: var(--costa-blanco);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
 
 body {
   background: var(--background);
