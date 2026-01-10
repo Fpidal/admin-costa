@@ -22,6 +22,10 @@ interface Inquilino {
   email: string
   telefono: string
   documento: string
+  fecha_nacimiento: string | null
+  nacionalidad: string | null
+  estado_civil: string | null
+  domicilio: string | null
   cantidad_personas: number
   origen: string
   observaciones: string
@@ -37,6 +41,31 @@ const origenes = [
   { value: 'otro', label: 'Otro' },
 ]
 
+const nacionalidades = [
+  { value: 'argentina', label: 'Argentina' },
+  { value: 'brasil', label: 'Brasil' },
+  { value: 'chile', label: 'Chile' },
+  { value: 'uruguay', label: 'Uruguay' },
+  { value: 'paraguay', label: 'Paraguay' },
+  { value: 'bolivia', label: 'Bolivia' },
+  { value: 'peru', label: 'Perú' },
+  { value: 'colombia', label: 'Colombia' },
+  { value: 'venezuela', label: 'Venezuela' },
+  { value: 'mexico', label: 'México' },
+  { value: 'espana', label: 'España' },
+  { value: 'italia', label: 'Italia' },
+  { value: 'estados_unidos', label: 'Estados Unidos' },
+  { value: 'otra', label: 'Otra' },
+]
+
+const estadosCiviles = [
+  { value: 'soltero', label: 'Soltero/a' },
+  { value: 'casado', label: 'Casado/a' },
+  { value: 'divorciado', label: 'Divorciado/a' },
+  { value: 'viudo', label: 'Viudo/a' },
+  { value: 'union_libre', label: 'Unión libre' },
+]
+
 const formatMonto = (monto: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto || 0)
 }
@@ -50,6 +79,10 @@ const initialForm = {
   email: '',
   telefono: '',
   documento: '',
+  fecha_nacimiento: '',
+  nacionalidad: 'argentina',
+  estado_civil: '',
+  domicilio: '',
   cantidad_personas: 1,
   origen: 'directo',
   observaciones: '',
@@ -87,6 +120,10 @@ export default function InquilinosPage() {
         email: inquilino.email || '',
         telefono: inquilino.telefono || '',
         documento: inquilino.documento || '',
+        fecha_nacimiento: inquilino.fecha_nacimiento || '',
+        nacionalidad: inquilino.nacionalidad || 'argentina',
+        estado_civil: inquilino.estado_civil || '',
+        domicilio: inquilino.domicilio || '',
         cantidad_personas: inquilino.cantidad_personas || 1,
         origen: inquilino.origen || 'directo',
         observaciones: inquilino.observaciones || '',
@@ -118,6 +155,10 @@ export default function InquilinosPage() {
       email: form.email,
       telefono: form.telefono,
       documento: form.documento,
+      fecha_nacimiento: form.fecha_nacimiento || null,
+      nacionalidad: form.nacionalidad || null,
+      estado_civil: form.estado_civil || null,
+      domicilio: form.domicilio || null,
       cantidad_personas: Number(form.cantidad_personas),
       origen: form.origen,
       observaciones: form.observaciones,
@@ -258,19 +299,30 @@ export default function InquilinosPage() {
       {/* Modal Formulario */}
       <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Huésped' : 'Nuevo Huésped'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-sm font-medium text-gray-700 border-b pb-2">Datos personales</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Nombre completo" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
-            <Input label="Documento (DNI)" value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
+            <Input label="Nombre y apellido completo" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
+            <Input label="DNI / Pasaporte" value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
           </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Fecha de nacimiento" type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} />
+            <Select label="Nacionalidad" value={form.nacionalidad} onChange={(e) => setForm({ ...form, nacionalidad: e.target.value })} options={nacionalidades} />
+            <Select label="Estado civil" value={form.estado_civil} onChange={(e) => setForm({ ...form, estado_civil: e.target.value })} options={estadosCiviles} />
+          </div>
+
+          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Contacto</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Teléfono" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
+            <Input label="Teléfono celular" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
             <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
+          <Input label="Domicilio habitual" value={form.domicilio} onChange={(e) => setForm({ ...form, domicilio: e.target.value })} placeholder="Calle, número, ciudad, provincia" />
+
+          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Información adicional</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Cantidad de personas" type="number" min="1" value={form.cantidad_personas} onChange={(e) => setForm({ ...form, cantidad_personas: Number(e.target.value) })} />
-            <Select label="Origen" value={form.origen} onChange={(e) => setForm({ ...form, origen: e.target.value })} options={origenes} />
+            <Input label="Cantidad de personas (titular + acomp.)" type="number" min="1" value={form.cantidad_personas} onChange={(e) => setForm({ ...form, cantidad_personas: Number(e.target.value) })} />
+            <Select label="Origen de la reserva" value={form.origen} onChange={(e) => setForm({ ...form, origen: e.target.value })} options={origenes} />
           </div>
-          <Textarea label="Observaciones" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} placeholder="Notas sobre el huésped, preferencias, etc." />
+          <Textarea label="Observaciones" value={form.observaciones} onChange={(e) => setForm({ ...form, observaciones: e.target.value })} placeholder="Notas sobre el huésped, preferencias, restricciones, etc." />
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="secondary" onClick={closeModal}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>

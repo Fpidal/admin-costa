@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X } from 'lucide-react'
 
 interface Propiedad {
   id: number
@@ -19,6 +19,13 @@ interface Inquilino {
   email: string
 }
 
+interface Acompanante {
+  nombre: string
+  apellido: string
+  documento: string
+  edad: number | string
+}
+
 interface Reserva {
   id: number
   propiedad_id: number
@@ -31,6 +38,7 @@ interface Reserva {
   forma_pago: string
   estado: string
   notas: string
+  acompanantes: Acompanante[]
   propiedades?: Propiedad
   inquilinos?: Inquilino
 }
@@ -82,6 +90,8 @@ const initialForm = {
   notas: '',
 }
 
+const emptyAcompanante: Acompanante = { nombre: '', apellido: '', documento: '', edad: '' }
+
 export default function ReservasPage() {
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
@@ -90,6 +100,7 @@ export default function ReservasPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(initialForm)
+  const [acompanantes, setAcompanantes] = useState<Acompanante[]>([])
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -98,7 +109,7 @@ export default function ReservasPage() {
 
   async function fetchData() {
     const [resReservas, resPropiedades, resInquilinos] = await Promise.all([
-      supabase.from('reservas').select('*, propiedades(id, nombre), inquilinos(id, nombre, documento, telefono, email)').order('check_in', { ascending: false }),
+      supabase.from('reservas').select('*, acompanantes, propiedades(id, nombre), inquilinos(id, nombre, documento, telefono, email)').order('check_in', { ascending: false }),
       supabase.from('propiedades').select('id, nombre').order('nombre'),
       supabase.from('inquilinos').select('id, nombre, documento, telefono, email').order('nombre')
     ])
@@ -124,9 +135,11 @@ export default function ReservasPage() {
         estado: reserva.estado || 'pendiente',
         notas: reserva.notas || '',
       })
+      setAcompanantes(reserva.acompanantes || [])
     } else {
       setEditingId(null)
       setForm(initialForm)
+      setAcompanantes([])
     }
     setModalOpen(true)
   }
@@ -135,6 +148,21 @@ export default function ReservasPage() {
     setModalOpen(false)
     setEditingId(null)
     setForm(initialForm)
+    setAcompanantes([])
+  }
+
+  function addAcompanante() {
+    setAcompanantes([...acompanantes, { ...emptyAcompanante }])
+  }
+
+  function removeAcompanante(index: number) {
+    setAcompanantes(acompanantes.filter((_, i) => i !== index))
+  }
+
+  function updateAcompanante(index: number, field: keyof Acompanante, value: string | number) {
+    const updated = [...acompanantes]
+    updated[index] = { ...updated[index], [field]: value }
+    setAcompanantes(updated)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -144,18 +172,22 @@ export default function ReservasPage() {
     const noches = calcularNoches(form.check_in, form.check_out)
     const monto = noches * Number(form.precio_noche)
 
+    // Filtrar acompañantes vacíos
+    const acompanantesValidos = acompanantes.filter(a => a.nombre.trim() || a.apellido.trim())
+
     const data = {
       propiedad_id: form.propiedad_id ? Number(form.propiedad_id) : null,
       inquilino_id: form.inquilino_id ? Number(form.inquilino_id) : null,
       check_in: form.check_in,
       check_out: form.check_out,
-      cantidad_personas: Number(form.cantidad_personas),
+      cantidad_personas: 1 + acompanantesValidos.length, // Titular + acompañantes
       precio_noche: Number(form.precio_noche),
       sena: Number(form.sena),
       forma_pago: form.forma_pago,
       monto: monto,
       estado: form.estado,
       notas: form.notas,
+      acompanantes: acompanantesValidos,
     }
 
     if (editingId) {
@@ -327,6 +359,7 @@ export default function ReservasPage() {
       {/* Modal */}
       <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Reserva' : 'Nueva Reserva'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-sm font-medium text-gray-700 border-b pb-2">Propiedad y titular</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
               label="Propiedad"
@@ -335,16 +368,17 @@ export default function ReservasPage() {
               options={propiedades.map(p => ({ value: p.id.toString(), label: p.nombre }))}
             />
             <Select
-              label="Huésped"
+              label="Titular de la reserva"
               value={form.inquilino_id}
               onChange={(e) => setForm({ ...form, inquilino_id: e.target.value })}
               options={inquilinos.map(i => ({ value: i.id.toString(), label: `${i.nombre}${i.documento ? ` (${i.documento})` : ''}` }))}
             />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Fechas y tarifas</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Check-in" type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} required />
             <Input label="Check-out" type="date" value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} required />
-            <Input label="Cantidad de personas" type="number" min="1" value={form.cantidad_personas} onChange={(e) => setForm({ ...form, cantidad_personas: Number(e.target.value) })} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Precio por noche" type="number" min="0" value={form.precio_noche} onChange={(e) => setForm({ ...form, precio_noche: Number(e.target.value) })} />
@@ -369,6 +403,68 @@ export default function ReservasPage() {
               </div>
             </div>
           )}
+
+          {/* Acompañantes */}
+          <div className="pt-2">
+            <div className="flex items-center justify-between border-b pb-2">
+              <p className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Users size={16} />
+                Acompañantes ({acompanantes.length})
+              </p>
+              <Button type="button" variant="secondary" size="sm" onClick={addAcompanante}>
+                <Plus size={14} />
+                Agregar
+              </Button>
+            </div>
+
+            {acompanantes.length > 0 && (
+              <div className="space-y-3 mt-3">
+                {acompanantes.map((acomp, idx) => (
+                  <div key={idx} className="flex gap-2 items-start p-3 bg-gray-50 rounded-lg">
+                    <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-2">
+                      <Input
+                        label="Nombre"
+                        value={acomp.nombre}
+                        onChange={(e) => updateAcompanante(idx, 'nombre', e.target.value)}
+                        placeholder="Nombre"
+                      />
+                      <Input
+                        label="Apellido"
+                        value={acomp.apellido}
+                        onChange={(e) => updateAcompanante(idx, 'apellido', e.target.value)}
+                        placeholder="Apellido"
+                      />
+                      <Input
+                        label="DNI/Pasaporte"
+                        value={acomp.documento}
+                        onChange={(e) => updateAcompanante(idx, 'documento', e.target.value)}
+                        placeholder="Documento"
+                      />
+                      <Input
+                        label="Edad"
+                        type="number"
+                        min="0"
+                        value={acomp.edad}
+                        onChange={(e) => updateAcompanante(idx, 'edad', e.target.value)}
+                        placeholder="Edad"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeAcompanante(idx)}
+                      className="p-2 text-red-500 hover:bg-red-50 rounded mt-6"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <p className="text-xs text-gray-500 mt-2">
+              Total personas: {1 + acompanantes.filter(a => a.nombre.trim() || a.apellido.trim()).length} (titular + {acompanantes.filter(a => a.nombre.trim() || a.apellido.trim()).length} acompañante{acompanantes.filter(a => a.nombre.trim() || a.apellido.trim()).length !== 1 ? 's' : ''})
+            </p>
+          </div>
 
           <Select label="Estado" value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} options={estadosReserva} />
           <Textarea label="Notas" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Observaciones de la reserva..." />
