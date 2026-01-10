@@ -583,7 +583,7 @@ export default function ReservasPage() {
 
   // Calcular totales
   const calcularTotal = (r: Reserva) => {
-    const noches = calcularNoches(r.check_in, r.check_out)
+    const noches = calcularNoches(r.fecha_inicio, r.fecha_fin)
     return noches * (r.precio_noche || 0)
   }
 
