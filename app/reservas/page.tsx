@@ -645,82 +645,68 @@ export default function ReservasPage() {
             <div className="py-12 text-center text-gray-500">No hay reservas registradas</div>
           ) : (
             <div>
-              <table className="w-full">
-                <thead className="bg-gray-50 border-b border-gray-200">
+              <table className="w-full text-sm">
+                <thead className="bg-costa-beige/50 border-b border-costa-beige">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Propiedad</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Huésped</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fechas</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Personas</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Seña</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Saldo</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Huésped</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Período</th>
+                    <th className="px-2 py-2 text-center text-xs font-medium text-costa-gris uppercase">Pers.</th>
+                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Total</th>
+                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Seña</th>
+                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Saldo</th>
+                    <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Estado</th>
+                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-costa-beige">
                   {reservas.map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const total = noches * (reserva.precio_noche || 0)
                     const saldo = total - (reserva.sena || 0)
                     const moneda = reserva.moneda || 'ARS'
                     return (
-                      <tr key={reserva.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <Home size={16} className="text-gray-400" />
-                            <span className="font-medium text-gray-900">{reserva.propiedades?.nombre || '-'}</span>
+                      <tr key={reserva.id} className="hover:bg-costa-beige/30">
+                        <td className="px-3 py-2">
+                          <span className="font-medium text-costa-navy text-sm">{reserva.propiedades?.nombre || '-'}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="text-costa-navy text-sm">{reserva.inquilinos?.nombre || '-'}</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="text-costa-gris text-xs">
+                            {formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}
+                            <span className="ml-1 text-costa-navy">({noches}n)</span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <User size={16} className="text-gray-400" />
-                            <div>
-                              <span className="text-gray-900 font-medium">{reserva.inquilinos?.nombre || '-'}</span>
-                              {reserva.inquilinos?.telefono && (
-                                <p className="text-xs text-gray-500">{reserva.inquilinos.telefono}</p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-2">
-                            <Calendar size={16} className="text-gray-400" />
-                            <div>
-                              <span className="text-gray-700">{formatFecha(reserva.fecha_inicio)} → {formatFecha(reserva.fecha_fin)}</span>
-                              <p className="text-xs text-gray-500">{noches} noches · {formatMonto(reserva.precio_noche || 0, moneda)}/noche</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-center text-gray-700">
+                        <td className="px-2 py-2 text-center text-costa-navy text-sm">
                           {reserva.cantidad_personas || 1}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right font-semibold text-gray-900">
+                        <td className="px-2 py-2 text-right font-semibold text-costa-navy text-sm">
                           {formatMonto(total, moneda)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-costa-olivo">
+                        <td className="px-2 py-2 text-right text-costa-olivo text-sm">
                           {formatMonto(reserva.sena || 0, moneda)}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <td className="px-2 py-2 text-right text-sm">
                           <span className={saldo > 0 ? 'font-semibold text-amber-600' : 'text-costa-olivo'}>
                             {formatMonto(saldo, moneda)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-2 py-2">
                           <Badge variant={estadoVariant[reserva.estado as keyof typeof estadoVariant] || 'default'}>
                             {reserva.estado}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <div className="flex justify-end gap-1">
+                        <td className="px-2 py-2 text-right">
+                          <div className="flex justify-end gap-0.5">
                             {reserva.estado === 'confirmada' && (
                               <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Generar Recibo PDF">
-                                <FileText size={16} className="text-costa-navy" />
+                                <FileText size={14} className="text-costa-navy" />
                               </Button>
                             )}
-                            <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={16} /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={16} className="text-costa-gris" /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={14} /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
                           </div>
                         </td>
                       </tr>
