@@ -167,6 +167,12 @@ export default function ReservasPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+
+    if (!form.propiedad_id) {
+      alert('Seleccioná una propiedad')
+      return
+    }
+
     setSaving(true)
 
     const noches = calcularNoches(form.check_in, form.check_out)
@@ -176,15 +182,16 @@ export default function ReservasPage() {
     const acompanantesValidos = acompanantes.filter(a => a.nombre.trim() || a.apellido.trim())
 
     const data = {
-      propiedad_id: form.propiedad_id ? Number(form.propiedad_id) : null,
-      inquilino_id: form.inquilino_id ? Number(form.inquilino_id) : null,
-      check_in: form.check_in,
-      check_out: form.check_out,
+      propiedad_id: form.propiedad_id,
+      inquilino_id: form.inquilino_id || null,
+      fecha_inicio: form.check_in,
+      fecha_fin: form.check_out,
       cantidad_personas: 1 + acompanantesValidos.length, // Titular + acompañantes
       precio_noche: Number(form.precio_noche),
       sena: Number(form.sena),
       forma_pago: form.forma_pago,
       monto: monto,
+      monto_usd: Number(form.precio_noche),
       estado: form.estado,
       notas: form.notas,
       acompanantes: acompanantesValidos,
@@ -366,19 +373,26 @@ export default function ReservasPage() {
               value={form.propiedad_id}
               onChange={(e) => setForm({ ...form, propiedad_id: e.target.value })}
               options={propiedades.map(p => ({ value: p.id.toString(), label: p.nombre }))}
+              required
             />
             <Select
               label="Titular de la reserva"
               value={form.inquilino_id}
               onChange={(e) => setForm({ ...form, inquilino_id: e.target.value })}
-              options={inquilinos.map(i => ({ value: i.id.toString(), label: `${i.nombre}${i.documento ? ` (${i.documento})` : ''}` }))}
+              options={inquilinos.map(i => ({ value: i.id.toString(), label: i.nombre }))}
             />
           </div>
 
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Fechas y tarifas</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Check-in" type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value })} required />
-            <Input label="Check-out" type="date" value={form.check_out} onChange={(e) => setForm({ ...form, check_out: e.target.value })} required />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Input label="Check-in" type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value, check_out: form.check_out && form.check_out < e.target.value ? e.target.value : form.check_out })} required />
+            <Input label="Check-out" type="date" value={form.check_out} min={form.check_in || undefined} onChange={(e) => setForm({ ...form, check_out: e.target.value })} required />
+            <div className="flex items-end">
+              <div className="w-full px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-center">
+                <span className="text-2xl font-bold text-blue-600">{formNoches}</span>
+                <span className="text-sm text-blue-600 ml-1">noche{formNoches !== 1 ? 's' : ''}</span>
+              </div>
+            </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Precio por noche" type="number" min="0" value={form.precio_noche} onChange={(e) => setForm({ ...form, precio_noche: Number(e.target.value) })} />
