@@ -1,15 +1,19 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
 
 :root {
-  --background: #C9DADD;
-  --foreground: #2E3F57;
+  --background: #f5ebe0;
+  --foreground: #1e3a5f;
 
-  /* Paleta Admin Costa */
-  --costa-navy: #2E3F57;
-  --costa-gris: #8FA6B3;
-  --costa-agua: #C9DADD;
-  --costa-arena: #E6D3B3;
-  --costa-blanco: #F8F8F6;
+  /* Paleta Náutico Premium */
+  --costa-navy: #1e3a5f;
+  --costa-navy-light: #2d4a6f;
+  --costa-beige: #f5ebe0;
+  --costa-beige-light: #faf6f1;
+  --costa-coral: #e07850;
+  --costa-coral-dark: #c9684a;
+  --costa-white: #ffffff;
+  --costa-gris: #6b7c93;
 }
 
 @theme inline {
@@ -20,15 +24,21 @@
 
   /* Colores personalizados */
   --color-costa-navy: var(--costa-navy);
+  --color-costa-navy-light: var(--costa-navy-light);
+  --color-costa-beige: var(--costa-beige);
+  --color-costa-beige-light: var(--costa-beige-light);
+  --color-costa-coral: var(--costa-coral);
+  --color-costa-coral-dark: var(--costa-coral-dark);
+  --color-costa-white: var(--costa-white);
   --color-costa-gris: var(--costa-gris);
-  --color-costa-agua: var(--costa-agua);
-  --color-costa-arena: var(--costa-arena);
-  --color-costa-blanco: var(--costa-blanco);
 }
-
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.font-playfair {
+  font-family: 'Playfair Display', serif;
 }

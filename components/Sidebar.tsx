@@ -48,18 +48,20 @@ export default function Sidebar() {
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-40
-        w-64 bg-costa-blanco border-r border-costa-agua
+        w-64 bg-gradient-to-b from-costa-beige-light/95 to-costa-beige/90 backdrop-blur-sm
+        border-r border-costa-beige
         transform transition-transform duration-200 ease-in-out
+        shadow-lg
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-16 flex items-center px-6 border-b border-costa-agua">
-            <h1 className="text-xl font-bold text-costa-navy">Admin Costa</h1>
+          <div className="h-20 flex items-center justify-center px-6 border-b border-costa-beige">
+            <h1 className="text-2xl font-playfair font-bold text-costa-navy tracking-wide">Admin Costa</h1>
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-4 space-y-1">
+          <nav className="flex-1 px-3 py-6 space-y-1">
             {navigation.map((item) => {
               const isActive = pathname === item.href
               return (
@@ -68,15 +70,15 @@ export default function Sidebar() {
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
-                    transition-colors duration-150
+                    flex items-center gap-3 px-4 py-3 text-sm font-medium
+                    transition-all duration-200
                     ${isActive
-                      ? 'bg-costa-navy text-white'
-                      : 'text-costa-navy hover:bg-costa-agua'
+                      ? 'bg-costa-white/80 text-costa-navy border-l-4 border-costa-navy rounded-r-lg shadow-sm'
+                      : 'text-costa-navy hover:bg-costa-white/50 rounded-lg border-l-4 border-transparent'
                     }
                   `}
                 >
-                  <item.icon size={20} className={isActive ? 'text-white' : 'text-costa-gris'} />
+                  <item.icon size={20} className={isActive ? 'text-costa-coral' : 'text-costa-gris'} />
                   {item.name}
                 </Link>
               )
@@ -84,8 +86,8 @@ export default function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-costa-agua">
-            <p className="text-xs text-costa-gris text-center">
+          <div className="p-4 border-t border-costa-beige">
+            <p className="text-xs text-costa-gris text-center font-medium">
               Admin Costa v1.0
             </p>
           </div>

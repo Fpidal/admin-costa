@@ -36,12 +36,12 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
     <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="fixed inset-0 bg-black/50" onClick={onClose} />
       <div className="flex min-h-full items-center justify-center p-4">
-        <div className={`relative w-full ${sizes[size]} bg-costa-blanco rounded-xl shadow-xl`}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-costa-agua">
+        <div className={`relative w-full ${sizes[size]} bg-costa-white rounded-2xl shadow-2xl`}>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-costa-beige">
             <h2 className="text-lg font-semibold text-costa-navy">{title}</h2>
             <button
               onClick={onClose}
-              className="p-1 rounded-lg hover:bg-costa-agua transition-colors"
+              className="p-1.5 rounded-full hover:bg-costa-beige transition-colors"
             >
               <X size={20} className="text-costa-gris" />
             </button>

@@ -26,8 +26,16 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-costa-agua`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        {/* Fondo de playa fijo */}
+        <div
+          className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: 'url(https://dpghrdgippisgzvlahwi.supabase.co/storage/v1/object/public/Imagenes/foto%20playa%20costa.JPG)' }}
+        >
+          <div className="absolute inset-0 bg-costa-beige/80" />
+        </div>
+
         <div className="flex min-h-screen">
           <Sidebar />
           <main className="flex-1 lg:ml-0">
