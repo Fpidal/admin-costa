@@ -444,12 +444,7 @@ export default function PropiedadesPage() {
                 </div>
 
                 <div className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-bold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>{propiedad.nombre}</h3>
-                    <Badge variant={estadoVariant[propiedad.estado as keyof typeof estadoVariant] || 'default'}>
-                      {propiedad.estado}
-                    </Badge>
-                  </div>
+                  <h3 className="text-lg font-bold text-costa-navy mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>{propiedad.nombre}</h3>
 
                   <div className="flex items-center justify-between mb-3">
                     {propiedad.direccion && (
