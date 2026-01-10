@@ -441,16 +441,6 @@ export default function PropiedadesPage() {
                     <span className="text-costa-gris text-sm">Sin imagen</span>
                   )}
 
-                  {/* Badge de estado de reserva */}
-                  {reservaActual ? (
-                    <div className="absolute top-2 left-2 px-2 py-1 bg-costa-coral text-white text-xs rounded-full">
-                      Reservada
-                    </div>
-                  ) : (
-                    <div className="absolute top-2 left-2 px-2 py-1 bg-costa-olivo/80 text-white text-xs rounded-full">
-                      Disponible
-                    </div>
-                  )}
                 </div>
 
                 <div className="p-4">
@@ -461,12 +451,23 @@ export default function PropiedadesPage() {
                     </Badge>
                   </div>
 
-                  {propiedad.direccion && (
-                    <div className="flex items-center gap-1 text-sm text-gray-500 mb-3">
-                      <MapPin size={14} />
-                      <span className="truncate">{propiedad.direccion}</span>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-between mb-3">
+                    {propiedad.direccion && (
+                      <div className="flex items-center gap-1 text-sm text-gray-500">
+                        <MapPin size={14} />
+                        <span className="truncate">{propiedad.direccion}</span>
+                      </div>
+                    )}
+                    {reservaActual ? (
+                      <span className="px-2 py-0.5 bg-costa-coral text-white text-xs rounded-full">
+                        Reservada
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-costa-olivo text-white text-xs rounded-full">
+                        Disponible
+                      </span>
+                    )}
+                  </div>
 
                   {/* Info básica */}
                   <div className="flex flex-wrap items-center gap-3 text-sm text-costa-gris mb-2">
