@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&display=swap');
 
 :root {
   --background: #f5ebe0;
@@ -39,6 +38,3 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-.font-playfair {
-  font-family: 'Playfair Display', serif;
-}

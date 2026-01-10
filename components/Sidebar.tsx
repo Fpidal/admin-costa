@@ -57,7 +57,7 @@ export default function Sidebar() {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="h-20 flex items-center justify-center px-6 border-b border-costa-beige">
-            <h1 className="text-2xl font-playfair font-bold text-costa-navy tracking-wide">Admin Costa</h1>
+            <h1 className="text-2xl font-bold text-costa-navy tracking-wide" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</h1>
           </div>
 
           {/* Navigation */}
