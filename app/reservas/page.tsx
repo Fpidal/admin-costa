@@ -327,9 +327,9 @@ export default function ReservasPage() {
     const moneda = reserva.moneda || 'ARS'
     const simbolo = moneda === 'USD' ? 'U$D' : '$'
 
-    // Colores
-    const azulPrincipal = { r: 30, g: 64, b: 175 }
-    const celesteClaro = { r: 219, g: 234, b: 254 }
+    // Colores - Paleta náutica costa
+    const azulPrincipal = { r: 30, g: 58, b: 95 }  // costa-navy #1e3a5f
+    const celesteClaro = { r: 245, g: 235, b: 224 }  // costa-beige #f5ebe0
 
     // Datos de la propiedad
     const nombrePropiedad = reserva.propiedades?.nombre || 'Propiedad'
@@ -716,7 +716,7 @@ export default function ReservasPage() {
                           <div className="flex justify-end gap-1">
                             {reserva.estado === 'confirmada' && (
                               <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Generar Recibo PDF">
-                                <FileText size={16} className="text-blue-600" />
+                                <FileText size={16} className="text-costa-navy" />
                               </Button>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={16} /></Button>
