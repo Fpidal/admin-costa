@@ -1050,13 +1050,13 @@ export default function ReservasPage() {
 
       {/* Modal */}
       <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Reserva' : 'Nueva Reserva'} size="lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Botones arriba */}
-          <div className="flex justify-end gap-3 pb-3 border-b">
-            <Button type="button" variant="secondary" onClick={closeModal}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
-          </div>
+        {/* Botones sticky arriba */}
+        <div className="sticky top-0 z-10 bg-white flex justify-end gap-3 pb-3 mb-4 border-b -mt-2">
+          <Button type="button" variant="secondary" onClick={closeModal}>Cancelar</Button>
+          <Button type="submit" form="reserva-form" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
+        </div>
 
+        <form id="reserva-form" onSubmit={handleSubmit} className="space-y-4">
           <p className="text-sm font-medium text-gray-700 border-b pb-2">Propiedad y titular</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
@@ -1086,6 +1086,26 @@ export default function ReservasPage() {
                 <span className="text-sm text-blue-600 ml-1">noche{formNoches !== 1 ? 's' : ''}</span>
               </div>
             </div>
+          </div>
+
+          {/* Estado con radio buttons */}
+          <div className="flex items-center gap-6 pt-2">
+            <span className="text-sm font-medium text-gray-700">Estado:</span>
+            {estadosReserva.map((estado) => (
+              <label key={estado.value} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="estado"
+                  value={estado.value}
+                  checked={form.estado === estado.value}
+                  onChange={(e) => setForm({ ...form, estado: e.target.value })}
+                  className="w-4 h-4 text-costa-navy border-gray-300 focus:ring-costa-navy"
+                />
+                <span className={`text-sm ${form.estado === estado.value ? 'font-medium text-costa-navy' : 'text-gray-600'}`}>
+                  {estado.label}
+                </span>
+              </label>
+            ))}
           </div>
 
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Tarifas y pagos</p>
@@ -1303,7 +1323,6 @@ export default function ReservasPage() {
             </div>
           </div>
 
-          <Select label="Estado" value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} options={estadosReserva} />
           <Textarea label="Notas" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Observaciones de la reserva..." />
         </form>
       </Modal>
