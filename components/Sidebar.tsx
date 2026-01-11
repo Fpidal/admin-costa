@@ -81,6 +81,26 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             </p>
           </div>
 
+          {/* Quick actions */}
+          <div className="px-3 py-3 border-b border-costa-beige flex gap-2">
+            <Link
+              href="/"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-costa-gris hover:text-costa-navy hover:bg-costa-white/50 rounded-lg transition-colors border border-costa-beige"
+            >
+              <Globe size={14} />
+              Ver sitio
+            </Link>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-costa-coral hover:bg-costa-coral/10 rounded-lg transition-colors border border-costa-coral/30"
+              >
+                <LogOut size={14} />
+                Salir
+              </button>
+            )}
+          </div>
+
           {/* Navigation */}
           <nav className="flex-1 px-3 py-6 space-y-1">
             {navigation.map((item) => {
@@ -106,25 +126,6 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             })}
           </nav>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-costa-beige space-y-2">
-            <Link
-              href="/"
-              className="flex items-center justify-center gap-2 px-4 py-2 text-sm text-costa-gris hover:text-costa-navy hover:bg-costa-white/50 rounded-lg transition-colors"
-            >
-              <Globe size={16} />
-              Ver sitio público
-            </Link>
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-costa-coral hover:bg-costa-coral/10 rounded-lg transition-colors"
-              >
-                <LogOut size={16} />
-                Cerrar sesión
-              </button>
-            )}
-          </div>
         </div>
       </aside>
     </>

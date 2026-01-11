@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed } from 'lucide-react'
+import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, Share2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface Propiedad {
@@ -164,6 +164,13 @@ export default function PropiedadesPage() {
 
   const formatFechaCorta = (fecha: string) => {
     return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+  }
+
+  function compartirWhatsApp(propiedad: Propiedad) {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+    const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
+    const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`
+    window.open(url, '_blank')
   }
 
   function openModal(propiedad?: Propiedad) {
@@ -595,6 +602,9 @@ export default function PropiedadesPage() {
                         </svg>
                         Contacto
                       </a>
+                      <Button variant="ghost" size="sm" onClick={() => compartirWhatsApp(propiedad)} title="Compartir por WhatsApp">
+                        <Share2 size={16} className="text-green-600" />
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => openModal(propiedad)}>
                         <Pencil size={16} />
                       </Button>

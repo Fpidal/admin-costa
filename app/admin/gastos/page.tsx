@@ -11,6 +11,14 @@ interface Propiedad {
   nombre: string
 }
 
+interface ProveedorServicio {
+  id: number
+  nombre: string
+  apellido?: string
+  rubro?: string
+  telefono?: string
+}
+
 interface DetalleExpensa {
   concepto: string
   monto: number
@@ -43,13 +51,6 @@ interface ExpensaParseada {
   selected: boolean
 }
 
-const tiposGasto = [
-  { value: 'expensa', label: 'Expensa' },
-  { value: 'mantenimiento', label: 'Mantenimiento' },
-  { value: 'arreglo', label: 'Arreglo' },
-  { value: 'otro', label: 'Otro' },
-]
-
 const formatMonto = (monto: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto)
 }
@@ -61,20 +62,31 @@ const formatFecha = (fecha: string) => {
 const initialForm = {
   propiedad_id: '',
   concepto: '',
-  tipo: '',
+  proveedor: '',
   monto: 0,
   fecha: new Date().toISOString().split('T')[0],
-  descripcion: '',
+  observaciones: '',
+}
+
+const initialNuevoProveedor = {
+  nombre: '',
+  apellido: '',
+  rubro: '',
+  telefono: '',
 }
 
 export default function AdministracionPage() {
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
+  const [proveedores, setProveedores] = useState<ProveedorServicio[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(initialForm)
   const [saving, setSaving] = useState(false)
+  const [nuevoProveedor, setNuevoProveedor] = useState(initialNuevoProveedor)
+  const [mostrarNuevoProveedor, setMostrarNuevoProveedor] = useState(false)
+  const [proveedorConfirmado, setProveedorConfirmado] = useState(false)
 
   // Estados para importador de expensas Eidico
   const [importModalOpen, setImportModalOpen] = useState(false)
@@ -93,13 +105,15 @@ export default function AdministracionPage() {
   }, [])
 
   async function fetchData() {
-    const [resGastos, resPropiedades] = await Promise.all([
+    const [resGastos, resPropiedades, resProveedores] = await Promise.all([
       supabase.from('gastos').select('*, propiedades(id, nombre)').order('fecha', { ascending: false }),
-      supabase.from('propiedades').select('id, nombre').order('nombre')
+      supabase.from('propiedades').select('id, nombre').order('nombre'),
+      supabase.from('proveedores_servicios').select('*').order('nombre')
     ])
 
     if (resGastos.data) setGastos(resGastos.data)
     if (resPropiedades.data) setPropiedades(resPropiedades.data)
+    if (resProveedores.data) setProveedores(resProveedores.data)
     setLoading(false)
   }
 
@@ -109,15 +123,19 @@ export default function AdministracionPage() {
       setForm({
         propiedad_id: gasto.propiedad_id || '',
         concepto: gasto.concepto || '',
-        tipo: gasto.tipo || '',
+        proveedor: gasto.proveedor || '',
         monto: gasto.monto || 0,
         fecha: gasto.fecha || '',
-        descripcion: gasto.descripcion || '',
+        observaciones: gasto.descripcion || '',
       })
+      setProveedorConfirmado(!!gasto.proveedor)
     } else {
       setEditingId(null)
       setForm(initialForm)
+      setProveedorConfirmado(false)
     }
+    setMostrarNuevoProveedor(false)
+    setNuevoProveedor(initialNuevoProveedor)
     setModalOpen(true)
   }
 
@@ -131,13 +149,52 @@ export default function AdministracionPage() {
     e.preventDefault()
     setSaving(true)
 
+    let proveedorNombre = form.proveedor
+
+    // Si es nuevo proveedor, guardarlo primero
+    if (mostrarNuevoProveedor && nuevoProveedor.nombre.trim()) {
+      const nombreCompleto = nuevoProveedor.apellido
+        ? `${nuevoProveedor.nombre.trim()} ${nuevoProveedor.apellido.trim()}`
+        : nuevoProveedor.nombre.trim()
+
+      const { error: provError } = await supabase
+        .from('proveedores_servicios')
+        .insert([{
+          nombre: nuevoProveedor.nombre.trim(),
+          apellido: nuevoProveedor.apellido.trim() || null,
+          rubro: nuevoProveedor.rubro.trim() || null,
+          telefono: nuevoProveedor.telefono.trim() || null,
+        }])
+
+      if (provError) {
+        // Si ya existe, no es error
+        if (!provError.message.includes('duplicate')) {
+          alert('Error al crear proveedor: ' + provError.message)
+          setSaving(false)
+          return
+        }
+      }
+      proveedorNombre = nombreCompleto
+    }
+
+    // Mapear concepto a tipo válido
+    const tipoMap: Record<string, string> = {
+      'Mantenimiento': 'mantenimiento',
+      'Arreglos': 'arreglo',
+      'Ampliación': 'otro',
+      'Reparaciones': 'arreglo',
+      'Multas': 'otro',
+      'Otros': 'otro',
+    }
+
     const data = {
       propiedad_id: form.propiedad_id || null,
-      concepto: form.concepto,
-      tipo: form.tipo,
+      proveedor: proveedorNombre || null,
+      concepto: form.concepto || 'Gasto',
+      tipo: tipoMap[form.concepto] || 'otro',
       monto: Number(form.monto),
       fecha: form.fecha,
-      descripcion: form.descripcion || null,
+      descripcion: form.observaciones || null,
     }
 
     if (editingId) {
@@ -510,21 +567,143 @@ export default function AdministracionPage() {
       {/* Modal Nuevo/Editar Gasto */}
       <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Gasto' : 'Nuevo Gasto'}>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <Input label="Concepto" value={form.concepto} onChange={(e) => setForm({ ...form, concepto: e.target.value })} required />
-          <div className="grid grid-cols-2 gap-3">
-            <Select
-              label="Propiedad"
-              value={form.propiedad_id}
-              onChange={(e) => setForm({ ...form, propiedad_id: e.target.value })}
-              options={propiedades.map(p => ({ value: p.id, label: p.nombre }))}
-            />
-            <Select label="Tipo" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} options={tiposGasto} />
+          {/* Propiedad primero */}
+          <Select
+            label="Propiedad"
+            value={form.propiedad_id}
+            onChange={(e) => setForm({ ...form, propiedad_id: e.target.value })}
+            options={propiedades.map(p => ({ value: p.id, label: p.nombre }))}
+            required
+          />
+
+          {/* Concepto */}
+          <Select
+            label="Concepto"
+            value={form.concepto}
+            onChange={(e) => setForm({ ...form, concepto: e.target.value })}
+            options={[
+              { value: 'Mantenimiento', label: 'Mantenimiento' },
+              { value: 'Arreglos', label: 'Arreglos' },
+              { value: 'Ampliación', label: 'Ampliación' },
+              { value: 'Reparaciones', label: 'Reparaciones' },
+              { value: 'Multas', label: 'Multas' },
+              { value: 'Otros', label: 'Otros' },
+            ]}
+            required
+          />
+
+          {/* Proveedor */}
+          <div>
+            <label className="block text-sm font-medium text-costa-navy mb-1">Proveedor</label>
+            {!mostrarNuevoProveedor ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <select
+                    className="flex-1 px-3 py-2 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent"
+                    value={form.proveedor}
+                    onChange={(e) => {
+                      setForm({ ...form, proveedor: e.target.value })
+                      setProveedorConfirmado(false)
+                    }}
+                  >
+                    <option value="">Seleccionar proveedor...</option>
+                    {proveedores.map(p => (
+                      <option key={p.id} value={p.apellido ? `${p.nombre} ${p.apellido}` : p.nombre}>
+                        {p.apellido ? `${p.nombre} ${p.apellido}` : p.nombre}
+                        {p.rubro ? ` (${p.rubro})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {form.proveedor && (
+                    <button
+                      type="button"
+                      onClick={() => setProveedorConfirmado(true)}
+                      className={`px-3 py-2 rounded-lg transition-colors ${
+                        proveedorConfirmado
+                          ? 'bg-green-500 text-white'
+                          : 'bg-costa-beige text-costa-navy hover:bg-costa-navy hover:text-white'
+                      }`}
+                      title="Confirmar proveedor"
+                    >
+                      <Check size={18} />
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="text-sm text-costa-navy hover:underline"
+                  onClick={() => setMostrarNuevoProveedor(true)}
+                >
+                  + Agregar nuevo proveedor
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3 p-3 bg-costa-beige/30 rounded-lg">
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    className="px-3 py-2 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent"
+                    placeholder="Nombre *"
+                    value={nuevoProveedor.nombre}
+                    onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, nombre: e.target.value })}
+                    autoFocus
+                  />
+                  <input
+                    type="text"
+                    className="px-3 py-2 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent"
+                    placeholder="Apellido"
+                    value={nuevoProveedor.apellido}
+                    onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, apellido: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    className="px-3 py-2 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent"
+                    placeholder="Rubro (ej: Electricista)"
+                    value={nuevoProveedor.rubro}
+                    onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, rubro: e.target.value })}
+                  />
+                  <input
+                    type="tel"
+                    className="px-3 py-2 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent"
+                    placeholder="Teléfono"
+                    value={nuevoProveedor.telefono}
+                    onChange={(e) => setNuevoProveedor({ ...nuevoProveedor, telefono: e.target.value })}
+                  />
+                </div>
+                <button
+                  type="button"
+                  className="text-sm text-costa-gris hover:underline"
+                  onClick={() => {
+                    setMostrarNuevoProveedor(false)
+                    setNuevoProveedor(initialNuevoProveedor)
+                  }}
+                >
+                  ← Volver a seleccionar existente
+                </button>
+              </div>
+            )}
           </div>
+
+          {/* Monto y Fecha */}
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Monto" type="number" min="0" value={form.monto} onChange={(e) => setForm({ ...form, monto: Number(e.target.value) })} required />
+            <Input label="Importe" type="number" min="0" value={form.monto} onChange={(e) => setForm({ ...form, monto: Number(e.target.value) })} required />
             <Input label="Fecha" type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
           </div>
-          <Input label="Descripción" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
+
+          {/* Observaciones */}
+          <div>
+            <label className="block text-sm font-medium text-costa-navy mb-1">Observaciones</label>
+            <textarea
+              className="w-full px-3 py-2 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent resize-none"
+              rows={2}
+              value={form.observaciones}
+              onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
+              placeholder="Notas adicionales..."
+            />
+          </div>
+
           <div className="flex justify-end gap-2 pt-3 border-t border-costa-beige">
             <Button type="button" variant="ghost" onClick={closeModal}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
@@ -535,6 +714,27 @@ export default function AdministracionPage() {
       {/* Modal Importar Expensas Eidico */}
       <Modal isOpen={importModalOpen} onClose={closeImportModal} title="Importar Expensas Eidico" size="lg">
         <div className="space-y-4">
+          {/* Botones de acción arriba */}
+          <div className="flex justify-between items-center pb-3 border-b border-costa-beige">
+            <div className="flex items-center gap-2">
+              {expensasParseadas.length > 0 && (
+                <span className="text-sm text-costa-gris">
+                  Total: <span className="font-bold text-costa-navy">{formatMonto(expensasParseadas.filter(e => e.selected).reduce((acc, e) => acc + e.debe, 0))}</span>
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={closeImportModal}>
+                Cancelar
+              </Button>
+              {expensasParseadas.length > 0 && (
+                <Button size="sm" onClick={importarExpensas} disabled={importando || expensasParseadas.filter(e => e.selected).length === 0 || !importPropiedadId}>
+                  {importando ? 'Importando...' : `Importar registro`}
+                </Button>
+              )}
+            </div>
+          </div>
+
           <Select
             label="Propiedad"
             value={importPropiedadId}
@@ -548,7 +748,7 @@ export default function AdministracionPage() {
               Pegá los datos copiados de Eidico:
             </label>
             <textarea
-              className="w-full h-40 p-3 border border-gray-300 rounded-lg text-sm font-mono resize-none focus:ring-2 focus:ring-costa-navy focus:border-transparent"
+              className="w-full h-32 p-3 border border-gray-300 rounded-lg text-sm font-mono resize-none focus:ring-2 focus:ring-costa-navy focus:border-transparent"
               placeholder="Pegá aquí los datos del estado de cuenta de Eidico..."
               value={textoEidico}
               onChange={(e) => setTextoEidico(e.target.value)}
@@ -601,25 +801,8 @@ export default function AdministracionPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="bg-costa-navy/10 px-4 py-2 flex justify-between items-center">
-                <span className="text-sm font-medium">Total a importar:</span>
-                <span className="text-lg font-bold text-costa-navy">
-                  {formatMonto(expensasParseadas.filter(e => e.selected).reduce((acc, e) => acc + e.debe, 0))}
-                </span>
               </div>
-            </div>
           )}
-
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="ghost" onClick={closeImportModal}>
-              Cancelar
-            </Button>
-            {expensasParseadas.length > 0 && (
-              <Button onClick={importarExpensas} disabled={importando || expensasParseadas.filter(e => e.selected).length === 0 || !importPropiedadId}>
-                {importando ? 'Importando...' : `Importar como un solo registro`}
-              </Button>
-            )}
-          </div>
         </div>
       </Modal>
 

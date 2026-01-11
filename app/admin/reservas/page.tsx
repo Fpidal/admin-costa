@@ -48,15 +48,33 @@ interface Reserva {
   forma_pago: string
   ropa_blanca: boolean
   limpieza_final: number
-  lavadero: boolean
+  monto_lavadero: number
   kw_inicial: number
-  kw_final: number
-  costo_kw: number
   estado: string
   notas: string
   acompanantes: Acompanante[]
   propiedades?: Propiedad
   inquilinos?: Inquilino
+}
+
+interface Cobro {
+  id: number
+  reserva_id: number
+  fecha: string
+  concepto: string
+  descripcion: string | null
+  monto: number
+  moneda: string
+  medio_pago: string
+  recibo_generado: boolean
+  created_at: string
+  reservas?: {
+    id: number
+    fecha_inicio: string
+    fecha_fin: string
+    propiedades?: { nombre: string }
+    inquilinos?: { nombre: string }
+  }
 }
 
 const estadosReserva = [
@@ -73,8 +91,8 @@ const formasPago = [
 ]
 
 const monedas = [
-  { value: 'ARS', label: '$ Pesos' },
   { value: 'USD', label: 'U$D Dólares' },
+  { value: 'ARS', label: '$ Pesos' },
 ]
 
 const estadoVariant = {
@@ -108,7 +126,7 @@ const initialForm = {
   horario_ingreso: '14:00',
   horario_salida: '10:00',
   cantidad_personas: 1,
-  moneda: 'ARS',
+  moneda: 'USD',
   precio_noche: 0,
   deposito: 0,
   deposito_pesos: 0,
@@ -116,10 +134,8 @@ const initialForm = {
   forma_pago: 'efectivo',
   ropa_blanca: false,
   limpieza_final: 0,
-  lavadero: false,
+  monto_lavadero: 0,
   kw_inicial: 0,
-  kw_final: 0,
-  costo_kw: 0,
   estado: 'pendiente',
   notas: '',
 }
@@ -127,7 +143,9 @@ const initialForm = {
 const emptyAcompanante: Acompanante = { nombre: '', apellido: '', documento: '', edad: '' }
 
 export default function ReservasPage() {
+  const [activeTab, setActiveTab] = useState<'reservas' | 'cobros'>('reservas')
   const [reservas, setReservas] = useState<Reserva[]>([])
+  const [cobros, setCobros] = useState<Cobro[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [inquilinos, setInquilinos] = useState<Inquilino[]>([])
   const [loading, setLoading] = useState(true)
@@ -139,21 +157,24 @@ export default function ReservasPage() {
   const [nuevoAcompanante, setNuevoAcompanante] = useState<Acompanante>({ nombre: '', apellido: '', documento: '', edad: '' })
   const [editingAcompIdx, setEditingAcompIdx] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
+  const [expandedReservas, setExpandedReservas] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     fetchData()
   }, [])
 
   async function fetchData() {
-    const [resReservas, resPropiedades, resInquilinos] = await Promise.all([
+    const [resReservas, resPropiedades, resInquilinos, resCobros] = await Promise.all([
       supabase.from('reservas').select('*, propiedades(id, nombre), inquilinos(id, nombre, documento, telefono, email, acompanantes)').order('fecha_inicio', { ascending: false }),
       supabase.from('propiedades').select('id, nombre').order('nombre'),
-      supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').order('nombre')
+      supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').order('nombre'),
+      supabase.from('cobros').select('*, reservas(id, fecha_inicio, fecha_fin, propiedades(nombre), inquilinos(nombre))').order('fecha', { ascending: false })
     ])
 
     if (resReservas.data) setReservas(resReservas.data)
     if (resPropiedades.data) setPropiedades(resPropiedades.data)
     if (resInquilinos.data) setInquilinos(resInquilinos.data)
+    if (resCobros.data) setCobros(resCobros.data)
     setLoading(false)
   }
 
@@ -176,10 +197,8 @@ export default function ReservasPage() {
         forma_pago: reserva.forma_pago || 'efectivo',
         ropa_blanca: reserva.ropa_blanca || false,
         limpieza_final: reserva.limpieza_final || 0,
-        lavadero: reserva.lavadero || false,
+        monto_lavadero: reserva.monto_lavadero || 0,
         kw_inicial: reserva.kw_inicial || 0,
-        kw_final: reserva.kw_final || 0,
-        costo_kw: reserva.costo_kw || 0,
         estado: reserva.estado || 'pendiente',
         notas: reserva.notas || '',
       })
@@ -281,10 +300,8 @@ export default function ReservasPage() {
       forma_pago: form.forma_pago,
       ropa_blanca: form.ropa_blanca,
       limpieza_final: Number(form.limpieza_final),
-      lavadero: form.lavadero,
+      monto_lavadero: Number(form.monto_lavadero),
       kw_inicial: Number(form.kw_inicial),
-      kw_final: Number(form.kw_final),
-      costo_kw: Number(form.costo_kw),
       monto: monto,
       monto_usd: Number(form.precio_noche),
       estado: form.estado,
@@ -344,8 +361,9 @@ export default function ReservasPage() {
       ? { direccion: 'Golf 234, Costa Esmeralda', tel: '+54 11 1234-5678' }
       : { direccion: 'Deportiva 9, Costa Esmeralda', tel: '+54 11 1234-5678' }
 
-    // Número de recibo formato 001-000001
-    const numRecibo = `001-${String(reserva.id).padStart(6, '0')}`
+    // Número de detalle - usar últimos 6 caracteres del UUID
+    const idCorto = String(reserva.id).slice(-6).toUpperCase()
+    const numDetalle = `001-${idCorto}`
 
     let y = 15
 
@@ -362,13 +380,13 @@ export default function ReservasPage() {
     doc.setFont('helvetica', 'normal')
     doc.text(`${contacto.direccion} | ${contacto.tel}`, 15, 22)
 
-    // Recibo a la derecha del encabezado
-    doc.setFontSize(14)
+    // Detalle a la derecha del encabezado
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('RECIBO', pageWidth - 15, 12, { align: 'right' })
+    doc.text('DETALLE DE RESERVA', pageWidth - 15, 12, { align: 'right' })
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text(`N° ${numRecibo}`, pageWidth - 15, 19, { align: 'right' })
+    doc.text(`N° ${numDetalle}`, pageWidth - 15, 19, { align: 'right' })
     doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, pageWidth - 15, 25, { align: 'right' })
 
     y = 38
@@ -519,8 +537,8 @@ export default function ReservasPage() {
     // ===== SERVICIOS =====
     const servicios = []
     if (reserva.ropa_blanca) servicios.push('Ropa blanca incluida')
-    if (reserva.lavadero) servicios.push('Acceso a lavadero')
-    if (reserva.limpieza_final && reserva.limpieza_final > 0) servicios.push(`Limpieza final: ${simbolo} ${reserva.limpieza_final.toLocaleString('es-AR')}`)
+    if (reserva.monto_lavadero && reserva.monto_lavadero > 0) servicios.push(`Lavadero: $ ${reserva.monto_lavadero.toLocaleString('es-AR')}`)
+    if (reserva.limpieza_final && reserva.limpieza_final > 0) servicios.push(`Limpieza final: $ ${reserva.limpieza_final.toLocaleString('es-AR')}`)
 
     if (servicios.length > 0) {
       doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
@@ -584,7 +602,7 @@ export default function ReservasPage() {
     doc.text(`Generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 285, { align: 'center' })
 
     // Guardar
-    doc.save(`Recibo_${numRecibo}_${reserva.inquilinos?.nombre?.replace(/\s/g, '_') || 'reserva'}.pdf`)
+    doc.save(`Detalle_Reserva_${numDetalle}_${reserva.inquilinos?.nombre?.replace(/\s/g, '_') || 'reserva'}.pdf`)
   }
 
   function generarContratoPDF(reserva: Reserva) {
@@ -592,6 +610,9 @@ export default function ReservasPage() {
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 20
     const contentWidth = pageWidth - margin * 2
+
+    // ID corto para el nombre del archivo
+    const idCorto = String(reserva.id).slice(-6).toUpperCase()
 
     // Colores
     const azulNavy = { r: 30, g: 58, b: 95 }
@@ -744,7 +765,7 @@ export default function ReservasPage() {
     doc.text(`Contrato generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 285, { align: 'center' })
 
     // Guardar
-    doc.save(`Contrato_${reserva.id}_${locatario.nombre.replace(/\s/g, '_')}.pdf`)
+    doc.save(`Contrato_001-${idCorto}_${locatario.nombre.replace(/\s/g, '_')}.pdf`)
   }
 
   // Calcular totales
@@ -769,12 +790,40 @@ export default function ReservasPage() {
   return (
     <div>
       <PageHeader title="Reservas" description="Administra las reservas de tus propiedades">
-        <Button onClick={() => openModal()}>
-          <Plus size={18} />
-          Nueva Reserva
-        </Button>
+        {activeTab === 'reservas' && (
+          <Button onClick={() => openModal()}>
+            <Plus size={18} />
+            Nueva Reserva
+          </Button>
+        )}
       </PageHeader>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-costa-beige/50 p-1 rounded-lg w-fit">
+        <button
+          onClick={() => setActiveTab('reservas')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'reservas'
+              ? 'bg-white text-costa-navy shadow-sm'
+              : 'text-costa-gris hover:text-costa-navy'
+          }`}
+        >
+          Reservas
+        </button>
+        <button
+          onClick={() => setActiveTab('cobros')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            activeTab === 'cobros'
+              ? 'bg-white text-costa-navy shadow-sm'
+              : 'text-costa-gris hover:text-costa-navy'
+          }`}
+        >
+          Cobros
+        </button>
+      </div>
+
+      {activeTab === 'reservas' && (
+        <>
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
         <Card>
@@ -829,7 +878,11 @@ export default function ReservasPage() {
                   {reservas.map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const total = noches * (reserva.precio_noche || 0)
-                    const saldo = total - (reserva.sena || 0)
+                    // Calcular total cobrado de los cobros registrados
+                    const totalCobrado = cobros
+                      .filter(c => c.reserva_id === reserva.id)
+                      .reduce((acc, c) => acc + (c.monto || 0), 0)
+                    const saldo = total - totalCobrado
                     const moneda = reserva.moneda || 'ARS'
                     return (
                       <tr key={reserva.id} className="hover:bg-costa-beige/30">
@@ -871,7 +924,7 @@ export default function ReservasPage() {
                                 <Button variant="ghost" size="sm" onClick={() => generarContratoPDF(reserva)} title="Generar Contrato PDF">
                                   <FileSignature size={14} className="text-costa-olivo" />
                                 </Button>
-                                <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Generar Recibo PDF">
+                                <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Generar Detalle PDF">
                                   <FileText size={14} className="text-costa-navy" />
                                 </Button>
                               </>
@@ -892,6 +945,96 @@ export default function ReservasPage() {
           )}
         </CardContent>
       </Card>
+        </>
+      )}
+
+      {/* Tab Cobros */}
+      {activeTab === 'cobros' && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Historial de Cobros</CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {cobros.length === 0 ? (
+              <div className="py-8 text-center text-gray-500">No hay cobros registrados</div>
+            ) : (
+              <div className="divide-y divide-costa-beige">
+                {/* Agrupar cobros por reserva_id */}
+                {Object.entries(
+                  cobros.reduce((acc, cobro) => {
+                    const key = cobro.reserva_id
+                    if (!acc[key]) acc[key] = []
+                    acc[key].push(cobro)
+                    return acc
+                  }, {} as Record<number, Cobro[]>)
+                ).map(([reservaId, cobrosList]) => {
+                  const firstCobro = cobrosList[0]
+                  const totalCobrado = cobrosList.reduce((sum, c) => sum + c.monto, 0)
+                  const isExpanded = expandedReservas.has(reservaId)
+                  const numReserva = String(reservaId).slice(-6).toUpperCase()
+
+                  return (
+                    <div key={reservaId}>
+                      {/* Fila principal - clickeable */}
+                      <div
+                        onClick={() => {
+                          const newSet = new Set(expandedReservas)
+                          if (isExpanded) newSet.delete(reservaId)
+                          else newSet.add(reservaId)
+                          setExpandedReservas(newSet)
+                        }}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-costa-beige/30 cursor-pointer"
+                      >
+                        <div className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
+                          <ChevronDown size={16} className="text-costa-gris" />
+                        </div>
+                        <div className="flex-1 flex items-center gap-4 min-w-0">
+                          <span className="font-medium text-costa-navy truncate">
+                            {firstCobro.reservas?.inquilinos?.nombre || '-'}
+                          </span>
+                          <span className="text-xs text-costa-gris hidden sm:inline">
+                            {firstCobro.reservas?.propiedades?.nombre}
+                          </span>
+                          <span className="text-xs text-costa-gris/70">
+                            #{numReserva}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-costa-gris">
+                            {cobrosList.length} cobro{cobrosList.length > 1 ? 's' : ''}
+                          </span>
+                          <span className="font-semibold text-costa-navy text-sm">
+                            {formatMonto(totalCobrado, firstCobro.moneda)}
+                          </span>
+                          <Link href={`/admin/reservas/${reservaId}/cobros`} onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" title="Gestionar cobros">
+                              <Wallet size={14} />
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+
+                      {/* Detalle expandido */}
+                      {isExpanded && (
+                        <div className="bg-costa-beige/20 border-t border-costa-beige">
+                          {cobrosList.map((cobro) => (
+                            <div key={cobro.id} className="flex items-center gap-3 px-4 py-1.5 pl-10 text-sm border-b border-costa-beige/50 last:border-0">
+                              <span className="text-costa-gris w-20">{formatFecha(cobro.fecha)}</span>
+                              <Badge variant="info" className="text-xs">{cobro.concepto}</Badge>
+                              <span className="text-costa-gris text-xs capitalize flex-1">{cobro.medio_pago}</span>
+                              <span className="font-medium text-costa-navy">{formatMonto(cobro.monto, cobro.moneda)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modal */}
       <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Reserva' : 'Nueva Reserva'} size="lg">
@@ -1073,7 +1216,7 @@ export default function ReservasPage() {
 
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Servicios adicionales</p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg h-fit">
               <input
                 type="checkbox"
                 id="ropa_blanca"
@@ -1083,52 +1226,68 @@ export default function ReservasPage() {
               />
               <label htmlFor="ropa_blanca" className="text-sm text-gray-700">Ropa blanca</label>
             </div>
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-              <input
-                type="checkbox"
-                id="lavadero"
-                checked={form.lavadero}
-                onChange={(e) => setForm({ ...form, lavadero: e.target.checked })}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="lavadero" className="text-sm text-gray-700">Lavadero</label>
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="incluye_limpieza"
+                  checked={form.limpieza_final > 0}
+                  onChange={(e) => {
+                    if (!e.target.checked) {
+                      setForm({ ...form, limpieza_final: 0 })
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="incluye_limpieza" className="text-sm text-gray-700">Limpieza final</label>
+              </div>
+              <div className="mt-2">
+                <Input
+                  label="Monto ($)"
+                  type="number"
+                  min="0"
+                  value={form.limpieza_final || ''}
+                  onChange={(e) => setForm({ ...form, limpieza_final: Number(e.target.value) })}
+                />
+              </div>
             </div>
-            <Input label="Limpieza final" type="number" min="0" value={form.limpieza_final || ''} onChange={(e) => setForm({ ...form, limpieza_final: Number(e.target.value) })} />
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="incluye_lavadero"
+                  checked={form.monto_lavadero > 0}
+                  onChange={(e) => {
+                    if (!e.target.checked) {
+                      setForm({ ...form, monto_lavadero: 0 })
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label htmlFor="incluye_lavadero" className="text-sm text-gray-700">Lavadero</label>
+              </div>
+              <div className="mt-2">
+                <Input
+                  label="Monto ($)"
+                  type="number"
+                  min="0"
+                  value={form.monto_lavadero || ''}
+                  onChange={(e) => setForm({ ...form, monto_lavadero: Number(e.target.value) })}
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Control de electricidad */}
+          {/* Control de electricidad - Solo KW Inicial */}
           <div className="border rounded-lg p-4 bg-yellow-50/50">
             <p className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-3">
               <Zap size={16} className="text-yellow-600" />
-              Control de Luz (110 kW cada 7 días, proporcional)
+              Control de Luz
             </p>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Input label="KW Inicial" type="number" min="0" value={form.kw_inicial || ''} onChange={(e) => setForm({ ...form, kw_inicial: Number(e.target.value) })} />
-              <Input label="KW Final" type="number" min="0" value={form.kw_final || ''} onChange={(e) => setForm({ ...form, kw_final: Number(e.target.value) })} />
-              <Input label="Costo por KW" type="number" min="0" step="0.01" value={form.costo_kw || ''} onChange={(e) => setForm({ ...form, costo_kw: Number(e.target.value) })} />
-              <div className="flex items-end">
-                {form.kw_final > 0 && form.kw_inicial >= 0 && formNoches > 0 && (
-                  <div className="w-full px-3 py-2 rounded-lg bg-white border text-center">
-                    {(() => {
-                      const consumido = form.kw_final - form.kw_inicial
-                      const kwPorDia = 110 / 7
-                      const incluido = Math.round(formNoches * kwPorDia)
-                      const excedente = Math.max(0, consumido - incluido)
-                      const aPagar = excedente * (form.costo_kw || 0)
-                      return (
-                        <div>
-                          <p className="text-xs text-gray-500">Consumo: {consumido} kW</p>
-                          <p className="text-xs text-gray-500">Incluido ({formNoches} días): {incluido} kW</p>
-                          {excedente > 0 ? (
-                            <p className="text-sm font-bold text-costa-coral">Excedente: {excedente} kW = {formatMonto(aPagar, 'ARS')}</p>
-                          ) : (
-                            <p className="text-sm font-bold text-costa-olivo">Sin excedente</p>
-                          )}
-                        </div>
-                      )
-                    })()}
-                  </div>
-                )}
+              <Input label="KW Inicial (medidor)" type="number" min="0" value={form.kw_inicial || ''} onChange={(e) => setForm({ ...form, kw_inicial: Number(e.target.value) })} />
+              <div className="col-span-3 flex items-end">
+                <p className="text-xs text-gray-500">El KW final, costo y cálculo de excedente se registran en la liquidación al finalizar la estadía.</p>
               </div>
             </div>
           </div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select } from '@/components/ui'
-import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink } from 'lucide-react'
+import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink, Users } from 'lucide-react'
 
 interface Contacto {
   id: number
@@ -13,6 +13,14 @@ interface Contacto {
   telefono: string
   email: string
   descripcion: string
+}
+
+interface Proveedor {
+  id: number
+  nombre: string
+  apellido: string | null
+  rubro: string | null
+  telefono: string | null
 }
 
 const categoriasContacto = [
@@ -42,22 +50,45 @@ const initialForm = {
   descripcion: '',
 }
 
+const initialProveedorForm = {
+  nombre: '',
+  apellido: '',
+  rubro: '',
+  telefono: '',
+}
+
 export default function InfoUtilPage() {
   const [contactos, setContactos] = useState<Contacto[]>([])
+  const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(initialForm)
   const [saving, setSaving] = useState(false)
 
+  // Estado para proveedores
+  const [proveedorModalOpen, setProveedorModalOpen] = useState(false)
+  const [editingProveedorId, setEditingProveedorId] = useState<number | null>(null)
+  const [proveedorForm, setProveedorForm] = useState(initialProveedorForm)
+  const [savingProveedor, setSavingProveedor] = useState(false)
+
   useEffect(() => {
-    fetchContactos()
+    fetchData()
   }, [])
+
+  async function fetchData() {
+    const [resContactos, resProveedores] = await Promise.all([
+      supabase.from('contactos').select('*').order('categoria, nombre'),
+      supabase.from('proveedores_servicios').select('*').order('nombre')
+    ])
+    if (resContactos.data) setContactos(resContactos.data)
+    if (resProveedores.data) setProveedores(resProveedores.data)
+    setLoading(false)
+  }
 
   async function fetchContactos() {
     const { data, error } = await supabase.from('contactos').select('*').order('categoria, nombre')
     if (!error && data) setContactos(data)
-    setLoading(false)
   }
 
   function openModal(contacto?: Contacto) {
@@ -113,6 +144,60 @@ export default function InfoUtilPage() {
     const { error } = await supabase.from('contactos').delete().eq('id', id)
     if (error) alert('Error al eliminar: ' + error.message)
     else fetchContactos()
+  }
+
+  // Funciones para proveedores
+  function openProveedorModal(proveedor?: Proveedor) {
+    if (proveedor) {
+      setEditingProveedorId(proveedor.id)
+      setProveedorForm({
+        nombre: proveedor.nombre || '',
+        apellido: proveedor.apellido || '',
+        rubro: proveedor.rubro || '',
+        telefono: proveedor.telefono || '',
+      })
+    } else {
+      setEditingProveedorId(null)
+      setProveedorForm(initialProveedorForm)
+    }
+    setProveedorModalOpen(true)
+  }
+
+  function closeProveedorModal() {
+    setProveedorModalOpen(false)
+    setEditingProveedorId(null)
+    setProveedorForm(initialProveedorForm)
+  }
+
+  async function handleProveedorSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSavingProveedor(true)
+
+    const data = {
+      nombre: proveedorForm.nombre,
+      apellido: proveedorForm.apellido || null,
+      rubro: proveedorForm.rubro || null,
+      telefono: proveedorForm.telefono || null,
+    }
+
+    if (editingProveedorId) {
+      const { error } = await supabase.from('proveedores_servicios').update(data).eq('id', editingProveedorId)
+      if (error) alert('Error al actualizar: ' + error.message)
+    } else {
+      const { error } = await supabase.from('proveedores_servicios').insert([data])
+      if (error) alert('Error al crear: ' + error.message)
+    }
+
+    setSavingProveedor(false)
+    closeProveedorModal()
+    fetchData()
+  }
+
+  async function handleProveedorDelete(id: number) {
+    if (!confirm('¿Estás seguro de eliminar este proveedor?')) return
+    const { error } = await supabase.from('proveedores_servicios').delete().eq('id', id)
+    if (error) alert('Error al eliminar: ' + error.message)
+    else fetchData()
   }
 
   // Agrupar contactos por categoría
@@ -186,6 +271,66 @@ export default function InfoUtilPage() {
         })}
       </div>
 
+      {/* Proveedores de Servicios */}
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-green-100">
+                <Users className="w-5 h-5 text-green-600" />
+              </div>
+              Proveedores de Servicios
+            </div>
+            <Button size="sm" onClick={() => openProveedorModal()}>
+              <Plus size={16} />
+              Agregar
+            </Button>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {proveedores.length === 0 ? (
+            <p className="text-sm text-gray-500">No hay proveedores registrados</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-costa-beige/50 border-b border-costa-beige">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Nombre</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Rubro</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Teléfono</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-costa-beige">
+                  {proveedores.map((prov) => (
+                    <tr key={prov.id} className="hover:bg-costa-beige/30">
+                      <td className="px-4 py-3 font-medium text-costa-navy">
+                        {prov.apellido ? `${prov.nombre} ${prov.apellido}` : prov.nombre}
+                      </td>
+                      <td className="px-4 py-3 text-costa-gris">{prov.rubro || '-'}</td>
+                      <td className="px-4 py-3">
+                        {prov.telefono ? (
+                          <a href={`tel:${prov.telefono}`} className="flex items-center gap-1 text-blue-600 hover:text-blue-700">
+                            <Phone size={14} />
+                            {prov.telefono}
+                          </a>
+                        ) : '-'}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="sm" onClick={() => openProveedorModal(prov)}><Pencil size={14} /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleProveedorDelete(prov.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Links útiles */}
       <Card>
         <CardHeader>
@@ -212,7 +357,7 @@ export default function InfoUtilPage() {
         </CardContent>
       </Card>
 
-      {/* Modal */}
+      {/* Modal Contacto */}
       <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Contacto' : 'Nuevo Contacto'}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input label="Nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
@@ -225,6 +370,44 @@ export default function InfoUtilPage() {
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="secondary" onClick={closeModal}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Proveedor */}
+      <Modal isOpen={proveedorModalOpen} onClose={closeProveedorModal} title={editingProveedorId ? 'Editar Proveedor' : 'Nuevo Proveedor'}>
+        <form onSubmit={handleProveedorSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Nombre"
+              value={proveedorForm.nombre}
+              onChange={(e) => setProveedorForm({ ...proveedorForm, nombre: e.target.value })}
+              required
+            />
+            <Input
+              label="Apellido"
+              value={proveedorForm.apellido}
+              onChange={(e) => setProveedorForm({ ...proveedorForm, apellido: e.target.value })}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Rubro"
+              value={proveedorForm.rubro}
+              onChange={(e) => setProveedorForm({ ...proveedorForm, rubro: e.target.value })}
+              placeholder="Ej: Electricista, Plomero..."
+            />
+            <Input
+              label="Teléfono"
+              value={proveedorForm.telefono}
+              onChange={(e) => setProveedorForm({ ...proveedorForm, telefono: e.target.value })}
+            />
+          </div>
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="secondary" onClick={closeProveedorModal}>Cancelar</Button>
+            <Button type="submit" disabled={savingProveedor}>
+              {savingProveedor ? 'Guardando...' : editingProveedorId ? 'Actualizar' : 'Crear'}
+            </Button>
           </div>
         </form>
       </Modal>
