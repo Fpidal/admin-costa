@@ -166,47 +166,112 @@ export default function AdministracionPage() {
     else fetchData()
   }
 
-  // Parser de Eidico
+  // Parser de Eidico - formato: Fecha | Lote | Concepto | Debe | Haber | Saldo
   function parsearEidico() {
     const lineas = textoEidico.split('\n').filter(l => l.trim())
     const expensas: ExpensaParseada[] = []
 
+    const parseMonto = (str: string) => {
+      if (!str) return 0
+      const clean = str.replace('$', '').replace(/\./g, '').replace(',', '.').trim()
+      return parseFloat(clean) || 0
+    }
+
     for (const linea of lineas) {
-      const fechaMatch = linea.match(/(\d{2}\/\d{2}\/\d{4})/g)
-      const montoMatch = linea.match(/\$\s*([\d.,]+)/g)
-      const loteMatch = linea.match(/\d{2}\/\d{2}\/\d{4}(\d{3,4})/i)
+      // Verificar que la línea tiene una fecha al inicio
+      const fechaMatch = linea.match(/^(\d{2}\/\d{2}\/\d{4})/)
+      if (!fechaMatch) continue
 
-      if (fechaMatch && fechaMatch.length >= 1 && montoMatch && montoMatch.length >= 1) {
-        let concepto = linea
-        if (loteMatch) {
-          const loteIndex = linea.indexOf(loteMatch[1]) + loteMatch[1].length
-          const montoIndex = linea.indexOf('$')
-          if (montoIndex > loteIndex) {
-            concepto = linea.substring(loteIndex, montoIndex).trim()
-          }
+      // Separar por tabs o múltiples espacios
+      const columnas = linea.split(/\t+|\s{2,}/).map(c => c.trim()).filter(c => c)
+
+      // Necesitamos al menos: fecha, lote, concepto, debe
+      if (columnas.length < 4) continue
+
+      const fecha = columnas[0]
+      const lote = columnas[1]
+
+      // El concepto puede tener $ internos (como "Electricidad $ 13989.46 fijos...")
+      // Buscamos las últimas 3 columnas que son montos (Debe, Haber, Saldo)
+      // Recorremos desde el final para encontrar los montos
+      let debe = 0
+      let haber = 0
+      let saldo = 0
+      let conceptoEnd = columnas.length
+
+      // Buscar las últimas 3 columnas que parecen montos (empiezan con $ o son números)
+      const montoRegex = /^\$\s*[\d.,]+$/
+      const montosEncontrados: number[] = []
+
+      for (let i = columnas.length - 1; i >= 2 && montosEncontrados.length < 3; i--) {
+        if (montoRegex.test(columnas[i])) {
+          montosEncontrados.unshift(parseMonto(columnas[i]))
+          conceptoEnd = i
         }
+      }
 
-        const parseMonto = (str: string) => {
-          const clean = str.replace('$', '').replace(/\./g, '').replace(',', '.').trim()
-          return parseFloat(clean) || 0
+      if (montosEncontrados.length >= 1) {
+        debe = montosEncontrados[0] || 0
+        haber = montosEncontrados[1] || 0
+        saldo = montosEncontrados[2] || 0
+      }
+
+      // El concepto es todo lo que está entre lote y los montos
+      const concepto = columnas.slice(2, conceptoEnd).join(' ').trim()
+
+      // Procesar concepto según tipo
+      let conceptoLimpio = concepto
+
+      // Para Electricidad: extraer medición y consumo
+      if (concepto.toLowerCase().includes('electricidad') && !concepto.toLowerCase().includes('potencia')) {
+        const medicionMatch = concepto.match(/Medición\s*(\d+)/i)
+        const consumoMatch = concepto.match(/Consumo\s*Kwh[:\s]*(\d+)/i)
+        conceptoLimpio = 'Electricidad'
+        if (medicionMatch) conceptoLimpio += ` - Medición ${medicionMatch[1]}`
+        if (consumoMatch) conceptoLimpio += ` - Consumo ${consumoMatch[1]} Kwh`
+      }
+      // Para Potencia: extraer medición
+      else if (concepto.toLowerCase().includes('potencia')) {
+        const medicionMatch = concepto.match(/Medición\s*([\d.,]+)/i)
+        conceptoLimpio = 'Potencia electricidad'
+        if (medicionMatch) conceptoLimpio += ` - Medición ${medicionMatch[1]}`
+      }
+      // Para Agua: extraer medición y consumo
+      else if (concepto.toLowerCase().includes('agua')) {
+        const medicionMatch = concepto.match(/Medición[:\s]*(\d+)/i)
+        const consumoMatch = concepto.match(/Consumo\s*m3[:\s]*(\d+)/i)
+        conceptoLimpio = 'Agua'
+        if (medicionMatch) conceptoLimpio += ` - Medición ${medicionMatch[1]}`
+        if (consumoMatch) conceptoLimpio += ` - Consumo ${consumoMatch[1]} m³`
+      }
+      // Para otros conceptos: limpiar
+      else {
+        // Si tiene " - " tomamos la primera parte
+        if (concepto.includes(' - ')) {
+          conceptoLimpio = concepto.split(' - ')[0].trim()
         }
+        // Si tiene ", " tomamos la primera parte
+        if (conceptoLimpio.includes(', ')) {
+          conceptoLimpio = conceptoLimpio.split(', ')[0].trim()
+        }
+        // Quitar cualquier $ y números sueltos del concepto
+        conceptoLimpio = conceptoLimpio.replace(/\$\s*[\d.,]+/g, '').trim()
+        // Si quedó vacío, usar el original
+        if (!conceptoLimpio) conceptoLimpio = concepto
+      }
 
-        const debe = montoMatch[0] ? parseMonto(montoMatch[0]) : 0
-        const haber = montoMatch[1] ? parseMonto(montoMatch[1]) : 0
-        const saldo = montoMatch[2] ? parseMonto(montoMatch[2]) : 0
+      const [dia, mes, anio] = fecha.split('/')
+      const fechaISO = `${anio}-${mes}-${dia}`
 
-        const fechaVenc = fechaMatch[0]
-        const [dia, mes, anio] = fechaVenc.split('/')
-        const fechaISO = `${anio}-${mes}-${dia}`
-
+      if (debe > 0) {
         expensas.push({
           fecha_vencimiento: fechaISO,
-          lote: loteMatch ? loteMatch[1] : '',
-          concepto: concepto || 'Expensa',
+          lote,
+          concepto: conceptoLimpio,
           debe,
           haber,
           saldo,
-          selected: debe > 0,
+          selected: true,
         })
       }
     }
