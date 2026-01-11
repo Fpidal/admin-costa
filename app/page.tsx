@@ -191,7 +191,29 @@ export default function LandingPage() {
                 return (
                   <div key={propiedad.id} className="bg-white rounded-2xl shadow-lg overflow-hidden">
                     {/* Image Carousel */}
-                    <div className="relative h-56 bg-costa-beige group">
+                    <div
+                      className="relative h-56 bg-costa-beige group"
+                      onTouchStart={(e) => {
+                        const touch = e.touches[0]
+                        e.currentTarget.dataset.touchStartX = touch.clientX.toString()
+                      }}
+                      onTouchEnd={(e) => {
+                        const touchStartX = parseFloat(e.currentTarget.dataset.touchStartX || '0')
+                        const touchEndX = e.changedTouches[0].clientX
+                        const diff = touchStartX - touchEndX
+                        if (Math.abs(diff) > 50 && images.length > 1) {
+                          if (diff > 0) {
+                            // Swipe left - next
+                            const next = currentIndex === images.length - 1 ? 0 : currentIndex + 1
+                            setImageIndexes({ ...imageIndexes, [propiedad.id]: next })
+                          } else {
+                            // Swipe right - prev
+                            const prev = currentIndex === 0 ? images.length - 1 : currentIndex - 1
+                            setImageIndexes({ ...imageIndexes, [propiedad.id]: prev })
+                          }
+                        }
+                      }}
+                    >
                       {images.length > 0 ? (
                         <>
                           <img
@@ -207,7 +229,7 @@ export default function LandingPage() {
                                   const prev = currentIndex === 0 ? images.length - 1 : currentIndex - 1
                                   setImageIndexes({ ...imageIndexes, [propiedad.id]: prev })
                                 }}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/40 text-white rounded-full md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                               >
                                 <ChevronLeft size={20} />
                               </button>
@@ -216,15 +238,16 @@ export default function LandingPage() {
                                   const next = currentIndex === images.length - 1 ? 0 : currentIndex + 1
                                   setImageIndexes({ ...imageIndexes, [propiedad.id]: next })
                                 }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/40 text-white rounded-full md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                               >
                                 <ChevronRight size={20} />
                               </button>
                               <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
                                 {images.map((_, idx) => (
-                                  <span
+                                  <button
                                     key={idx}
-                                    className={`w-2 h-2 rounded-full ${idx === currentIndex ? 'bg-white' : 'bg-white/50'}`}
+                                    onClick={() => setImageIndexes({ ...imageIndexes, [propiedad.id]: idx })}
+                                    className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === currentIndex ? 'bg-white' : 'bg-white/50'}`}
                                   />
                                 ))}
                               </div>
