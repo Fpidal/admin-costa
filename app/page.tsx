@@ -71,6 +71,18 @@ export default function LandingPage() {
     fetchData()
   }, [])
 
+  // Bloquear scroll del body cuando lightbox está abierto
+  useEffect(() => {
+    if (lightbox) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [lightbox])
+
   // Check if property is currently reserved
   const estaReservada = (propiedadId: number) => {
     const hoy = new Date()
@@ -400,42 +412,54 @@ export default function LandingPage() {
       {/* Lightbox */}
       {lightbox && (
         <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center touch-none"
           onClick={() => setLightbox(null)}
-          onTouchStart={(e) => {
-            const touch = e.touches[0]
-            e.currentTarget.dataset.touchStartX = touch.clientX.toString()
-          }}
-          onTouchEnd={(e) => {
-            const touchStartX = parseFloat(e.currentTarget.dataset.touchStartX || '0')
-            const touchEndX = e.changedTouches[0].clientX
-            const diff = touchStartX - touchEndX
-            if (Math.abs(diff) > 50 && lightbox.images.length > 1) {
-              if (diff > 0) {
-                // Swipe left - next
-                const next = lightbox.index === lightbox.images.length - 1 ? 0 : lightbox.index + 1
-                setLightbox({ ...lightbox, index: next })
-              } else {
-                // Swipe right - prev
-                const prev = lightbox.index === 0 ? lightbox.images.length - 1 : lightbox.index - 1
-                setLightbox({ ...lightbox, index: prev })
-              }
-            }
-          }}
         >
           <button
-            className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full transition-colors"
-            onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full transition-colors z-10"
+            onClick={(e) => { e.stopPropagation(); setLightbox(null) }}
           >
             <X size={28} />
           </button>
 
-          <img
-            src={lightbox.images[lightbox.index]}
-            alt="Foto de propiedad"
-            className="max-h-[85vh] max-w-[90vw] object-contain"
-            onClick={(e) => e.stopPropagation()}
-          />
+          {/* Área de swipe */}
+          <div
+            className="w-full h-full flex items-center justify-center"
+            onTouchStart={(e) => {
+              e.currentTarget.dataset.touchStartX = e.touches[0].clientX.toString()
+              e.currentTarget.dataset.touchStartY = e.touches[0].clientY.toString()
+            }}
+            onTouchMove={(e) => {
+              // Prevenir scroll
+              e.preventDefault()
+            }}
+            onTouchEnd={(e) => {
+              const startX = parseFloat(e.currentTarget.dataset.touchStartX || '0')
+              const startY = parseFloat(e.currentTarget.dataset.touchStartY || '0')
+              const endX = e.changedTouches[0].clientX
+              const endY = e.changedTouches[0].clientY
+              const diffX = startX - endX
+              const diffY = startY - endY
+
+              // Solo swipe horizontal si el movimiento horizontal es mayor que el vertical
+              if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40 && lightbox.images.length > 1) {
+                if (diffX > 0) {
+                  const next = lightbox.index === lightbox.images.length - 1 ? 0 : lightbox.index + 1
+                  setLightbox({ ...lightbox, index: next })
+                } else {
+                  const prev = lightbox.index === 0 ? lightbox.images.length - 1 : lightbox.index - 1
+                  setLightbox({ ...lightbox, index: prev })
+                }
+              }
+            }}
+            onClick={() => setLightbox(null)}
+          >
+            <img
+              src={lightbox.images[lightbox.index]}
+              alt="Foto de propiedad"
+              className="max-h-[85vh] max-w-[90vw] object-contain pointer-events-none select-none"
+            />
+          </div>
 
           {lightbox.images.length > 1 && (
             <>
