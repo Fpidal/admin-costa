@@ -66,6 +66,7 @@ interface Cobro {
   monto: number
   moneda: string
   medio_pago: string
+  aplicar_a: string
   recibo_generado: boolean
   created_at: string
   reservas?: {
@@ -880,7 +881,7 @@ export default function ReservasPage() {
                     <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Período</th>
                     <th className="px-2 py-2 text-center text-xs font-medium text-costa-gris uppercase">Pers.</th>
                     <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Total</th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Seña</th>
+                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Cobrado</th>
                     <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Saldo</th>
                     <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Estado</th>
                     <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase"></th>
@@ -890,11 +891,11 @@ export default function ReservasPage() {
                   {reservas.map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const total = noches * (reserva.precio_noche || 0)
-                    // Calcular total cobrado de los cobros registrados
-                    const totalCobrado = cobros
-                      .filter(c => c.reserva_id === reserva.id)
+                    // Calcular total cobrado solo de alquiler
+                    const cobradoAlquiler = cobros
+                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler')
                       .reduce((acc, c) => acc + (c.monto || 0), 0)
-                    const saldo = total - totalCobrado
+                    const saldo = total - cobradoAlquiler
                     const moneda = reserva.moneda || 'ARS'
                     return (
                       <tr key={reserva.id} className="hover:bg-costa-beige/30">
@@ -917,7 +918,7 @@ export default function ReservasPage() {
                           <FormatMontoStyled monto={total} moneda={moneda} />
                         </td>
                         <td className="px-2 py-2 text-right text-costa-olivo text-sm">
-                          <FormatMontoStyled monto={reserva.sena || 0} moneda={moneda} />
+                          <FormatMontoStyled monto={cobradoAlquiler} moneda={moneda} />
                         </td>
                         <td className="px-2 py-2 text-right text-sm">
                           <span className={saldo > 0 ? 'font-semibold text-amber-600' : 'text-costa-olivo'}>
