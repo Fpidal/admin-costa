@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
-import { Building2, CalendarDays, Users, DollarSign, AlertCircle } from 'lucide-react'
+import { Building2, CalendarDays, Users, DollarSign, AlertCircle, Clock, CheckCircle, Receipt } from 'lucide-react'
 
 interface Propiedad {
   id: number
@@ -16,10 +16,14 @@ interface Reserva {
   huesped: string
   check_in: string
   check_out: string
+  fecha_inicio: string
+  fecha_fin: string
   estado: string
   monto: number
+  cantidad_personas: number
   propiedad_id: number
   propiedades?: Propiedad
+  inquilinos?: { nombre: string }
 }
 
 interface Gasto {
@@ -28,19 +32,24 @@ interface Gasto {
   monto: number
   vencimiento: string
   estado: string
+  tipo: string
   propiedad_id: number
   propiedades?: Propiedad
 }
 
-interface Inquilino {
+interface Cobro {
   id: number
-  nombre: string
-  fecha_fin: string
-  estado: string
+  monto: number
+  moneda: string
+  aplicar_a: string
 }
 
 const formatMonto = (monto: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto)
+}
+
+const formatMontoUSD = (monto: number) => {
+  return `U$D ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(monto)}`
 }
 
 const formatFecha = (fecha: string) => {
@@ -48,88 +57,105 @@ const formatFecha = (fecha: string) => {
 }
 
 export default function Dashboard() {
-  const [propiedadesCount, setPropiedadesCount] = useState(0)
-  const [reservasCount, setReservasCount] = useState(0)
   const [inquilinosCount, setInquilinosCount] = useState(0)
-  const [ingresosMes, setIngresosMes] = useState(0)
+  const [reservasPendientes, setReservasPendientes] = useState(0)
+  const [gastosRealizados, setGastosRealizados] = useState(0)
+  const [gastosPendientesTotal, setGastosPendientesTotal] = useState(0)
+  const [ingresosAlquiler, setIngresosAlquiler] = useState(0)
+  const [expensasTotal, setExpensasTotal] = useState(0)
   const [proximasReservas, setProximasReservas] = useState<Reserva[]>([])
-  const [gastosPendientes, setGastosPendientes] = useState<Gasto[]>([])
+  const [gastosPendientesList, setGastosPendientesList] = useState<Gasto[]>([])
   const [alertas, setAlertas] = useState<{ tipo: string; titulo: string; mensaje: string }[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function fetchData() {
       try {
-        // Contar propiedades
-        const { count: propCount } = await supabase
-          .from('propiedades')
-          .select('*', { count: 'exact', head: true })
-        setPropiedadesCount(propCount || 0)
-
-        // Contar reservas activas (confirmadas y pendientes)
-        const { count: resCount } = await supabase
-          .from('reservas')
-          .select('*', { count: 'exact', head: true })
-          .in('estado', ['confirmada', 'pendiente'])
-        setReservasCount(resCount || 0)
-
-        // Contar inquilinos activos
-        const { count: inqCount } = await supabase
-          .from('inquilinos')
-          .select('*', { count: 'exact', head: true })
-          .eq('estado', 'activo')
-        setInquilinosCount(inqCount || 0)
-
-        // Ingresos del mes (reservas confirmadas)
+        const hoy = new Date().toISOString().split('T')[0]
         const inicioMes = new Date()
         inicioMes.setDate(1)
-        const { data: reservasMes } = await supabase
+        const inicioMesStr = inicioMes.toISOString().split('T')[0]
+
+        // Inquilinos: contar cantidad_personas de todas las reservas activas
+        const { data: reservasActivas } = await supabase
           .from('reservas')
+          .select('cantidad_personas')
+          .in('estado', ['confirmada', 'pendiente'])
+        const totalInquilinos = reservasActivas?.reduce((acc, r) => acc + (r.cantidad_personas || 1), 0) || 0
+        setInquilinosCount(totalInquilinos)
+
+        // Reservas pendientes
+        const { count: resPendientes } = await supabase
+          .from('reservas')
+          .select('*', { count: 'exact', head: true })
+          .eq('estado', 'pendiente')
+        setReservasPendientes(resPendientes || 0)
+
+        // Gastos realizados (pagados) del mes
+        const { data: gastosPagados } = await supabase
+          .from('gastos')
           .select('monto')
-          .eq('estado', 'confirmada')
-          .gte('check_in', inicioMes.toISOString().split('T')[0])
-        const totalIngresos = reservasMes?.reduce((acc, r) => acc + (r.monto || 0), 0) || 0
-        setIngresosMes(totalIngresos)
+          .eq('estado', 'pagado')
+          .gte('fecha_pago', inicioMesStr)
+        const totalGastosRealizados = gastosPagados?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
+        setGastosRealizados(totalGastosRealizados)
+
+        // Gastos pendientes (total)
+        const { data: gastosPend } = await supabase
+          .from('gastos')
+          .select('monto')
+          .eq('estado', 'pendiente')
+        const totalGastosPendientes = gastosPend?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
+        setGastosPendientesTotal(totalGastosPendientes)
+
+        // Ingresos por alquiler (cobros del mes, solo alquiler)
+        const { data: cobrosAlquiler } = await supabase
+          .from('cobros')
+          .select('monto, moneda')
+          .eq('aplicar_a', 'alquiler')
+          .gte('fecha', inicioMesStr)
+        const totalIngresosUSD = cobrosAlquiler?.filter(c => c.moneda === 'USD').reduce((acc, c) => acc + (c.monto || 0), 0) || 0
+        setIngresosAlquiler(totalIngresosUSD)
+
+        // Expensas (gastos de tipo expensa)
+        const { data: expensas } = await supabase
+          .from('gastos')
+          .select('monto')
+          .eq('tipo', 'expensa')
+          .eq('estado', 'pendiente')
+        const totalExpensas = expensas?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
+        setExpensasTotal(totalExpensas)
 
         // Próximas reservas
-        const hoy = new Date().toISOString().split('T')[0]
         const { data: proxReservas } = await supabase
           .from('reservas')
-          .select('*, propiedades(nombre)')
-          .gte('check_in', hoy)
+          .select('*, propiedades(nombre), inquilinos(nombre)')
+          .gte('fecha_inicio', hoy)
           .in('estado', ['confirmada', 'pendiente'])
-          .order('check_in', { ascending: true })
+          .order('fecha_inicio', { ascending: true })
           .limit(5)
         setProximasReservas(proxReservas || [])
 
-        // Gastos pendientes
-        const { data: gastos } = await supabase
+        // Lista de gastos pendientes
+        const { data: gastosList } = await supabase
           .from('gastos')
           .select('*, propiedades(nombre)')
           .eq('estado', 'pendiente')
           .order('vencimiento', { ascending: true })
           .limit(5)
-        setGastosPendientes(gastos || [])
+        setGastosPendientesList(gastosList || [])
 
-        // Alertas: contratos por vencer (próximos 30 días)
-        const en30Dias = new Date()
-        en30Dias.setDate(en30Dias.getDate() + 30)
-        const { data: inquilinosPorVencer } = await supabase
-          .from('inquilinos')
-          .select('nombre, fecha_fin')
-          .eq('estado', 'activo')
-          .lte('fecha_fin', en30Dias.toISOString().split('T')[0])
-          .gte('fecha_fin', hoy)
-
+        // Alertas
         const alertasTemp: { tipo: string; titulo: string; mensaje: string }[] = []
-        inquilinosPorVencer?.forEach(inq => {
-          const diasRestantes = Math.ceil((new Date(inq.fecha_fin).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+
+        // Reservas pendientes de confirmar
+        if ((resPendientes || 0) > 0) {
           alertasTemp.push({
             tipo: 'warning',
-            titulo: 'Contrato por vencer',
-            mensaje: `El contrato de ${inq.nombre} vence en ${diasRestantes} días`
+            titulo: 'Reservas pendientes',
+            mensaje: `Hay ${resPendientes} reserva${(resPendientes || 0) > 1 ? 's' : ''} pendiente${(resPendientes || 0) > 1 ? 's' : ''} de confirmar`
           })
-        })
+        }
 
         // Gastos vencidos
         const { data: gastosVencidos } = await supabase
@@ -158,10 +184,15 @@ export default function Dashboard() {
   }, [])
 
   const stats = [
-    { name: 'Propiedades', value: propiedadesCount.toString(), icon: Building2, color: 'text-costa-navy', bg: 'bg-costa-beige' },
-    { name: 'Reservas activas', value: reservasCount.toString(), icon: CalendarDays, color: 'text-costa-olivo', bg: 'bg-costa-beige' },
     { name: 'Inquilinos', value: inquilinosCount.toString(), icon: Users, color: 'text-costa-navy', bg: 'bg-costa-beige' },
-    { name: 'Ingresos del mes', value: formatMonto(ingresosMes), icon: DollarSign, color: 'text-costa-olivo', bg: 'bg-costa-beige' },
+    { name: 'Reservas pendientes', value: reservasPendientes.toString(), icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { name: 'Ingresos alquiler', value: formatMontoUSD(ingresosAlquiler), icon: DollarSign, color: 'text-costa-olivo', bg: 'bg-costa-olivo/10' },
+  ]
+
+  const statsGastos = [
+    { name: 'Gastos realizados', value: formatMonto(gastosRealizados), icon: CheckCircle, color: 'text-costa-olivo', bg: 'bg-costa-olivo/10' },
+    { name: 'Gastos pendientes', value: formatMonto(gastosPendientesTotal), icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { name: 'Expensas', value: formatMonto(expensasTotal), icon: Receipt, color: 'text-costa-navy', bg: 'bg-costa-beige' },
   ]
 
   if (loading) {
@@ -179,8 +210,8 @@ export default function Dashboard() {
         description="Resumen general de tu gestión de propiedades"
       />
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* Stats Grid - Reservas e Ingresos */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
         {stats.map((stat) => (
           <Card key={stat.name}>
             <CardContent className="flex items-center gap-4">
@@ -196,12 +227,21 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Bloque institucional */}
-      <div className="mb-6 p-5 rounded-xl bg-costa-navy/5 border border-costa-navy/10">
-        <h3 className="text-sm font-semibold text-costa-navy tracking-wide mb-2">Modelo de gestión</h3>
-        <p className="text-costa-gris text-sm leading-relaxed">
-          Propiedades administradas directamente por sus propietarios. Sin intermediarios. Sin comisiones ocultas.
-        </p>
+      {/* Stats Grid - Gastos y Expensas */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        {statsGastos.map((stat) => (
+          <Card key={stat.name}>
+            <CardContent className="flex items-center gap-4">
+              <div className={`p-3 rounded-lg ${stat.bg}`}>
+                <stat.icon className={`w-6 h-6 ${stat.color}`} />
+              </div>
+              <div>
+                <p className="text-sm text-costa-gris">{stat.name}</p>
+                <p className="text-2xl font-bold text-costa-navy">{stat.value}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -215,21 +255,24 @@ export default function Dashboard() {
               <p className="text-gray-500 text-sm">No hay reservas próximas</p>
             ) : (
               <div className="space-y-4">
-                {proximasReservas.map((reserva) => (
+                {proximasReservas.map((reserva: Reserva) => (
                   <div key={reserva.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                     <div>
                       <p className="font-medium text-gray-900">{reserva.propiedades?.nombre || 'Propiedad'}</p>
                       <p className="text-sm text-gray-500">
-                        {reserva.huesped} • {formatFecha(reserva.check_in)} - {formatFecha(reserva.check_out)}
+                        {reserva.inquilinos?.nombre || '-'} • {formatFecha(reserva.check_in || reserva.fecha_inicio)} - {formatFecha(reserva.check_out || reserva.fecha_fin)}
                       </p>
                     </div>
-                    <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                      reserva.estado === 'confirmada'
-                        ? 'bg-costa-olivo/20 text-costa-olivo'
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {reserva.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-costa-gris">{reserva.cantidad_personas || 1} pers.</span>
+                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                        reserva.estado === 'confirmada'
+                          ? 'bg-costa-olivo/20 text-costa-olivo'
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {reserva.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -243,11 +286,11 @@ export default function Dashboard() {
             <CardTitle>Gastos Pendientes</CardTitle>
           </CardHeader>
           <CardContent>
-            {gastosPendientes.length === 0 ? (
+            {gastosPendientesList.length === 0 ? (
               <p className="text-gray-500 text-sm">No hay gastos pendientes</p>
             ) : (
               <div className="space-y-4">
-                {gastosPendientes.map((gasto) => (
+                {gastosPendientesList.map((gasto) => (
                   <div key={gasto.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                     <div>
                       <p className="font-medium text-gray-900">

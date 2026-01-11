@@ -473,9 +473,8 @@ export default function AdministracionPage() {
               <table className="w-full text-sm">
                 <thead className="bg-costa-beige/50 border-b border-costa-beige">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Concepto</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Concepto / Tipo</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Tipo</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Fecha</th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Monto</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-costa-gris uppercase">Estado</th>
@@ -496,18 +495,16 @@ export default function AdministracionPage() {
                                 {expandedGastos.has(gasto.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                               </button>
                             )}
-                            <div>
+                            <div className="flex items-center gap-2">
                               <span className="font-medium text-costa-navy">{gasto.concepto}</span>
+                              <Badge variant="default">{gasto.tipo}</Badge>
                               {gasto.detalle && gasto.detalle.length > 0 && (
-                                <span className="ml-2 text-xs text-costa-gris">({gasto.detalle.length} items)</span>
+                                <span className="text-xs text-costa-gris">({gasto.detalle.length} items)</span>
                               )}
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-costa-gris">{gasto.propiedades?.nombre || '-'}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant="default">{gasto.tipo}</Badge>
-                        </td>
                         <td className="px-4 py-3 text-costa-gris">{formatFecha(gasto.fecha)}</td>
                         <td className="px-4 py-3 text-right font-semibold text-costa-navy">{formatMonto(gasto.monto)}</td>
                         <td className="px-4 py-3 text-center">
@@ -536,7 +533,7 @@ export default function AdministracionPage() {
                       {/* Fila expandible con detalle */}
                       {gasto.detalle && gasto.detalle.length > 0 && expandedGastos.has(gasto.id) && (
                         <tr className="bg-costa-beige/20">
-                          <td colSpan={7} className="px-4 py-3">
+                          <td colSpan={6} className="px-4 py-3">
                             <div className="ml-8 border-l-2 border-costa-navy/20 pl-4">
                               <p className="text-xs font-medium text-costa-gris mb-2">Detalle de conceptos:</p>
                               <div className="space-y-1">
