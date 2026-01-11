@@ -180,7 +180,7 @@ export default function Dashboard() {
       />
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {stats.map((stat) => (
           <Card key={stat.name}>
             <CardContent className="flex items-center gap-4">
@@ -194,6 +194,14 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Bloque institucional */}
+      <div className="mb-6 p-5 rounded-xl bg-costa-navy/5 border border-costa-navy/10">
+        <h3 className="text-sm font-semibold text-costa-navy tracking-wide mb-2">Modelo de gestión</h3>
+        <p className="text-costa-gris text-sm leading-relaxed">
+          Propiedades administradas directamente por sus propietarios. Sin intermediarios. Sin comisiones ocultas.
+        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

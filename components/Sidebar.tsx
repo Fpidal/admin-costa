@@ -56,11 +56,8 @@ export default function Sidebar() {
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-24 flex flex-col items-center justify-center px-6 border-b border-costa-beige">
+          <div className="h-20 flex items-center justify-center px-6 border-b border-costa-beige">
             <h1 className="text-2xl font-semibold text-costa-navy tracking-wide" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</h1>
-            <p className="text-sm font-medium tracking-wide mt-0.5" style={{ color: '#3d5a73' }}>
-              Administrada por sus propietarios
-            </p>
           </div>
 
           {/* Navigation */}
