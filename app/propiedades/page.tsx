@@ -337,7 +337,7 @@ export default function PropiedadesPage() {
     <div>
       <PageHeader
         title="Propiedades"
-        description="Gestiona tu cartera de propiedades"
+        description="Gestión directa de propiedades por sus propietarios o representantes"
       >
         <Button onClick={() => openModal()}>
           <Plus size={18} />
