@@ -1089,18 +1089,15 @@ export default function ReservasPage() {
           </div>
 
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Tarifas y pagos</p>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <Select label="Moneda" value={form.moneda} onChange={(e) => setForm({ ...form, moneda: e.target.value })} options={monedas} />
             <Input label="Precio por noche" type="number" min="0" value={form.precio_noche || ''} onChange={(e) => setForm({ ...form, precio_noche: Number(e.target.value) })} />
             <Input label="Depósito USD" type="number" min="0" value={form.deposito || ''} onChange={(e) => setForm({ ...form, deposito: Number(e.target.value) })} />
-            <Input label="Depósito $" type="number" min="0" value={form.deposito_pesos || ''} onChange={(e) => setForm({ ...form, deposito_pesos: Number(e.target.value) })} />
-            <Input label="Seña" type="number" min="0" value={form.sena || ''} onChange={(e) => setForm({ ...form, sena: Number(e.target.value) })} />
-            <Select label="Forma de pago" value={form.forma_pago} onChange={(e) => setForm({ ...form, forma_pago: e.target.value })} options={formasPago} />
           </div>
 
           {/* Resumen calculado */}
           {form.check_in && form.check_out && form.precio_noche > 0 && (
-            <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-4 gap-4 text-center">
+            <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-3 gap-4 text-center">
               <div>
                 <p className="text-sm text-gray-500">Noches</p>
                 <p className="text-xl font-bold text-gray-900">{formNoches}</p>
@@ -1111,11 +1108,7 @@ export default function ReservasPage() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Depósito</p>
-                <p className="text-xl font-bold text-blue-600">{formatMonto(Number(form.deposito), form.moneda)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Saldo pendiente</p>
-                <p className={`text-xl font-bold ${formSaldo > 0 ? 'text-amber-600' : 'text-costa-olivo'}`}>{formatMonto(formSaldo, form.moneda)}</p>
+                <p className="text-xl font-bold text-blue-600">{formatMonto(Number(form.deposito), 'USD')}</p>
               </div>
             </div>
           )}
