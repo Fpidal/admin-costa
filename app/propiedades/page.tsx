@@ -571,7 +571,7 @@ export default function PropiedadesPage() {
 
                   {/* WhatsApp contact */}
                   <a
-                    href={`https://wa.me/5491112345678?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
+                    href={`https://wa.me/541160473922?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-[#25D366] hover:bg-[#20bd5a] text-white text-sm font-medium transition-colors"
