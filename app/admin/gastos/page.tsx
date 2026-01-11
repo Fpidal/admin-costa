@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select } from '@/components/ui'
-import { Plus, DollarSign, TrendingDown, TrendingUp, Calendar, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle } from 'lucide-react'
+import { Plus, DollarSign, TrendingDown, TrendingUp, Calendar, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, Upload } from 'lucide-react'
 
 interface Propiedad {
   id: number
@@ -36,6 +36,16 @@ interface Reserva {
   moneda: string
   propiedades?: Propiedad
   inquilinos?: { nombre: string }
+}
+
+interface ExpensaParseada {
+  fecha_vencimiento: string
+  lote: string
+  concepto: string
+  debe: number
+  haber: number
+  saldo: number
+  selected: boolean
 }
 
 const categoriasGasto = [
@@ -98,6 +108,13 @@ export default function AdministracionPage() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(initialForm)
   const [saving, setSaving] = useState(false)
+
+  // Estados para importador de expensas Eidico
+  const [importModalOpen, setImportModalOpen] = useState(false)
+  const [importPropiedadId, setImportPropiedadId] = useState('')
+  const [textoEidico, setTextoEidico] = useState('')
+  const [expensasParseadas, setExpensasParseadas] = useState<ExpensaParseada[]>([])
+  const [importando, setImportando] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -181,6 +198,125 @@ export default function AdministracionPage() {
     else fetchData()
   }
 
+  // Parser de Eidico
+  function parsearEidico() {
+    const lineas = textoEidico.split('\n').filter(l => l.trim())
+    const expensas: ExpensaParseada[] = []
+
+    for (const linea of lineas) {
+      // Buscar patrones de fecha (dd/mm/yyyy)
+      const fechaMatch = linea.match(/(\d{2}\/\d{2}\/\d{4})/g)
+
+      // Buscar patrones de monto ($ xxx.xxx,xx o $ xxx,xx)
+      const montoMatch = linea.match(/\$\s*([\d.,]+)/g)
+
+      // Buscar lote (3-4 dígitos después de la fecha)
+      const loteMatch = linea.match(/\d{2}\/\d{2}\/\d{4}(\d{3,4})/i)
+
+      if (fechaMatch && fechaMatch.length >= 1 && montoMatch && montoMatch.length >= 1) {
+        // Extraer concepto (texto entre lote y primer monto)
+        let concepto = linea
+        if (loteMatch) {
+          const loteIndex = linea.indexOf(loteMatch[1]) + loteMatch[1].length
+          const montoIndex = linea.indexOf('$')
+          if (montoIndex > loteIndex) {
+            concepto = linea.substring(loteIndex, montoIndex).trim()
+          }
+        }
+
+        // Parsear montos (quitar $, puntos de miles, cambiar coma por punto)
+        const parseMonto = (str: string) => {
+          const clean = str.replace('$', '').replace(/\./g, '').replace(',', '.').trim()
+          return parseFloat(clean) || 0
+        }
+
+        const debe = montoMatch[0] ? parseMonto(montoMatch[0]) : 0
+        const haber = montoMatch[1] ? parseMonto(montoMatch[1]) : 0
+        const saldo = montoMatch[2] ? parseMonto(montoMatch[2]) : 0
+
+        // Convertir fecha dd/mm/yyyy a yyyy-mm-dd
+        const fechaVenc = fechaMatch[0]
+        const [dia, mes, anio] = fechaVenc.split('/')
+        const fechaISO = `${anio}-${mes}-${dia}`
+
+        expensas.push({
+          fecha_vencimiento: fechaISO,
+          lote: loteMatch ? loteMatch[1] : '',
+          concepto: concepto || 'Expensa',
+          debe,
+          haber,
+          saldo,
+          selected: debe > 0, // Solo seleccionar si hay monto a pagar
+        })
+      }
+    }
+
+    setExpensasParseadas(expensas)
+  }
+
+  async function importarExpensas() {
+    if (!importPropiedadId) {
+      alert('Seleccioná una propiedad')
+      return
+    }
+
+    const seleccionadas = expensasParseadas.filter(e => e.selected && e.debe > 0)
+    if (seleccionadas.length === 0) {
+      alert('No hay expensas seleccionadas para importar')
+      return
+    }
+
+    setImportando(true)
+
+    const gastosAInsertar = seleccionadas.map(e => ({
+      propiedad_id: importPropiedadId,
+      fecha: new Date().toISOString().split('T')[0],
+      tipo: 'expensa',
+      concepto: e.concepto,
+      monto: e.debe,
+      periodo: e.fecha_vencimiento.substring(0, 7).split('-').reverse().join('/'), // mm/yyyy
+      fecha_vencimiento: e.fecha_vencimiento,
+    }))
+
+    const { error } = await supabase.from('gastos').insert(gastosAInsertar)
+
+    if (!error) {
+      setImportModalOpen(false)
+      setTextoEidico('')
+      setExpensasParseadas([])
+      setImportPropiedadId('')
+      fetchData()
+      alert(`Se importaron ${seleccionadas.length} expensas correctamente`)
+    } else {
+      alert('Error al importar: ' + error.message)
+    }
+
+    setImportando(false)
+  }
+
+  function toggleExpensaSeleccion(index: number) {
+    const updated = [...expensasParseadas]
+    updated[index].selected = !updated[index].selected
+    setExpensasParseadas(updated)
+  }
+
+  function closeImportModal() {
+    setImportModalOpen(false)
+    setTextoEidico('')
+    setExpensasParseadas([])
+    setImportPropiedadId('')
+  }
+
+  const formatFechaExpensa = (fecha: string) => {
+    if (!fecha) return '-'
+    return new Date(fecha).toLocaleDateString('es-AR')
+  }
+
+  const formatMontoExpensa = (monto: number) => {
+    if (!monto && monto !== 0) return '-'
+    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto)
+  }
+
   // Cálculos
   const totalGastos = gastos.reduce((acc, g) => acc + (g.monto || 0), 0)
   const totalGastosPendientes = gastos.filter(g => g.estado === 'pendiente').reduce((acc, g) => acc + (g.monto || 0), 0)
@@ -201,10 +337,16 @@ export default function AdministracionPage() {
     <div>
       <PageHeader title="Administración" description="Control de gastos e ingresos por alquileres">
         {activeTab === 'gastos' && (
-          <Button onClick={() => openModal()}>
-            <Plus size={16} />
-            Nuevo Gasto
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setImportModalOpen(true)}>
+              <Upload size={16} />
+              Importar Expensas
+            </Button>
+            <Button onClick={() => openModal()}>
+              <Plus size={16} />
+              Nuevo Gasto
+            </Button>
+          </div>
         )}
       </PageHeader>
 
@@ -414,6 +556,108 @@ export default function AdministracionPage() {
             <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Modal Importar Expensas Eidico */}
+      <Modal isOpen={importModalOpen} onClose={closeImportModal} title="Importar Expensas Eidico" size="lg">
+        <div className="space-y-4">
+          {/* Selector de propiedad */}
+          <Select
+            label="Propiedad"
+            value={importPropiedadId}
+            onChange={(e) => setImportPropiedadId(e.target.value)}
+            options={propiedades.map(p => ({ value: p.id.toString(), label: p.nombre }))}
+            required
+          />
+
+          {/* Textarea para pegar datos */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Pegá los datos copiados de Eidico:
+            </label>
+            <textarea
+              className="w-full h-40 p-3 border border-gray-300 rounded-lg text-sm font-mono resize-none focus:ring-2 focus:ring-costa-navy focus:border-transparent"
+              placeholder="Pegá aquí los datos del estado de cuenta de Eidico...
+
+Ejemplo de formato:
+10/11/2025763Electricidad $ 13989.46 fijos...$ 111.224,10$ 0,00$ 362.303,19"
+              value={textoEidico}
+              onChange={(e) => setTextoEidico(e.target.value)}
+            />
+          </div>
+
+          {/* Botón procesar */}
+          <Button type="button" variant="secondary" onClick={parsearEidico} disabled={!textoEidico.trim()}>
+            Procesar datos
+          </Button>
+
+          {/* Vista previa */}
+          {expensasParseadas.length > 0 && (
+            <div className="border rounded-lg overflow-hidden">
+              <div className="bg-costa-beige/50 px-4 py-2 font-medium text-sm flex justify-between items-center">
+                <span>Vista previa ({expensasParseadas.filter(e => e.selected).length} seleccionadas)</span>
+                <label className="flex items-center gap-2 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={expensasParseadas.every(e => e.selected)}
+                    onChange={(e) => {
+                      setExpensasParseadas(expensasParseadas.map(exp => ({ ...exp, selected: e.target.checked })))
+                    }}
+                  />
+                  Seleccionar todas
+                </label>
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="p-2 text-left w-10"></th>
+                      <th className="p-2 text-left">Vencimiento</th>
+                      <th className="p-2 text-left">Concepto</th>
+                      <th className="p-2 text-right">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expensasParseadas.map((exp, idx) => (
+                      <tr key={idx} className={`border-t ${exp.debe === 0 ? 'opacity-50' : ''}`}>
+                        <td className="p-2">
+                          <input
+                            type="checkbox"
+                            checked={exp.selected}
+                            onChange={() => toggleExpensaSeleccion(idx)}
+                            disabled={exp.debe === 0}
+                          />
+                        </td>
+                        <td className="p-2">{formatFechaExpensa(exp.fecha_vencimiento)}</td>
+                        <td className="p-2 truncate max-w-[250px]">{exp.concepto}</td>
+                        <td className="p-2 text-right font-medium">{formatMontoExpensa(exp.debe)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Total seleccionado */}
+              <div className="bg-costa-navy/10 px-4 py-2 flex justify-between items-center">
+                <span className="text-sm font-medium">Total a importar:</span>
+                <span className="text-lg font-bold text-costa-navy">
+                  {formatMontoExpensa(expensasParseadas.filter(e => e.selected).reduce((acc, e) => acc + e.debe, 0))}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Botones de acción */}
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="ghost" onClick={closeImportModal}>
+              Cancelar
+            </Button>
+            {expensasParseadas.length > 0 && (
+              <Button onClick={importarExpensas} disabled={importando || expensasParseadas.filter(e => e.selected).length === 0 || !importPropiedadId}>
+                {importando ? 'Importando...' : `Importar ${expensasParseadas.filter(e => e.selected).length} expensas`}
+              </Button>
+            )}
+          </div>
+        </div>
       </Modal>
     </div>
   )
