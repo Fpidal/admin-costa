@@ -71,9 +71,6 @@ const nacionalidades = [
 const estadosCiviles = [
   { value: 'soltero', label: 'Soltero/a' },
   { value: 'casado', label: 'Casado/a' },
-  { value: 'divorciado', label: 'Divorciado/a' },
-  { value: 'viudo', label: 'Viudo/a' },
-  { value: 'union_libre', label: 'Unión libre' },
 ]
 
 const formatMonto = (monto: number) => {

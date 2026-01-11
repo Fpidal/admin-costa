@@ -53,9 +53,6 @@ interface Reserva {
 const tiposPropiedad = [
   { value: 'casa', label: 'Casa' },
   { value: 'departamento', label: 'Departamento' },
-  { value: 'monoambiente', label: 'Monoambiente' },
-  { value: 'local', label: 'Local' },
-  { value: 'lote', label: 'Lote' },
 ]
 
 const estadosPropiedad = [
