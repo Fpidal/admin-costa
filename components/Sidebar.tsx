@@ -35,13 +35,25 @@ export default function Sidebar({ onLogout }: SidebarProps) {
 
   return (
     <>
-      {/* Mobile menu button */}
-      <button
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-white shadow-md"
-        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-      >
-        {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
+      {/* Mobile header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-white shadow-md">
+        <button
+          className="p-2 rounded-lg hover:bg-gray-100"
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        >
+          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+        <span className="text-lg font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</span>
+        {onLogout && (
+          <button
+            onClick={onLogout}
+            className="p-2 rounded-lg text-costa-coral hover:bg-costa-coral/10"
+            title="Cerrar sesión"
+          >
+            <LogOut size={22} />
+          </button>
+        )}
+      </div>
 
       {/* Overlay */}
       {mobileMenuOpen && (
