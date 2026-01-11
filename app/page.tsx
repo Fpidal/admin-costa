@@ -101,7 +101,7 @@ export default function LandingPage() {
             Admin Costa
           </h1>
           <p className="text-xl md:text-2xl text-white/90 mb-8 font-light">
-            Gestión directa de propiedades por sus propietarios
+            Gestión directa de propiedades por sus dueños
           </p>
           <div className="flex flex-wrap justify-center gap-4">
             <a
@@ -114,7 +114,7 @@ export default function LandingPage() {
               href="/admin"
               className="px-8 py-3 border-2 border-white/50 text-white font-medium rounded-lg hover:bg-white/10 transition-colors"
             >
-              Acceso propietarios
+              Acceso dueños
             </Link>
           </div>
         </div>
@@ -132,7 +132,7 @@ export default function LandingPage() {
             Nuestro modelo
           </h2>
           <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
-            Propiedades administradas directamente por sus propietarios o representantes
+            Propiedades administradas directamente por sus dueños o representantes
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -142,7 +142,7 @@ export default function LandingPage() {
               </div>
               <h3 className="text-lg font-semibold text-costa-navy mb-2">Sin intermediarios</h3>
               <p className="text-costa-gris text-sm">
-                Trato directo con los propietarios. Sin comisiones de agencias ni costos ocultos.
+                Trato directo con los dueños. Sin comisiones de agencias ni costos ocultos.
               </p>
             </div>
 
@@ -346,7 +346,7 @@ export default function LandingPage() {
             <div>
               <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</h3>
               <p className="text-white/70 text-sm">
-                Propiedades en Costa Esmeralda administradas directamente por sus propietarios.
+                Propiedades en Costa Esmeralda administradas directamente por sus dueños.
               </p>
             </div>
             <div>
@@ -364,7 +364,7 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold mb-4">Accesos</h4>
               <Link href="/admin" className="text-white/70 hover:text-white transition-colors text-sm block mb-2">
-                Acceso propietarios
+                Acceso dueños
               </Link>
             </div>
           </div>
