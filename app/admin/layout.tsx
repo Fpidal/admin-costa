@@ -31,6 +31,7 @@ export default function AdminLayout({
       localStorage.setItem('admin-costa-auth', 'authenticated')
       setIsAuthenticated(true)
       setError('')
+      router.push('/admin/propiedades')
     } else {
       setError('Clave incorrecta')
     }
