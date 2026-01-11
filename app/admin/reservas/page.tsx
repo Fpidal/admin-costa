@@ -107,6 +107,18 @@ const formatMonto = (monto: number, moneda: string = 'ARS') => {
   return moneda === 'USD' ? `U$D ${formatted}` : `$ ${formatted}`
 }
 
+// Componente para mostrar moneda con símbolo más pequeño
+const FormatMontoStyled = ({ monto, moneda = 'ARS' }: { monto: number, moneda?: string }) => {
+  if (!monto && monto !== 0) return <span>-</span>
+  const formatted = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(monto)
+  const symbol = moneda === 'USD' ? 'U$D' : '$'
+  return (
+    <span>
+      <span className="text-[0.75em] opacity-70">{symbol}</span> {formatted}
+    </span>
+  )
+}
+
 const formatFecha = (fecha: string) => {
   return new Date(fecha).toLocaleDateString('es-AR')
 }
@@ -902,14 +914,14 @@ export default function ReservasPage() {
                           {reserva.cantidad_personas || 1}
                         </td>
                         <td className="px-2 py-2 text-right font-semibold text-costa-navy text-sm">
-                          {formatMonto(total, moneda)}
+                          <FormatMontoStyled monto={total} moneda={moneda} />
                         </td>
                         <td className="px-2 py-2 text-right text-costa-olivo text-sm">
-                          {formatMonto(reserva.sena || 0, moneda)}
+                          <FormatMontoStyled monto={reserva.sena || 0} moneda={moneda} />
                         </td>
                         <td className="px-2 py-2 text-right text-sm">
                           <span className={saldo > 0 ? 'font-semibold text-amber-600' : 'text-costa-olivo'}>
-                            {formatMonto(saldo, moneda)}
+                            <FormatMontoStyled monto={saldo} moneda={moneda} />
                           </span>
                         </td>
                         <td className="px-2 py-2">
@@ -1039,6 +1051,12 @@ export default function ReservasPage() {
       {/* Modal */}
       <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Reserva' : 'Nueva Reserva'} size="lg">
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Botones arriba */}
+          <div className="flex justify-end gap-3 pb-3 border-b">
+            <Button type="button" variant="secondary" onClick={closeModal}>Cancelar</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
+          </div>
+
           <p className="text-sm font-medium text-gray-700 border-b pb-2">Propiedad y titular</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
@@ -1294,10 +1312,6 @@ export default function ReservasPage() {
 
           <Select label="Estado" value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} options={estadosReserva} />
           <Textarea label="Notas" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Observaciones de la reserva..." />
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="secondary" onClick={closeModal}>Cancelar</Button>
-            <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
-          </div>
         </form>
       </Modal>
     </div>
