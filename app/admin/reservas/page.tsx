@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet } from 'lucide-react'
 import { jsPDF } from 'jspdf'
+import Link from 'next/link'
 
 interface Propiedad {
   id: number
@@ -875,6 +876,9 @@ export default function ReservasPage() {
                                 </Button>
                               </>
                             )}
+                            <Link href={`/admin/reservas/${reserva.id}/cobros`}>
+                              <Button variant="ghost" size="sm" title="Gestión de cobros"><Wallet size={14} className="text-costa-olivo" /></Button>
+                            </Link>
                             <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={14} /></Button>
                             <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
                           </div>
