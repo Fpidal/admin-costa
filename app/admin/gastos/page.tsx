@@ -100,6 +100,59 @@ export default function AdministracionPage() {
   const [detalleModalOpen, setDetalleModalOpen] = useState(false)
   const [gastoSeleccionado, setGastoSeleccionado] = useState<Gasto | null>(null)
 
+  // Filtros
+  const [filtroMes, setFiltroMes] = useState<string>('')
+  const [filtroAnio, setFiltroAnio] = useState<string>(new Date().getFullYear().toString())
+  const [filtroTipo, setFiltroTipo] = useState<string>('')
+
+  // Opciones de filtros
+  const meses = [
+    { value: '', label: 'Todos' },
+    { value: '01', label: 'Enero' },
+    { value: '02', label: 'Febrero' },
+    { value: '03', label: 'Marzo' },
+    { value: '04', label: 'Abril' },
+    { value: '05', label: 'Mayo' },
+    { value: '06', label: 'Junio' },
+    { value: '07', label: 'Julio' },
+    { value: '08', label: 'Agosto' },
+    { value: '09', label: 'Septiembre' },
+    { value: '10', label: 'Octubre' },
+    { value: '11', label: 'Noviembre' },
+    { value: '12', label: 'Diciembre' },
+  ]
+
+  const anios = [
+    { value: '', label: 'Todos' },
+    { value: '2024', label: '2024' },
+    { value: '2025', label: '2025' },
+    { value: '2026', label: '2026' },
+  ]
+
+  const tiposGasto = [
+    { value: '', label: 'Todos' },
+    { value: 'Mantenimiento', label: 'Mantenimiento' },
+    { value: 'Arreglos', label: 'Arreglos' },
+    { value: 'Ampliación', label: 'Ampliación' },
+    { value: 'Reparaciones', label: 'Reparaciones' },
+    { value: 'Multas', label: 'Multas' },
+    { value: 'expensa', label: 'Expensas' },
+    { value: 'Otros', label: 'Otros' },
+  ]
+
+  // Gastos filtrados
+  const gastosFiltrados = gastos.filter(gasto => {
+    const fechaGasto = new Date(gasto.fecha)
+    const mesGasto = String(fechaGasto.getMonth() + 1).padStart(2, '0')
+    const anioGasto = String(fechaGasto.getFullYear())
+
+    if (filtroMes && mesGasto !== filtroMes) return false
+    if (filtroAnio && anioGasto !== filtroAnio) return false
+    if (filtroTipo && gasto.concepto !== filtroTipo && gasto.tipo !== filtroTipo) return false
+
+    return true
+  })
+
   useEffect(() => {
     fetchData()
   }, [])
@@ -424,8 +477,8 @@ export default function AdministracionPage() {
   }
 
   // Cálculos
-  const totalGastos = gastos.reduce((acc, g) => acc + (g.monto || 0), 0)
-  const totalPendiente = gastos.filter(g => !g.pagado).reduce((acc, g) => acc + (g.monto || 0), 0)
+  const totalGastos = gastosFiltrados.reduce((acc, g) => acc + (g.monto || 0), 0)
+  const totalPendiente = gastosFiltrados.filter(g => !g.pagado).reduce((acc, g) => acc + (g.monto || 0), 0)
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-costa-gris">Cargando...</div></div>
@@ -462,11 +515,58 @@ export default function AdministracionPage() {
         </Card>
       </div>
 
+      {/* Filtros */}
+      <Card className="mb-4">
+        <CardContent className="py-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-costa-gris">Filtrar:</span>
+            <select
+              value={filtroMes}
+              onChange={(e) => setFiltroMes(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy"
+            >
+              {meses.map(m => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+            <select
+              value={filtroAnio}
+              onChange={(e) => setFiltroAnio(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy"
+            >
+              {anios.map(a => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
+            </select>
+            <select
+              value={filtroTipo}
+              onChange={(e) => setFiltroTipo(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy"
+            >
+              {tiposGasto.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+            {(filtroMes || filtroAnio || filtroTipo) && (
+              <button
+                onClick={() => { setFiltroMes(''); setFiltroAnio(''); setFiltroTipo('') }}
+                className="text-xs text-costa-coral hover:underline"
+              >
+                Limpiar filtros
+              </button>
+            )}
+            <span className="ml-auto text-sm text-costa-gris">
+              {gastosFiltrados.length} resultado{gastosFiltrados.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Tabla de Gastos */}
       <Card>
         <CardHeader><CardTitle>Gastos y Expensas</CardTitle></CardHeader>
         <CardContent className="p-0">
-          {gastos.length === 0 ? (
+          {gastosFiltrados.length === 0 ? (
             <div className="py-8 text-center text-costa-gris">No hay gastos registrados</div>
           ) : (
             <div className="overflow-x-auto">
@@ -483,7 +583,7 @@ export default function AdministracionPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-costa-beige">
-                  {gastos.map((gasto) => (
+                  {gastosFiltrados.map((gasto) => (
                     <React.Fragment key={gasto.id}>
                       <tr className="hover:bg-costa-beige/30">
                         <td className="px-4 py-3">
