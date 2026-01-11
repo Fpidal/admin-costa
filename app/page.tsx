@@ -39,6 +39,18 @@ interface Reserva {
   estado: string
 }
 
+// Formatear teléfono para WhatsApp (sin +, espacios ni guiones, con código de país)
+const formatWhatsApp = (telefono: string | null | undefined): string => {
+  if (!telefono) return '541160473922' // Default
+  // Limpiar: quitar +, espacios, guiones, paréntesis
+  let limpio = telefono.replace(/[\s\-\+\(\)]/g, '')
+  // Si empieza con 0, quitarlo (ej: 011 -> 11)
+  if (limpio.startsWith('0')) limpio = limpio.substring(1)
+  // Si no empieza con 54, agregarlo
+  if (!limpio.startsWith('54')) limpio = '54' + limpio
+  return limpio
+}
+
 export default function LandingPage() {
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
@@ -308,7 +320,7 @@ export default function LandingPage() {
 
                       {/* WhatsApp Button */}
                       <a
-                        href={`https://wa.me/${propiedad.telefono_contacto || '541160473922'}?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
+                        href={`https://wa.me/${formatWhatsApp(propiedad.telefono_contacto)}?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 w-full py-3 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg font-medium transition-colors"
