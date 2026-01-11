@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { ArrowLeft, Plus, FileText, Receipt, Calculator, Trash2, DollarSign, Calendar, User, Home, Pencil } from 'lucide-react'
+import { ArrowLeft, Plus, FileText, Receipt, Calculator, Trash2, DollarSign, Calendar, User, Home, Pencil, ChevronLeft, ChevronRight } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 
@@ -138,6 +138,7 @@ export default function CobrosPage() {
   const [reserva, setReserva] = useState<Reserva | null>(null)
   const [cobros, setCobros] = useState<Cobro[]>([])
   const [liquidacion, setLiquidacion] = useState<Liquidacion | null>(null)
+  const [reservaIds, setReservaIds] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [liquidacionModalOpen, setLiquidacionModalOpen] = useState(false)
@@ -160,6 +161,16 @@ export default function CobrosPage() {
 
   async function fetchData() {
     setLoading(true)
+
+    // Fetch all reservation IDs for navigation
+    const { data: allReservas } = await supabase
+      .from('reservas')
+      .select('id')
+      .order('fecha_inicio', { ascending: false })
+
+    if (allReservas) {
+      setReservaIds(allReservas.map(r => String(r.id)))
+    }
 
     // Fetch reserva with relations
     const { data: reservaData } = await supabase
@@ -202,6 +213,11 @@ export default function CobrosPage() {
 
     setLoading(false)
   }
+
+  // Navigation between reservations
+  const currentIndex = reservaIds.indexOf(reservaId)
+  const prevReservaId = currentIndex > 0 ? reservaIds[currentIndex - 1] : null
+  const nextReservaId = currentIndex < reservaIds.length - 1 ? reservaIds[currentIndex + 1] : null
 
   // Cálculos - Montos pactados de la reserva
   const noches = reserva ? calcularNoches(reserva.fecha_inicio, reserva.fecha_fin) : 0
@@ -505,9 +521,27 @@ export default function CobrosPage() {
           <ArrowLeft size={16} />
           Volver
         </Link>
-        <h1 className="text-lg font-semibold text-costa-navy">
-          Gestión de Cobros - #{String(reserva.id).slice(-6).toUpperCase()}
-        </h1>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => prevReservaId && router.push(`/admin/reservas/${prevReservaId}/cobros`)}
+            disabled={!prevReservaId}
+            className={`p-1.5 rounded transition-colors ${prevReservaId ? 'text-costa-navy hover:bg-costa-beige' : 'text-gray-300 cursor-not-allowed'}`}
+            title="Reserva anterior"
+          >
+            <ChevronLeft size={20} />
+          </button>
+          <h1 className="text-lg font-semibold text-costa-navy">
+            Gestión de Cobros - #{String(reserva.id).slice(-6).toUpperCase()}
+          </h1>
+          <button
+            onClick={() => nextReservaId && router.push(`/admin/reservas/${nextReservaId}/cobros`)}
+            disabled={!nextReservaId}
+            className={`p-1.5 rounded transition-colors ${nextReservaId ? 'text-costa-navy hover:bg-costa-beige' : 'text-gray-300 cursor-not-allowed'}`}
+            title="Reserva siguiente"
+          >
+            <ChevronRight size={20} />
+          </button>
+        </div>
         <div className="w-16"></div>
       </div>
 
@@ -675,7 +709,14 @@ export default function CobrosPage() {
           </CardHeader>
           <CardContent className="py-2 px-4">
             <div className="space-y-1.5 text-sm">
-              {/* Depósito recibido en USD */}
+              {/* Depósito pactado */}
+              <div className="flex justify-between py-1 border-b border-costa-beige">
+                <span className="text-costa-gris">Depósito pactado</span>
+                <span className="font-medium">
+                  <FormatMontoStyled monto={pactadoDeposito} moneda={monedaAlquiler} />
+                </span>
+              </div>
+              {/* Depósito recibido */}
               <div className="flex justify-between py-1 border-b border-costa-beige">
                 <span className="text-costa-gris">Depósito recibido</span>
                 <span className={cobradoDeposito > 0 ? 'font-medium text-costa-olivo' : 'text-costa-gris'}>
