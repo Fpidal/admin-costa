@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed } from 'lucide-react'
+import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, Receipt } from 'lucide-react'
+import Link from 'next/link'
 
 interface Propiedad {
   id: number
@@ -594,6 +595,11 @@ export default function PropiedadesPage() {
                         </svg>
                         Contacto
                       </a>
+                      <Link href={`/admin/propiedades/${propiedad.id}/gastos`}>
+                        <Button variant="ghost" size="sm" title="Gastos">
+                          <Receipt size={16} className="text-costa-olivo" />
+                        </Button>
+                      </Link>
                       <Button variant="ghost" size="sm" onClick={() => openModal(propiedad)}>
                         <Pencil size={16} />
                       </Button>
