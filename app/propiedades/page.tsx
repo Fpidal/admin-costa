@@ -10,7 +10,9 @@ interface Propiedad {
   id: number
   nombre: string
   direccion: string
+  referencia: string
   tipo: string
+  capacidad: number
   habitaciones: number
   banos: number
   camas: number
@@ -73,7 +75,9 @@ const formatMonto = (monto: number) => {
 const initialForm = {
   nombre: '',
   direccion: '',
+  referencia: '',
   tipo: '',
+  capacidad: 0,
   habitaciones: 0,
   banos: 0,
   camas: 0,
@@ -165,7 +169,9 @@ export default function PropiedadesPage() {
       setForm({
         nombre: propiedad.nombre || '',
         direccion: propiedad.direccion || '',
+        referencia: propiedad.referencia || '',
         tipo: propiedad.tipo || '',
+        capacidad: propiedad.capacidad || 0,
         habitaciones: propiedad.habitaciones || 0,
         banos: propiedad.banos || 0,
         camas: propiedad.camas || 0,
@@ -252,7 +258,9 @@ export default function PropiedadesPage() {
     const data = {
       nombre: form.nombre,
       direccion: form.direccion,
+      referencia: form.referencia,
       tipo: form.tipo,
+      capacidad: Number(form.capacidad),
       habitaciones: Number(form.habitaciones),
       banos: Number(form.banos),
       camas: Number(form.camas),
@@ -457,51 +465,55 @@ export default function PropiedadesPage() {
                     )}
                   </div>
 
+                  {/* Ubicación */}
                   {propiedad.direccion && (
-                    <div className="flex items-center gap-1 text-sm text-gray-500 mb-3">
-                      <MapPin size={14} />
-                      <span className="truncate">{propiedad.direccion}</span>
+                    <div className="mb-2">
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <MapPin size={14} className="text-costa-coral" />
+                        <span>{propiedad.direccion}</span>
+                      </div>
+                      {propiedad.referencia && (
+                        <p className="text-xs text-costa-gris ml-5 mt-0.5 italic">{propiedad.referencia}</p>
+                      )}
                     </div>
                   )}
 
-                  {/* Info básica */}
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-costa-gris mb-2">
-                    {propiedad.tipo !== 'lote' && propiedad.habitaciones > 0 && (
-                      <div className="flex items-center gap-1" title="Habitaciones">
-                        <Bed size={14} />
-                        <span>{propiedad.habitaciones}</span>
-                      </div>
-                    )}
-                    {propiedad.tipo !== 'lote' && propiedad.camas > 0 && (
-                      <div className="flex items-center gap-1" title="Camas">
-                        <Bed size={14} />
-                        <span>{propiedad.camas}c</span>
-                      </div>
-                    )}
-                    {propiedad.tipo !== 'lote' && propiedad.banos > 0 && (
-                      <div className="flex items-center gap-1" title="Baños">
-                        <Bath size={14} />
-                        <span>{propiedad.banos}</span>
-                      </div>
-                    )}
-                    {propiedad.cochera && (
-                      <div className="flex items-center gap-1" title="Cochera">
-                        <Car size={14} />
-                      </div>
-                    )}
-                    {propiedad.metros_cubiertos > 0 && (
-                      <div className="flex items-center gap-1" title="Metros cubiertos">
-                        <Ruler size={14} />
-                        <span>{propiedad.metros_cubiertos}m²</span>
-                      </div>
-                    )}
-                    {propiedad.metros_lote > 0 && (
-                      <div className="flex items-center gap-1" title="Metros lote">
-                        <LandPlot size={14} />
-                        <span>{propiedad.metros_lote}m²</span>
-                      </div>
-                    )}
-                  </div>
+                  {/* Capacidad destacada */}
+                  {propiedad.capacidad > 0 && (
+                    <div className="flex items-center gap-1.5 text-costa-navy font-medium mb-2">
+                      <span className="text-base">👤</span>
+                      <span>{propiedad.capacidad} personas</span>
+                    </div>
+                  )}
+
+                  {/* Info descriptiva */}
+                  {propiedad.tipo !== 'lote' && (propiedad.habitaciones > 0 || propiedad.banos > 0) && (
+                    <p className="text-sm text-costa-gris mb-2">
+                      {[
+                        propiedad.habitaciones > 0 && `${propiedad.habitaciones} dormitorio${propiedad.habitaciones > 1 ? 's' : ''}`,
+                        propiedad.banos > 0 && `${propiedad.banos} baño${propiedad.banos > 1 ? 's' : ''}`
+                      ].filter(Boolean).join(' • ')}
+                      {propiedad.cochera && ' • Cochera'}
+                    </p>
+                  )}
+
+                  {/* Metros */}
+                  {(propiedad.metros_cubiertos > 0 || propiedad.metros_lote > 0) && (
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-costa-gris mb-2">
+                      {propiedad.metros_cubiertos > 0 && (
+                        <div className="flex items-center gap-1">
+                          <Ruler size={14} />
+                          <span>{propiedad.metros_cubiertos}m² cubiertos</span>
+                        </div>
+                      )}
+                      {propiedad.metros_lote > 0 && (
+                        <div className="flex items-center gap-1">
+                          <LandPlot size={14} />
+                          <span>{propiedad.metros_lote}m² lote</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Amenities */}
                   <div className="flex flex-wrap gap-1.5 mb-3">
@@ -555,10 +567,7 @@ export default function PropiedadesPage() {
                     )}
                   </div>
 
-                  <div className="pt-2 border-t border-costa-beige flex items-center justify-between mt-auto">
-                    <p className="text-lg font-bold text-costa-coral">
-                      {propiedad.precio_alquiler ? `${formatMonto(propiedad.precio_alquiler)}/mes` : '-'}
-                    </p>
+                  <div className="pt-2 border-t border-costa-beige flex items-center justify-end mt-auto">
                     <div className="flex items-center gap-1">
                       <a
                         href={`https://wa.me/541160473922?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
@@ -624,6 +633,22 @@ export default function PropiedadesPage() {
             label="Dirección"
             value={form.direccion}
             onChange={(e) => setForm({ ...form, direccion: e.target.value })}
+          />
+
+          <Input
+            label="Referencia (ej: A 300m del club house, cerca del mar)"
+            value={form.referencia}
+            onChange={(e) => setForm({ ...form, referencia: e.target.value })}
+            placeholder="Descripción corta de ubicación"
+          />
+
+          {/* Capacidad */}
+          <Input
+            label="Capacidad (personas)"
+            type="number"
+            min="0"
+            value={form.capacidad || ''}
+            onChange={(e) => setForm({ ...form, capacidad: Number(e.target.value) || 0 })}
           />
 
           {/* Campos numéricos - ocultar si es lote */}
