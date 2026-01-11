@@ -473,9 +473,9 @@ export default function AdministracionPage() {
               <table className="w-full text-sm">
                 <thead className="bg-costa-beige/50 border-b border-costa-beige">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Concepto</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Tipo</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Detalle</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Fecha</th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Monto</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-costa-gris uppercase">Estado</th>
@@ -497,17 +497,15 @@ export default function AdministracionPage() {
                               </button>
                             )}
                             <div>
-                              <span className="font-medium text-costa-navy">{gasto.concepto}</span>
+                              <Badge variant="default">{gasto.concepto}</Badge>
                               {gasto.detalle && gasto.detalle.length > 0 && (
                                 <span className="ml-2 text-xs text-costa-gris">({gasto.detalle.length} items)</span>
                               )}
                             </div>
                           </div>
                         </td>
+                        <td className="px-4 py-3 text-costa-navy">{gasto.descripcion || '-'}</td>
                         <td className="px-4 py-3 text-costa-gris">{gasto.propiedades?.nombre || '-'}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant="default">{gasto.tipo}</Badge>
-                        </td>
                         <td className="px-4 py-3 text-costa-gris">{formatFecha(gasto.fecha)}</td>
                         <td className="px-4 py-3 text-right font-semibold text-costa-navy">{formatMonto(gasto.monto)}</td>
                         <td className="px-4 py-3 text-center">
@@ -576,9 +574,9 @@ export default function AdministracionPage() {
             required
           />
 
-          {/* Concepto */}
+          {/* Tipo */}
           <Select
-            label="Concepto"
+            label="Tipo"
             value={form.concepto}
             onChange={(e) => setForm({ ...form, concepto: e.target.value })}
             options={[
@@ -692,9 +690,9 @@ export default function AdministracionPage() {
             <Input label="Fecha" type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
           </div>
 
-          {/* Observaciones */}
+          {/* Detalle */}
           <div>
-            <label className="block text-sm font-medium text-costa-navy mb-1">Observaciones</label>
+            <label className="block text-sm font-medium text-costa-navy mb-1">Detalle</label>
             <textarea
               className="w-full px-3 py-2 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent resize-none"
               rows={2}
