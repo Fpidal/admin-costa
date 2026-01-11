@@ -391,8 +391,8 @@ export default function PropiedadesPage() {
             const disponible = estaDisponible(propiedad.id)
 
             return (
-            <Card key={propiedad.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-0">
+            <Card key={propiedad.id} className="hover:shadow-md transition-shadow h-full flex flex-col">
+              <CardContent className="p-0 flex flex-col flex-1">
                 {/* Imagen con carrusel */}
                 <div className="h-40 bg-gradient-to-br from-costa-beige to-costa-beige-light rounded-t-xl flex items-center justify-center overflow-hidden relative group">
                   {(propiedad.imagenes?.length > 0 || propiedad.imagen_url) ? (
@@ -443,7 +443,7 @@ export default function PropiedadesPage() {
 
                 </div>
 
-                <div className="p-4">
+                <div className="p-4 flex flex-col flex-1">
                   <div className="flex items-start justify-between mb-2">
                     <h3 className="text-lg font-bold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>{propiedad.nombre}</h3>
                     {reservaActual ? (
@@ -555,7 +555,7 @@ export default function PropiedadesPage() {
                     )}
                   </div>
 
-                  <div className="pt-2 border-t border-costa-beige flex items-center justify-between">
+                  <div className="pt-2 border-t border-costa-beige flex items-center justify-between mt-auto">
                     <p className="text-lg font-bold text-costa-coral">
                       {propiedad.precio_alquiler ? `${formatMonto(propiedad.precio_alquiler)}/mes` : '-'}
                     </p>
