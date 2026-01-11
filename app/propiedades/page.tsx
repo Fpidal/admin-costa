@@ -115,6 +115,7 @@ export default function PropiedadesPage() {
   const [saving, setSaving] = useState(false)
   const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
   const [fechaBusqueda, setFechaBusqueda] = useState({ inicio: '', fin: '' })
+  const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -402,13 +403,19 @@ export default function PropiedadesPage() {
             <Card key={propiedad.id} className="hover:shadow-md transition-shadow h-full flex flex-col">
               <CardContent className="p-0 flex flex-col flex-1">
                 {/* Imagen con carrusel */}
-                <div className="h-80 bg-gradient-to-br from-costa-beige to-costa-beige-light rounded-t-xl flex items-center justify-center overflow-hidden relative group">
+                <div className="h-40 bg-gradient-to-br from-costa-beige to-costa-beige-light rounded-t-xl flex items-center justify-center overflow-hidden relative group">
                   {(propiedad.imagenes?.length > 0 || propiedad.imagen_url) ? (
                     <>
                       <img
                         src={propiedad.imagenes?.[imageIndexes[propiedad.id] || 0] || propiedad.imagen_url || ''}
                         alt={propiedad.nombre}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => {
+                          const images = propiedad.imagenes?.length > 0 ? propiedad.imagenes : (propiedad.imagen_url ? [propiedad.imagen_url] : [])
+                          if (images.length > 0) {
+                            setLightbox({ images, index: imageIndexes[propiedad.id] || 0 })
+                          }
+                        }}
                       />
                       {propiedad.imagenes?.length > 1 && (
                         <>
@@ -819,6 +826,75 @@ export default function PropiedadesPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Lightbox para ver fotos grandes */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={() => setLightbox(null)}
+        >
+          {/* Botón cerrar */}
+          <button
+            className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full transition-colors"
+            onClick={() => setLightbox(null)}
+          >
+            <X size={28} />
+          </button>
+
+          {/* Imagen grande */}
+          <img
+            src={lightbox.images[lightbox.index]}
+            alt="Foto de propiedad"
+            className="max-h-[85vh] max-w-[90vw] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {/* Navegación */}
+          {lightbox.images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const prev = lightbox.index === 0 ? lightbox.images.length - 1 : lightbox.index - 1
+                  setLightbox({ ...lightbox, index: prev })
+                }}
+                className="absolute left-4 p-3 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors"
+              >
+                <ChevronLeft size={32} />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const next = lightbox.index === lightbox.images.length - 1 ? 0 : lightbox.index + 1
+                  setLightbox({ ...lightbox, index: next })
+                }}
+                className="absolute right-4 p-3 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors"
+              >
+                <ChevronRight size={32} />
+              </button>
+
+              {/* Indicador de fotos */}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                {lightbox.images.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setLightbox({ ...lightbox, index: idx })
+                    }}
+                    className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === lightbox.index ? 'bg-white' : 'bg-white/40 hover:bg-white/60'}`}
+                  />
+                ))}
+              </div>
+
+              {/* Contador */}
+              <div className="absolute bottom-6 right-6 text-white/80 text-sm">
+                {lightbox.index + 1} / {lightbox.images.length}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
