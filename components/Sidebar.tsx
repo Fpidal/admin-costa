@@ -76,8 +76,8 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           {/* Logo */}
           <div className="h-24 flex flex-col items-center justify-center px-4 border-b border-costa-beige text-center">
             <h1 className="text-2xl font-semibold tracking-wide" style={{ fontFamily: 'var(--font-playfair)', color: '#1e3a5f' }}>Admin Costa</h1>
-            <p className="text-[9px] font-light tracking-[0.08em] mt-1 whitespace-nowrap" style={{ color: '#5a6c7d' }}>
-              Administrada por sus propietarios
+            <p className="text-sm font-normal mt-2" style={{ color: '#6b7c8a' }}>
+              Administrada por sus dueños
             </p>
           </div>
 
