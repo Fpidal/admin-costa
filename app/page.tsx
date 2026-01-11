@@ -10,6 +10,7 @@ interface Propiedad {
   nombre: string
   direccion: string
   referencia: string
+  telefono_contacto: string
   tipo: string
   capacidad: number
   habitaciones: number
@@ -307,7 +308,7 @@ export default function LandingPage() {
 
                       {/* WhatsApp Button */}
                       <a
-                        href={`https://wa.me/541160473922?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
+                        href={`https://wa.me/${propiedad.telefono_contacto || '541160473922'}?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-2 w-full py-3 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg font-medium transition-colors"

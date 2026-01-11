@@ -11,6 +11,7 @@ interface Propiedad {
   nombre: string
   direccion: string
   referencia: string
+  telefono_contacto: string
   tipo: string
   capacidad: number
   habitaciones: number
@@ -77,6 +78,7 @@ const initialForm = {
   nombre: '',
   direccion: '',
   referencia: '',
+  telefono_contacto: '',
   tipo: '',
   capacidad: 0,
   habitaciones: 0,
@@ -173,6 +175,7 @@ export default function PropiedadesPage() {
         nombre: propiedad.nombre || '',
         direccion: propiedad.direccion || '',
         referencia: propiedad.referencia || '',
+        telefono_contacto: propiedad.telefono_contacto || '',
         tipo: propiedad.tipo || '',
         capacidad: propiedad.capacidad || 0,
         habitaciones: propiedad.habitaciones || 0,
@@ -263,6 +266,7 @@ export default function PropiedadesPage() {
       nombre: form.nombre,
       direccion: form.direccion,
       referencia: form.referencia,
+      telefono_contacto: form.telefono_contacto,
       tipo: form.tipo,
       capacidad: Number(form.capacidad),
       habitaciones: Number(form.habitaciones),
@@ -653,6 +657,13 @@ export default function PropiedadesPage() {
             value={form.referencia}
             onChange={(e) => setForm({ ...form, referencia: e.target.value })}
             placeholder="Descripción corta de ubicación"
+          />
+
+          <Input
+            label="Teléfono de contacto (WhatsApp)"
+            value={form.telefono_contacto}
+            onChange={(e) => setForm({ ...form, telefono_contacto: e.target.value })}
+            placeholder="Ej: 541160473922"
           />
 
           {/* Capacidad */}
