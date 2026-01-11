@@ -491,7 +491,8 @@ export default function PropiedadesPage() {
                     <p className="text-sm text-costa-gris mb-2">
                       {[
                         propiedad.habitaciones > 0 && `${propiedad.habitaciones} dormitorio${propiedad.habitaciones > 1 ? 's' : ''}`,
-                        propiedad.banos > 0 && `${propiedad.banos} baño${propiedad.banos > 1 ? 's' : ''}`
+                        propiedad.banos > 0 && `${propiedad.banos} baño${propiedad.banos > 1 ? 's' : ''}`,
+                        propiedad.toilette && 'Toilette'
                       ].filter(Boolean).join(' • ')}
                       {propiedad.cochera && ' • Cochera'}
                     </p>
