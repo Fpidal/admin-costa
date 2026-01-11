@@ -4,10 +4,10 @@ import React, { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select } from '@/components/ui'
-import { Plus, DollarSign, TrendingDown, TrendingUp, Calendar, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, Upload, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp, Check } from 'lucide-react'
 
 interface Propiedad {
-  id: number
+  id: string
   nombre: string
 }
 
@@ -19,30 +19,18 @@ interface DetalleExpensa {
 
 interface Gasto {
   id: number
-  propiedad_id: number | null
-  concepto: string
-  categoria: string
-  monto: number
+  propiedad_id: string | null
   fecha: string
-  vencimiento: string | null
-  estado: string
-  comprobante: string | null
+  tipo: string
+  concepto: string
+  descripcion: string | null
+  monto: number
+  proveedor: string | null
+  periodo: string | null
+  fecha_vencimiento: string | null
+  pagado: boolean
   detalle: DetalleExpensa[] | null
   propiedades?: Propiedad
-}
-
-interface Reserva {
-  id: number
-  propiedad_id: number
-  inquilino_id: number | null
-  fecha_inicio: string
-  fecha_fin: string
-  precio_noche: number
-  sena: number
-  estado: string
-  moneda: string
-  propiedades?: Propiedad
-  inquilinos?: { nombre: string }
 }
 
 interface ExpensaParseada {
@@ -55,33 +43,14 @@ interface ExpensaParseada {
   selected: boolean
 }
 
-const categoriasGasto = [
-  { value: 'servicios', label: 'Servicios' },
+const tiposGasto = [
+  { value: 'expensa', label: 'Expensa' },
   { value: 'mantenimiento', label: 'Mantenimiento' },
-  { value: 'reparaciones', label: 'Reparaciones' },
-  { value: 'seguros', label: 'Seguros' },
-  { value: 'impuestos', label: 'Impuestos' },
-  { value: 'otros', label: 'Otros' },
+  { value: 'arreglo', label: 'Arreglo' },
+  { value: 'otro', label: 'Otro' },
 ]
 
-const estadosGasto = [
-  { value: 'pendiente', label: 'Pendiente' },
-  { value: 'pagado', label: 'Pagado' },
-  { value: 'vencido', label: 'Vencido' },
-]
-
-const estadoVariant = {
-  'pendiente': 'warning',
-  'pagado': 'success',
-  'vencido': 'danger',
-  'confirmada': 'success',
-  'cancelada': 'danger',
-} as const
-
-const formatMonto = (monto: number, moneda: string = 'ARS') => {
-  if (moneda === 'USD') {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(monto)
-  }
+const formatMonto = (monto: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto)
 }
 
@@ -89,26 +58,17 @@ const formatFecha = (fecha: string) => {
   return new Date(fecha).toLocaleDateString('es-AR')
 }
 
-const calcularNoches = (inicio: string, fin: string) => {
-  const start = new Date(inicio)
-  const end = new Date(fin)
-  return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-}
-
 const initialForm = {
   propiedad_id: '',
   concepto: '',
-  categoria: '',
+  tipo: '',
   monto: 0,
   fecha: new Date().toISOString().split('T')[0],
-  vencimiento: '',
-  estado: 'pendiente',
+  descripcion: '',
 }
 
 export default function AdministracionPage() {
-  const [activeTab, setActiveTab] = useState<'gastos' | 'ingresos'>('gastos')
   const [gastos, setGastos] = useState<Gasto[]>([])
-  const [reservas, setReservas] = useState<Reserva[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -124,19 +84,21 @@ export default function AdministracionPage() {
   const [importando, setImportando] = useState(false)
   const [expandedGastos, setExpandedGastos] = useState<Set<number>>(new Set())
 
+  // Modal de detalle
+  const [detalleModalOpen, setDetalleModalOpen] = useState(false)
+  const [gastoSeleccionado, setGastoSeleccionado] = useState<Gasto | null>(null)
+
   useEffect(() => {
     fetchData()
   }, [])
 
   async function fetchData() {
-    const [resGastos, resReservas, resPropiedades] = await Promise.all([
+    const [resGastos, resPropiedades] = await Promise.all([
       supabase.from('gastos').select('*, propiedades(id, nombre)').order('fecha', { ascending: false }),
-      supabase.from('reservas').select('*, propiedades(id, nombre), inquilinos(nombre)').eq('estado', 'confirmada').order('fecha_inicio', { ascending: false }),
       supabase.from('propiedades').select('id, nombre').order('nombre')
     ])
 
     if (resGastos.data) setGastos(resGastos.data)
-    if (resReservas.data) setReservas(resReservas.data)
     if (resPropiedades.data) setPropiedades(resPropiedades.data)
     setLoading(false)
   }
@@ -145,13 +107,12 @@ export default function AdministracionPage() {
     if (gasto) {
       setEditingId(gasto.id)
       setForm({
-        propiedad_id: gasto.propiedad_id?.toString() || '',
+        propiedad_id: gasto.propiedad_id || '',
         concepto: gasto.concepto || '',
-        categoria: gasto.categoria || '',
+        tipo: gasto.tipo || '',
         monto: gasto.monto || 0,
         fecha: gasto.fecha || '',
-        vencimiento: gasto.vencimiento || '',
-        estado: gasto.estado || 'pendiente',
+        descripcion: gasto.descripcion || '',
       })
     } else {
       setEditingId(null)
@@ -171,13 +132,12 @@ export default function AdministracionPage() {
     setSaving(true)
 
     const data = {
-      propiedad_id: form.propiedad_id ? Number(form.propiedad_id) : null,
+      propiedad_id: form.propiedad_id || null,
       concepto: form.concepto,
-      categoria: form.categoria,
+      tipo: form.tipo,
       monto: Number(form.monto),
       fecha: form.fecha,
-      vencimiento: form.vencimiento || null,
-      estado: form.estado,
+      descripcion: form.descripcion || null,
     }
 
     if (editingId) {
@@ -201,7 +161,7 @@ export default function AdministracionPage() {
   }
 
   async function marcarPagado(id: number) {
-    const { error } = await supabase.from('gastos').update({ estado: 'pagado' }).eq('id', id)
+    const { error } = await supabase.from('gastos').update({ pagado: true }).eq('id', id)
     if (error) alert('Error: ' + error.message)
     else fetchData()
   }
@@ -212,17 +172,11 @@ export default function AdministracionPage() {
     const expensas: ExpensaParseada[] = []
 
     for (const linea of lineas) {
-      // Buscar patrones de fecha (dd/mm/yyyy)
       const fechaMatch = linea.match(/(\d{2}\/\d{2}\/\d{4})/g)
-
-      // Buscar patrones de monto ($ xxx.xxx,xx o $ xxx,xx)
       const montoMatch = linea.match(/\$\s*([\d.,]+)/g)
-
-      // Buscar lote (3-4 dígitos después de la fecha)
       const loteMatch = linea.match(/\d{2}\/\d{2}\/\d{4}(\d{3,4})/i)
 
       if (fechaMatch && fechaMatch.length >= 1 && montoMatch && montoMatch.length >= 1) {
-        // Extraer concepto (texto entre lote y primer monto)
         let concepto = linea
         if (loteMatch) {
           const loteIndex = linea.indexOf(loteMatch[1]) + loteMatch[1].length
@@ -232,7 +186,6 @@ export default function AdministracionPage() {
           }
         }
 
-        // Parsear montos (quitar $, puntos de miles, cambiar coma por punto)
         const parseMonto = (str: string) => {
           const clean = str.replace('$', '').replace(/\./g, '').replace(',', '.').trim()
           return parseFloat(clean) || 0
@@ -242,7 +195,6 @@ export default function AdministracionPage() {
         const haber = montoMatch[1] ? parseMonto(montoMatch[1]) : 0
         const saldo = montoMatch[2] ? parseMonto(montoMatch[2]) : 0
 
-        // Convertir fecha dd/mm/yyyy a yyyy-mm-dd
         const fechaVenc = fechaMatch[0]
         const [dia, mes, anio] = fechaVenc.split('/')
         const fechaISO = `${anio}-${mes}-${dia}`
@@ -254,7 +206,7 @@ export default function AdministracionPage() {
           debe,
           haber,
           saldo,
-          selected: debe > 0, // Solo seleccionar si hay monto a pagar
+          selected: debe > 0,
         })
       }
     }
@@ -276,14 +228,17 @@ export default function AdministracionPage() {
 
     setImportando(true)
 
-    // Calcular el total de todas las expensas seleccionadas
+    // Calcular el total
     const totalMonto = seleccionadas.reduce((acc, e) => acc + e.debe, 0)
 
-    // Obtener el período del primer item (asumimos que todas son del mismo período)
+    // Obtener el período
     const primerFecha = seleccionadas[0].fecha_vencimiento
-    const periodo = primerFecha.substring(0, 7).split('-').reverse().join('/') // mm/yyyy
+    const [anio, mes] = primerFecha.split('-')
+    const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+    const mesNombre = meses[parseInt(mes) - 1]
+    const periodo = `${mesNombre} ${anio}`
 
-    // Crear el array de detalle con cada concepto
+    // Crear el array de detalle
     const detalle = seleccionadas.map(e => ({
       concepto: e.concepto,
       monto: e.debe,
@@ -294,10 +249,11 @@ export default function AdministracionPage() {
     const gastoAgrupado = {
       propiedad_id: importPropiedadId,
       fecha: new Date().toISOString().split('T')[0],
-      categoria: 'servicios',
-      concepto: `Expensas - ${periodo}`,
+      tipo: 'expensa',
+      concepto: `Expensas ${periodo}`,
       monto: totalMonto,
-      estado: 'pendiente',
+      periodo: periodo,
+      pagado: false,
       detalle: detalle,
     }
 
@@ -309,7 +265,7 @@ export default function AdministracionPage() {
       setExpensasParseadas([])
       setImportPropiedadId('')
       fetchData()
-      alert(`Se importaron ${seleccionadas.length} conceptos como "Expensas - ${periodo}"`)
+      alert(`Expensas de ${periodo} importadas correctamente`)
     } else {
       alert('Error al importar: ' + error.message)
     }
@@ -330,16 +286,6 @@ export default function AdministracionPage() {
     setImportPropiedadId('')
   }
 
-  const formatFechaExpensa = (fecha: string) => {
-    if (!fecha) return '-'
-    return new Date(fecha).toLocaleDateString('es-AR')
-  }
-
-  const formatMontoExpensa = (monto: number) => {
-    if (!monto && monto !== 0) return '-'
-    return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto)
-  }
-
   function toggleGastoExpanded(id: number) {
     const newExpanded = new Set(expandedGastos)
     if (newExpanded.has(id)) {
@@ -350,17 +296,14 @@ export default function AdministracionPage() {
     setExpandedGastos(newExpanded)
   }
 
+  function abrirDetalle(gasto: Gasto) {
+    setGastoSeleccionado(gasto)
+    setDetalleModalOpen(true)
+  }
+
   // Cálculos
   const totalGastos = gastos.reduce((acc, g) => acc + (g.monto || 0), 0)
-  const totalGastosPendientes = gastos.filter(g => g.estado === 'pendiente').reduce((acc, g) => acc + (g.monto || 0), 0)
-
-  const totalIngresos = reservas.reduce((acc, r) => {
-    const noches = calcularNoches(r.fecha_inicio, r.fecha_fin)
-    return acc + (noches * (r.precio_noche || 0))
-  }, 0)
-
-  const totalSenas = reservas.reduce((acc, r) => acc + (r.sena || 0), 0)
-  const balance = totalIngresos - totalGastos
+  const totalPendiente = gastos.filter(g => !g.pagado).reduce((acc, g) => acc + (g.monto || 0), 0)
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-costa-gris">Cargando...</div></div>
@@ -368,243 +311,138 @@ export default function AdministracionPage() {
 
   return (
     <div>
-      <PageHeader title="Administración" description="Control de gastos e ingresos por alquileres">
-        {activeTab === 'gastos' && (
-          <div className="flex gap-2">
-            <Button variant="secondary" onClick={() => setImportModalOpen(true)}>
-              <Upload size={16} />
-              Importar Expensas
-            </Button>
-            <Button onClick={() => openModal()}>
-              <Plus size={16} />
-              Nuevo Gasto
-            </Button>
-          </div>
-        )}
+      <PageHeader title="Administración" description="Control de gastos y expensas">
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setImportModalOpen(true)}>
+            <Upload size={16} />
+            Importar Expensas
+          </Button>
+          <Button onClick={() => openModal()}>
+            <Plus size={16} />
+            Nuevo Gasto
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+      <div className="grid grid-cols-2 gap-3 mb-4">
         <Card>
-          <CardContent className="py-3 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-costa-beige">
-              <ArrowUpCircle className="w-5 h-5 text-costa-olivo" />
-            </div>
-            <div>
-              <p className="text-xs text-costa-gris">Ingresos</p>
-              <p className="text-lg font-bold text-costa-olivo">{formatMonto(totalIngresos)}</p>
-            </div>
+          <CardContent className="py-3">
+            <p className="text-xs text-costa-gris">Total Gastos</p>
+            <p className="text-xl font-bold text-costa-navy">{formatMonto(totalGastos)}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="py-3 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-costa-beige">
-              <ArrowDownCircle className="w-5 h-5 text-costa-coral" />
-            </div>
-            <div>
-              <p className="text-xs text-costa-gris">Gastos</p>
-              <p className="text-lg font-bold text-costa-coral">{formatMonto(totalGastos)}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-costa-beige">
-              <DollarSign className="w-5 h-5 text-costa-navy" />
-            </div>
-            <div>
-              <p className="text-xs text-costa-gris">Balance</p>
-              <p className={`text-lg font-bold ${balance >= 0 ? 'text-costa-olivo' : 'text-costa-coral'}`}>
-                {formatMonto(balance)}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3 flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-costa-beige">
-              <TrendingDown className="w-5 h-5 text-costa-coral" />
-            </div>
-            <div>
-              <p className="text-xs text-costa-gris">Pendiente</p>
-              <p className="text-lg font-bold text-costa-coral">{formatMonto(totalGastosPendientes)}</p>
-            </div>
+          <CardContent className="py-3">
+            <p className="text-xs text-costa-gris">Pendiente de Pago</p>
+            <p className="text-xl font-bold text-costa-coral">{formatMonto(totalPendiente)}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-4 border-b border-costa-beige">
-        <button
-          onClick={() => setActiveTab('gastos')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'gastos'
-              ? 'border-costa-navy text-costa-navy'
-              : 'border-transparent text-costa-gris hover:text-costa-navy'
-          }`}
-        >
-          Gastos ({gastos.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('ingresos')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'ingresos'
-              ? 'border-costa-navy text-costa-navy'
-              : 'border-transparent text-costa-gris hover:text-costa-navy'
-          }`}
-        >
-          Ingresos ({reservas.length})
-        </button>
-      </div>
-
-      {/* Contenido según tab */}
-      {activeTab === 'gastos' ? (
-        <Card>
-          <CardHeader><CardTitle>Historial de gastos</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            {gastos.length === 0 ? (
-              <div className="py-8 text-center text-costa-gris">No hay gastos registrados</div>
-            ) : (
-              <div>
-                <table className="w-full text-sm">
-                  <thead className="bg-costa-beige/50 border-b border-costa-beige">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Concepto</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Categoría</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Fecha</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Monto</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Estado</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-costa-beige">
-                    {gastos.map((gasto) => (
-                      <React.Fragment key={gasto.id}>
-                        <tr className="hover:bg-costa-beige/30">
-                          <td className="px-4 py-3 font-medium text-costa-navy">
-                            <div className="flex items-center gap-2">
+      {/* Tabla de Gastos */}
+      <Card>
+        <CardHeader><CardTitle>Gastos y Expensas</CardTitle></CardHeader>
+        <CardContent className="p-0">
+          {gastos.length === 0 ? (
+            <div className="py-8 text-center text-costa-gris">No hay gastos registrados</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-costa-beige/50 border-b border-costa-beige">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Concepto</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Tipo</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Fecha</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Monto</th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-costa-gris uppercase">Estado</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-costa-beige">
+                  {gastos.map((gasto) => (
+                    <React.Fragment key={gasto.id}>
+                      <tr className="hover:bg-costa-beige/30">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            {gasto.detalle && gasto.detalle.length > 0 && (
+                              <button
+                                onClick={() => toggleGastoExpanded(gasto.id)}
+                                className="p-1 hover:bg-costa-beige rounded transition-colors"
+                              >
+                                {expandedGastos.has(gasto.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                              </button>
+                            )}
+                            <div>
+                              <span className="font-medium text-costa-navy">{gasto.concepto}</span>
                               {gasto.detalle && gasto.detalle.length > 0 && (
-                                <button
-                                  onClick={() => toggleGastoExpanded(gasto.id)}
-                                  className="p-1 hover:bg-costa-beige rounded transition-colors"
-                                >
-                                  {expandedGastos.has(gasto.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                </button>
-                              )}
-                              <span>{gasto.concepto}</span>
-                              {gasto.detalle && gasto.detalle.length > 0 && (
-                                <span className="text-xs text-costa-gris">({gasto.detalle.length} items)</span>
+                                <span className="ml-2 text-xs text-costa-gris">({gasto.detalle.length} items)</span>
                               )}
                             </div>
-                          </td>
-                          <td className="px-4 py-3 text-costa-gris">{gasto.propiedades?.nombre || '-'}</td>
-                          <td className="px-4 py-3"><Badge variant="default">{gasto.categoria}</Badge></td>
-                          <td className="px-4 py-3 text-costa-gris">{formatFecha(gasto.fecha)}</td>
-                          <td className="px-4 py-3 text-right font-semibold text-costa-navy">{formatMonto(gasto.monto)}</td>
-                          <td className="px-4 py-3">
-                            <Badge variant={estadoVariant[gasto.estado as keyof typeof estadoVariant] || 'default'}>{gasto.estado}</Badge>
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex justify-end gap-1">
-                              {gasto.estado === 'pendiente' && (
-                                <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>Pagar</Button>
-                              )}
-                              <Button variant="ghost" size="sm" onClick={() => openModal(gasto)}><Pencil size={14} /></Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleDelete(gasto.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
-                            </div>
-                          </td>
-                        </tr>
-                        {/* Fila expandible con detalle */}
-                        {gasto.detalle && gasto.detalle.length > 0 && expandedGastos.has(gasto.id) && (
-                          <tr className="bg-costa-beige/20">
-                            <td colSpan={7} className="px-4 py-3">
-                              <div className="ml-8 border-l-2 border-costa-navy/20 pl-4">
-                                <p className="text-xs font-medium text-costa-gris mb-2">Detalle de conceptos:</p>
-                                <div className="space-y-1">
-                                  {gasto.detalle.map((item, idx) => (
-                                    <div key={idx} className="flex justify-between items-center text-sm py-1 border-b border-costa-beige/50 last:border-0">
-                                      <span className="text-costa-navy">{item.concepto}</span>
-                                      <span className="font-medium text-costa-navy">{formatMonto(item.monto)}</span>
-                                    </div>
-                                  ))}
-                                </div>
-                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-costa-navy/20 font-semibold">
-                                  <span className="text-costa-navy">Total</span>
-                                  <span className="text-costa-navy">{formatMonto(gasto.monto)}</span>
-                                </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-costa-gris">{gasto.propiedades?.nombre || '-'}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant="default">{gasto.tipo}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-costa-gris">{formatFecha(gasto.fecha)}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-costa-navy">{formatMonto(gasto.monto)}</td>
+                        <td className="px-4 py-3 text-center">
+                          <Badge variant={gasto.pagado ? 'success' : 'warning'}>
+                            {gasto.pagado ? 'Pagado' : 'Pendiente'}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex justify-end gap-1">
+                            {gasto.detalle && gasto.detalle.length > 0 && (
+                              <Button variant="ghost" size="sm" onClick={() => abrirDetalle(gasto)} title="Ver detalle">
+                                <ChevronDown size={14} />
+                              </Button>
+                            )}
+                            {!gasto.pagado && (
+                              <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>
+                                <Check size={14} className="mr-1" />
+                                Pagar
+                              </Button>
+                            )}
+                            <Button variant="ghost" size="sm" onClick={() => openModal(gasto)}><Pencil size={14} /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(gasto.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                      {/* Fila expandible con detalle */}
+                      {gasto.detalle && gasto.detalle.length > 0 && expandedGastos.has(gasto.id) && (
+                        <tr className="bg-costa-beige/20">
+                          <td colSpan={7} className="px-4 py-3">
+                            <div className="ml-8 border-l-2 border-costa-navy/20 pl-4">
+                              <p className="text-xs font-medium text-costa-gris mb-2">Detalle de conceptos:</p>
+                              <div className="space-y-1">
+                                {gasto.detalle.map((item, idx) => (
+                                  <div key={idx} className="flex justify-between items-center text-sm py-1 border-b border-costa-beige/50 last:border-0">
+                                    <span className="text-costa-navy">{item.concepto}</span>
+                                    <span className="font-medium text-costa-navy">{formatMonto(item.monto)}</span>
+                                  </div>
+                                ))}
                               </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader><CardTitle>Ingresos por alquileres</CardTitle></CardHeader>
-          <CardContent className="p-0">
-            {reservas.length === 0 ? (
-              <div className="py-8 text-center text-costa-gris">No hay ingresos registrados</div>
-            ) : (
-              <div>
-                <table className="w-full text-sm">
-                  <thead className="bg-costa-beige/50 border-b border-costa-beige">
-                    <tr>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Inquilino</th>
-                      <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Período</th>
-                      <th className="px-4 py-2 text-center text-xs font-medium text-costa-gris uppercase">Noches</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Precio/noche</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Total</th>
-                      <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Seña</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-costa-beige">
-                    {reservas.map((reserva) => {
-                      const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-                      const total = noches * (reserva.precio_noche || 0)
-                      return (
-                        <tr key={reserva.id} className="hover:bg-costa-beige/30">
-                          <td className="px-4 py-3 font-medium text-costa-navy">{reserva.propiedades?.nombre || '-'}</td>
-                          <td className="px-4 py-3 text-costa-gris">{reserva.inquilinos?.nombre || '-'}</td>
-                          <td className="px-4 py-3 text-costa-gris">
-                            {formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}
-                          </td>
-                          <td className="px-4 py-3 text-center text-costa-navy">{noches}</td>
-                          <td className="px-4 py-3 text-right text-costa-gris">
-                            {formatMonto(reserva.precio_noche, reserva.moneda)}
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold text-costa-olivo">
-                            {formatMonto(total, reserva.moneda)}
-                          </td>
-                          <td className="px-4 py-3 text-right text-costa-navy">
-                            {formatMonto(reserva.sena || 0, reserva.moneda)}
+                              <div className="flex justify-between items-center mt-2 pt-2 border-t border-costa-navy/20 font-semibold">
+                                <span className="text-costa-navy">Total</span>
+                                <span className="text-costa-navy">{formatMonto(gasto.monto)}</span>
+                              </div>
+                            </div>
                           </td>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                  <tfoot className="bg-costa-beige/30 border-t border-costa-beige">
-                    <tr>
-                      <td colSpan={5} className="px-4 py-3 text-right font-medium text-costa-navy">Total Ingresos:</td>
-                      <td className="px-4 py-3 text-right font-bold text-costa-olivo">{formatMonto(totalIngresos)}</td>
-                      <td className="px-4 py-3 text-right font-bold text-costa-navy">{formatMonto(totalSenas)}</td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Modal */}
+      {/* Modal Nuevo/Editar Gasto */}
       <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Gasto' : 'Nuevo Gasto'}>
         <form onSubmit={handleSubmit} className="space-y-3">
           <Input label="Concepto" value={form.concepto} onChange={(e) => setForm({ ...form, concepto: e.target.value })} required />
@@ -613,16 +451,15 @@ export default function AdministracionPage() {
               label="Propiedad"
               value={form.propiedad_id}
               onChange={(e) => setForm({ ...form, propiedad_id: e.target.value })}
-              options={propiedades.map(p => ({ value: p.id.toString(), label: p.nombre }))}
+              options={propiedades.map(p => ({ value: p.id, label: p.nombre }))}
             />
-            <Select label="Categoría" value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })} options={categoriasGasto} />
+            <Select label="Tipo" value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} options={tiposGasto} />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Input label="Monto" type="number" min="0" value={form.monto} onChange={(e) => setForm({ ...form, monto: Number(e.target.value) })} required />
             <Input label="Fecha" type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
-            <Input label="Vencimiento" type="date" value={form.vencimiento} onChange={(e) => setForm({ ...form, vencimiento: e.target.value })} />
           </div>
-          <Select label="Estado" value={form.estado} onChange={(e) => setForm({ ...form, estado: e.target.value })} options={estadosGasto} />
+          <Input label="Descripción" value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
           <div className="flex justify-end gap-2 pt-3 border-t border-costa-beige">
             <Button type="button" variant="ghost" onClick={closeModal}>Cancelar</Button>
             <Button type="submit" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
@@ -633,37 +470,30 @@ export default function AdministracionPage() {
       {/* Modal Importar Expensas Eidico */}
       <Modal isOpen={importModalOpen} onClose={closeImportModal} title="Importar Expensas Eidico" size="lg">
         <div className="space-y-4">
-          {/* Selector de propiedad */}
           <Select
             label="Propiedad"
             value={importPropiedadId}
             onChange={(e) => setImportPropiedadId(e.target.value)}
-            options={propiedades.map(p => ({ value: p.id.toString(), label: p.nombre }))}
+            options={propiedades.map(p => ({ value: p.id, label: p.nombre }))}
             required
           />
 
-          {/* Textarea para pegar datos */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Pegá los datos copiados de Eidico:
             </label>
             <textarea
               className="w-full h-40 p-3 border border-gray-300 rounded-lg text-sm font-mono resize-none focus:ring-2 focus:ring-costa-navy focus:border-transparent"
-              placeholder="Pegá aquí los datos del estado de cuenta de Eidico...
-
-Ejemplo de formato:
-10/11/2025763Electricidad $ 13989.46 fijos...$ 111.224,10$ 0,00$ 362.303,19"
+              placeholder="Pegá aquí los datos del estado de cuenta de Eidico..."
               value={textoEidico}
               onChange={(e) => setTextoEidico(e.target.value)}
             />
           </div>
 
-          {/* Botón procesar */}
           <Button type="button" variant="secondary" onClick={parsearEidico} disabled={!textoEidico.trim()}>
             Procesar datos
           </Button>
 
-          {/* Vista previa */}
           {expensasParseadas.length > 0 && (
             <div className="border rounded-lg overflow-hidden">
               <div className="bg-costa-beige/50 px-4 py-2 font-medium text-sm flex justify-between items-center">
@@ -684,7 +514,6 @@ Ejemplo de formato:
                   <thead className="bg-gray-50 sticky top-0">
                     <tr>
                       <th className="p-2 text-left w-10"></th>
-                      <th className="p-2 text-left">Vencimiento</th>
                       <th className="p-2 text-left">Concepto</th>
                       <th className="p-2 text-right">Monto</th>
                     </tr>
@@ -700,36 +529,81 @@ Ejemplo de formato:
                             disabled={exp.debe === 0}
                           />
                         </td>
-                        <td className="p-2">{formatFechaExpensa(exp.fecha_vencimiento)}</td>
-                        <td className="p-2 truncate max-w-[250px]">{exp.concepto}</td>
-                        <td className="p-2 text-right font-medium">{formatMontoExpensa(exp.debe)}</td>
+                        <td className="p-2">{exp.concepto}</td>
+                        <td className="p-2 text-right font-medium">{formatMonto(exp.debe)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-              {/* Total seleccionado */}
               <div className="bg-costa-navy/10 px-4 py-2 flex justify-between items-center">
                 <span className="text-sm font-medium">Total a importar:</span>
                 <span className="text-lg font-bold text-costa-navy">
-                  {formatMontoExpensa(expensasParseadas.filter(e => e.selected).reduce((acc, e) => acc + e.debe, 0))}
+                  {formatMonto(expensasParseadas.filter(e => e.selected).reduce((acc, e) => acc + e.debe, 0))}
                 </span>
               </div>
             </div>
           )}
 
-          {/* Botones de acción */}
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="ghost" onClick={closeImportModal}>
               Cancelar
             </Button>
             {expensasParseadas.length > 0 && (
               <Button onClick={importarExpensas} disabled={importando || expensasParseadas.filter(e => e.selected).length === 0 || !importPropiedadId}>
-                {importando ? 'Importando...' : `Importar ${expensasParseadas.filter(e => e.selected).length} expensas`}
+                {importando ? 'Importando...' : `Importar como un solo registro`}
               </Button>
             )}
           </div>
         </div>
+      </Modal>
+
+      {/* Modal Detalle de Expensa */}
+      <Modal isOpen={detalleModalOpen} onClose={() => setDetalleModalOpen(false)} title={gastoSeleccionado?.concepto || 'Detalle'} size="lg">
+        {gastoSeleccionado && (
+          <div className="space-y-4">
+            <div className="flex justify-between text-sm">
+              <span className="text-costa-gris">Propiedad:</span>
+              <span className="font-medium">{gastoSeleccionado.propiedades?.nombre || '-'}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-costa-gris">Estado:</span>
+              <Badge variant={gastoSeleccionado.pagado ? 'success' : 'warning'}>
+                {gastoSeleccionado.pagado ? 'Pagado' : 'Pendiente'}
+              </Badge>
+            </div>
+
+            {gastoSeleccionado.detalle && gastoSeleccionado.detalle.length > 0 && (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-costa-beige/50 px-4 py-2 font-medium text-sm">
+                  Desglose de conceptos
+                </div>
+                <div className="divide-y divide-costa-beige">
+                  {gastoSeleccionado.detalle.map((item, idx) => (
+                    <div key={idx} className="flex justify-between items-center px-4 py-2 text-sm">
+                      <span>{item.concepto}</span>
+                      <span className="font-medium">{formatMonto(item.monto)}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-costa-navy/10 px-4 py-2 flex justify-between items-center font-bold">
+                  <span>Total</span>
+                  <span>{formatMonto(gastoSeleccionado.monto)}</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-4">
+              {!gastoSeleccionado.pagado && (
+                <Button onClick={() => { marcarPagado(gastoSeleccionado.id); setDetalleModalOpen(false); }}>
+                  <Check size={16} className="mr-1" />
+                  Marcar como Pagado
+                </Button>
+              )}
+              <Button variant="ghost" onClick={() => setDetalleModalOpen(false)}>Cerrar</Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )
