@@ -402,7 +402,7 @@ export default function PropiedadesPage() {
             <Card key={propiedad.id} className="hover:shadow-md transition-shadow h-full flex flex-col">
               <CardContent className="p-0 flex flex-col flex-1">
                 {/* Imagen con carrusel */}
-                <div className="h-40 bg-gradient-to-br from-costa-beige to-costa-beige-light rounded-t-xl flex items-center justify-center overflow-hidden relative group">
+                <div className="h-80 bg-gradient-to-br from-costa-beige to-costa-beige-light rounded-t-xl flex items-center justify-center overflow-hidden relative group">
                   {(propiedad.imagenes?.length > 0 || propiedad.imagen_url) ? (
                     <>
                       <img
