@@ -587,7 +587,13 @@ export default function AdministracionPage() {
                     <React.Fragment key={gasto.id}>
                       <tr className="hover:bg-costa-beige/30">
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="default">{gasto.concepto}</Badge>
+                              {gasto.detalle && gasto.detalle.length > 0 && (
+                                <span className="text-xs text-costa-gris">({gasto.detalle.length} items)</span>
+                              )}
+                            </div>
                             {gasto.detalle && gasto.detalle.length > 0 && (
                               <button
                                 onClick={() => toggleGastoExpanded(gasto.id)}
@@ -596,12 +602,6 @@ export default function AdministracionPage() {
                                 {expandedGastos.has(gasto.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                               </button>
                             )}
-                            <div>
-                              <Badge variant="default">{gasto.concepto}</Badge>
-                              {gasto.detalle && gasto.detalle.length > 0 && (
-                                <span className="ml-2 text-xs text-costa-gris">({gasto.detalle.length} items)</span>
-                              )}
-                            </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-costa-navy">{gasto.descripcion || '-'}</td>
