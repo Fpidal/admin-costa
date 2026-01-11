@@ -2,307 +2,426 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { PageHeader } from '@/components/PageHeader'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
-import { Building2, CalendarDays, Users, DollarSign, AlertCircle } from 'lucide-react'
+import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar } from 'lucide-react'
+import Link from 'next/link'
 
 interface Propiedad {
   id: number
   nombre: string
+  direccion: string
+  referencia: string
+  tipo: string
+  capacidad: number
+  habitaciones: number
+  banos: number
+  toilette: boolean
+  cochera: boolean
+  pileta: boolean
+  pileta_climatizada: boolean
+  parrilla: boolean
+  wifi: boolean
+  aire_acondicionado: boolean
+  lavadero: boolean
+  lavavajillas: boolean
+  metros_cubiertos: number
+  metros_lote: number
+  imagenes: string[]
+  imagen_url: string | null
 }
 
 interface Reserva {
   id: number
-  huesped: string
-  check_in: string
-  check_out: string
-  estado: string
-  monto: number
   propiedad_id: number
-  propiedades?: Propiedad
-}
-
-interface Gasto {
-  id: number
-  concepto: string
-  monto: number
-  vencimiento: string
-  estado: string
-  propiedad_id: number
-  propiedades?: Propiedad
-}
-
-interface Inquilino {
-  id: number
-  nombre: string
+  fecha_inicio: string
   fecha_fin: string
   estado: string
 }
 
-const formatMonto = (monto: number) => {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto)
-}
-
-const formatFecha = (fecha: string) => {
-  return new Date(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
-}
-
-export default function Dashboard() {
-  const [propiedadesCount, setPropiedadesCount] = useState(0)
-  const [reservasCount, setReservasCount] = useState(0)
-  const [inquilinosCount, setInquilinosCount] = useState(0)
-  const [ingresosMes, setIngresosMes] = useState(0)
-  const [proximasReservas, setProximasReservas] = useState<Reserva[]>([])
-  const [gastosPendientes, setGastosPendientes] = useState<Gasto[]>([])
-  const [alertas, setAlertas] = useState<{ tipo: string; titulo: string; mensaje: string }[]>([])
+export default function LandingPage() {
+  const [propiedades, setPropiedades] = useState<Propiedad[]>([])
+  const [reservas, setReservas] = useState<Reserva[]>([])
   const [loading, setLoading] = useState(true)
+  const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
+  const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
 
   useEffect(() => {
     async function fetchData() {
-      try {
-        // Contar propiedades
-        const { count: propCount } = await supabase
-          .from('propiedades')
-          .select('*', { count: 'exact', head: true })
-        setPropiedadesCount(propCount || 0)
-
-        // Contar reservas activas (confirmadas y pendientes)
-        const { count: resCount } = await supabase
-          .from('reservas')
-          .select('*', { count: 'exact', head: true })
-          .in('estado', ['confirmada', 'pendiente'])
-        setReservasCount(resCount || 0)
-
-        // Contar inquilinos activos
-        const { count: inqCount } = await supabase
-          .from('inquilinos')
-          .select('*', { count: 'exact', head: true })
-          .eq('estado', 'activo')
-        setInquilinosCount(inqCount || 0)
-
-        // Ingresos del mes (reservas confirmadas)
-        const inicioMes = new Date()
-        inicioMes.setDate(1)
-        const { data: reservasMes } = await supabase
-          .from('reservas')
-          .select('monto')
-          .eq('estado', 'confirmada')
-          .gte('check_in', inicioMes.toISOString().split('T')[0])
-        const totalIngresos = reservasMes?.reduce((acc, r) => acc + (r.monto || 0), 0) || 0
-        setIngresosMes(totalIngresos)
-
-        // Próximas reservas
-        const hoy = new Date().toISOString().split('T')[0]
-        const { data: proxReservas } = await supabase
-          .from('reservas')
-          .select('*, propiedades(nombre)')
-          .gte('check_in', hoy)
-          .in('estado', ['confirmada', 'pendiente'])
-          .order('check_in', { ascending: true })
-          .limit(5)
-        setProximasReservas(proxReservas || [])
-
-        // Gastos pendientes
-        const { data: gastos } = await supabase
-          .from('gastos')
-          .select('*, propiedades(nombre)')
-          .eq('estado', 'pendiente')
-          .order('vencimiento', { ascending: true })
-          .limit(5)
-        setGastosPendientes(gastos || [])
-
-        // Alertas: contratos por vencer (próximos 30 días)
-        const en30Dias = new Date()
-        en30Dias.setDate(en30Dias.getDate() + 30)
-        const { data: inquilinosPorVencer } = await supabase
-          .from('inquilinos')
-          .select('nombre, fecha_fin')
-          .eq('estado', 'activo')
-          .lte('fecha_fin', en30Dias.toISOString().split('T')[0])
-          .gte('fecha_fin', hoy)
-
-        const alertasTemp: { tipo: string; titulo: string; mensaje: string }[] = []
-        inquilinosPorVencer?.forEach(inq => {
-          const diasRestantes = Math.ceil((new Date(inq.fecha_fin).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-          alertasTemp.push({
-            tipo: 'warning',
-            titulo: 'Contrato por vencer',
-            mensaje: `El contrato de ${inq.nombre} vence en ${diasRestantes} días`
-          })
-        })
-
-        // Gastos vencidos
-        const { data: gastosVencidos } = await supabase
-          .from('gastos')
-          .select('concepto, vencimiento')
-          .eq('estado', 'pendiente')
-          .lt('vencimiento', hoy)
-
-        gastosVencidos?.forEach(gasto => {
-          alertasTemp.push({
-            tipo: 'danger',
-            titulo: 'Gasto vencido',
-            mensaje: `${gasto.concepto} venció el ${formatFecha(gasto.vencimiento)}`
-          })
-        })
-
-        setAlertas(alertasTemp)
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      } finally {
-        setLoading(false)
-      }
+      const [resPropiedades, resReservas] = await Promise.all([
+        supabase.from('propiedades').select('*').order('nombre'),
+        supabase.from('reservas').select('id, propiedad_id, fecha_inicio, fecha_fin, estado').in('estado', ['confirmada', 'pendiente'])
+      ])
+      if (resPropiedades.data) setPropiedades(resPropiedades.data)
+      if (resReservas.data) setReservas(resReservas.data)
+      setLoading(false)
     }
-
     fetchData()
   }, [])
 
-  const stats = [
-    { name: 'Propiedades', value: propiedadesCount.toString(), icon: Building2, color: 'text-costa-navy', bg: 'bg-costa-beige' },
-    { name: 'Reservas activas', value: reservasCount.toString(), icon: CalendarDays, color: 'text-costa-olivo', bg: 'bg-costa-beige' },
-    { name: 'Inquilinos', value: inquilinosCount.toString(), icon: Users, color: 'text-costa-navy', bg: 'bg-costa-beige' },
-    { name: 'Ingresos del mes', value: formatMonto(ingresosMes), icon: DollarSign, color: 'text-costa-olivo', bg: 'bg-costa-beige' },
-  ]
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Cargando...</div>
-      </div>
-    )
+  // Check if property is currently reserved
+  const estaReservada = (propiedadId: number) => {
+    const hoy = new Date()
+    hoy.setHours(0, 0, 0, 0)
+    return reservas.some(r => {
+      if (r.propiedad_id !== propiedadId) return false
+      const inicio = new Date(r.fecha_inicio)
+      const fin = new Date(r.fecha_fin)
+      return hoy >= inicio && hoy <= fin
+    })
   }
 
   return (
-    <div>
-      <PageHeader
-        title="Dashboard"
-        description="Resumen general de tu gestión de propiedades"
-      />
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: 'url(https://dpghrdgippisgzvlahwi.supabase.co/storage/v1/object/public/Imagenes/foto%20playa%20costa.JPG)' }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-costa-navy/60 via-costa-navy/40 to-costa-navy/70" />
+        </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {stats.map((stat) => (
-          <Card key={stat.name}>
-            <CardContent className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${stat.bg}`}>
-                <stat.icon className={`w-6 h-6 ${stat.color}`} />
+        {/* Content */}
+        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
+          <h1 className="text-5xl md:text-6xl font-semibold text-white mb-4 tracking-wide" style={{ fontFamily: 'var(--font-playfair)' }}>
+            Admin Costa
+          </h1>
+          <p className="text-xl md:text-2xl text-white/90 mb-8 font-light">
+            Gestión directa de propiedades por sus propietarios
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <a
+              href="#propiedades"
+              className="px-8 py-3 bg-white text-costa-navy font-medium rounded-lg hover:bg-costa-beige transition-colors"
+            >
+              Ver propiedades
+            </a>
+            <Link
+              href="/admin"
+              className="px-8 py-3 border-2 border-white/50 text-white font-medium rounded-lg hover:bg-white/10 transition-colors"
+            >
+              Acceso propietarios
+            </Link>
+          </div>
+        </div>
+
+        {/* Scroll indicator */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
+          <ChevronLeft size={24} className="text-white/70 rotate-[-90deg]" />
+        </div>
+      </section>
+
+      {/* Modelo Section */}
+      <section className="py-16 bg-white">
+        <div className="max-w-6xl mx-auto px-4">
+          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
+            Nuestro modelo
+          </h2>
+          <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
+            Propiedades administradas directamente por sus propietarios o representantes
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="text-center p-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-beige flex items-center justify-center">
+                <CheckCircle size={32} className="text-costa-olivo" />
               </div>
-              <div>
-                <p className="text-sm text-costa-gris">{stat.name}</p>
-                <p className="text-2xl font-bold text-costa-navy">{stat.value}</p>
+              <h3 className="text-lg font-semibold text-costa-navy mb-2">Sin intermediarios</h3>
+              <p className="text-costa-gris text-sm">
+                Trato directo con los propietarios. Sin comisiones de agencias ni costos ocultos.
+              </p>
+            </div>
+
+            <div className="text-center p-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-beige flex items-center justify-center">
+                <Users size={32} className="text-costa-olivo" />
               </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              <h3 className="text-lg font-semibold text-costa-navy mb-2">Propietarios comprometidos</h3>
+              <p className="text-costa-gris text-sm">
+                Cuidamos nuestras propiedades porque son nuestras. Atención personalizada garantizada.
+              </p>
+            </div>
 
-      {/* Bloque institucional */}
-      <div className="mb-6 p-5 rounded-xl bg-costa-navy/5 border border-costa-navy/10">
-        <h3 className="text-sm font-semibold text-costa-navy tracking-wide mb-2">Modelo de gestión</h3>
-        <p className="text-costa-gris text-sm leading-relaxed">
-          Propiedades administradas directamente por sus propietarios. Sin intermediarios. Sin comisiones ocultas.
-        </p>
-      </div>
+            <div className="text-center p-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-beige flex items-center justify-center">
+                <Waves size={32} className="text-costa-olivo" />
+              </div>
+              <h3 className="text-lg font-semibold text-costa-navy mb-2">Estándares de calidad</h3>
+              <p className="text-costa-gris text-sm">
+                Propiedades seleccionadas en Costa Esmeralda. Confort y tranquilidad asegurados.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Próximas reservas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Próximas Reservas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {proximasReservas.length === 0 ? (
-              <p className="text-gray-500 text-sm">No hay reservas próximas</p>
-            ) : (
-              <div className="space-y-4">
-                {proximasReservas.map((reserva) => (
-                  <div key={reserva.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="font-medium text-gray-900">{reserva.propiedades?.nombre || 'Propiedad'}</p>
-                      <p className="text-sm text-gray-500">
-                        {reserva.huesped} • {formatFecha(reserva.check_in)} - {formatFecha(reserva.check_out)}
-                      </p>
+      {/* Properties Section */}
+      <section id="propiedades" className="py-16 bg-costa-beige/30">
+        <div className="max-w-7xl mx-auto px-4">
+          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
+            Nuestras propiedades
+          </h2>
+          <p className="text-costa-gris text-center mb-12">
+            Encontrá el lugar ideal para tu estadía en Costa Esmeralda
+          </p>
+
+          {loading ? (
+            <div className="text-center text-costa-gris py-12">Cargando propiedades...</div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {propiedades.map((propiedad) => {
+                const reservada = estaReservada(propiedad.id)
+                const images = propiedad.imagenes?.length > 0 ? propiedad.imagenes : (propiedad.imagen_url ? [propiedad.imagen_url] : [])
+                const currentIndex = imageIndexes[propiedad.id] || 0
+
+                return (
+                  <div key={propiedad.id} className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                    {/* Image Carousel */}
+                    <div className="relative h-56 bg-costa-beige group">
+                      {images.length > 0 ? (
+                        <>
+                          <img
+                            src={images[currentIndex]}
+                            alt={propiedad.nombre}
+                            className="w-full h-full object-cover cursor-pointer"
+                            onClick={() => setLightbox({ images, index: currentIndex })}
+                          />
+                          {images.length > 1 && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  const prev = currentIndex === 0 ? images.length - 1 : currentIndex - 1
+                                  setImageIndexes({ ...imageIndexes, [propiedad.id]: prev })
+                                }}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <ChevronLeft size={20} />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const next = currentIndex === images.length - 1 ? 0 : currentIndex + 1
+                                  setImageIndexes({ ...imageIndexes, [propiedad.id]: next })
+                                }}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <ChevronRight size={20} />
+                              </button>
+                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                                {images.map((_, idx) => (
+                                  <span
+                                    key={idx}
+                                    className={`w-2 h-2 rounded-full ${idx === currentIndex ? 'bg-white' : 'bg-white/50'}`}
+                                  />
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-costa-gris">
+                          Sin imagen
+                        </div>
+                      )}
+
+                      {/* Status badge */}
+                      <div className="absolute top-3 right-3">
+                        {reservada ? (
+                          <span className="px-3 py-1 bg-costa-coral text-white text-xs font-medium rounded-full">
+                            Reservada
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 bg-costa-olivo text-white text-xs font-medium rounded-full">
+                            Disponible
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                      reserva.estado === 'confirmada'
-                        ? 'bg-costa-olivo/20 text-costa-olivo'
-                        : 'bg-yellow-100 text-yellow-700'
-                    }`}>
-                      {reserva.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}
-                    </span>
+
+                    {/* Content */}
+                    <div className="p-5">
+                      <h3 className="text-xl font-semibold text-costa-navy mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>
+                        {propiedad.nombre}
+                      </h3>
+
+                      {propiedad.direccion && (
+                        <div className="flex items-start gap-2 text-costa-gris mb-3">
+                          <MapPin size={16} className="text-costa-coral mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm">{propiedad.direccion}</p>
+                            {propiedad.referencia && (
+                              <p className="text-xs italic mt-0.5">{propiedad.referencia}</p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Capacity */}
+                      {propiedad.capacidad > 0 && (
+                        <div className="flex items-center gap-2 text-costa-navy font-medium mb-3">
+                          <span className="text-lg">👤</span>
+                          <span>{propiedad.capacidad} personas</span>
+                        </div>
+                      )}
+
+                      {/* Info */}
+                      {(propiedad.habitaciones > 0 || propiedad.banos > 0) && (
+                        <p className="text-sm text-costa-gris mb-3">
+                          {[
+                            propiedad.habitaciones > 0 && `${propiedad.habitaciones} dormitorio${propiedad.habitaciones > 1 ? 's' : ''}`,
+                            propiedad.banos > 0 && `${propiedad.banos} baño${propiedad.banos > 1 ? 's' : ''}`,
+                            propiedad.toilette && 'Toilette',
+                            propiedad.cochera && 'Cochera'
+                          ].filter(Boolean).join(' • ')}
+                        </p>
+                      )}
+
+                      {/* Amenities */}
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {propiedad.pileta && (
+                          <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
+                            <Waves size={12} />
+                            {propiedad.pileta_climatizada ? 'Pileta climat.' : 'Pileta'}
+                          </span>
+                        )}
+                        {propiedad.aire_acondicionado && (
+                          <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
+                            <Snowflake size={12} />
+                            A/C
+                          </span>
+                        )}
+                        {propiedad.parrilla && (
+                          <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
+                            <Flame size={12} />
+                            Parrilla
+                          </span>
+                        )}
+                        {propiedad.wifi && (
+                          <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
+                            <Wifi size={12} />
+                            WiFi
+                          </span>
+                        )}
+                      </div>
+
+                      {/* WhatsApp Button */}
+                      <a
+                        href={`https://wa.me/541160473922?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-2 w-full py-3 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg font-medium transition-colors"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                        </svg>
+                        Consultar por WhatsApp
+                      </a>
+                    </div>
                   </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-costa-navy text-white py-12">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="grid md:grid-cols-3 gap-8">
+            <div>
+              <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</h3>
+              <p className="text-white/70 text-sm">
+                Propiedades en Costa Esmeralda administradas directamente por sus propietarios.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Contacto</h4>
+              <p className="text-white/70 text-sm mb-2">Costa Esmeralda, Buenos Aires</p>
+              <a
+                href="https://wa.me/541160473922"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-costa-olivo hover:text-white transition-colors text-sm"
+              >
+                +54 11 6047-3922
+              </a>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Accesos</h4>
+              <Link href="/admin" className="text-white/70 hover:text-white transition-colors text-sm block mb-2">
+                Acceso propietarios
+              </Link>
+            </div>
+          </div>
+          <div className="border-t border-white/20 mt-8 pt-8 text-center text-white/50 text-sm">
+            © {new Date().getFullYear()} Admin Costa. Todos los derechos reservados.
+          </div>
+        </div>
+      </footer>
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full transition-colors"
+            onClick={() => setLightbox(null)}
+          >
+            <X size={28} />
+          </button>
+
+          <img
+            src={lightbox.images[lightbox.index]}
+            alt="Foto de propiedad"
+            className="max-h-[85vh] max-w-[90vw] object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+
+          {lightbox.images.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const prev = lightbox.index === 0 ? lightbox.images.length - 1 : lightbox.index - 1
+                  setLightbox({ ...lightbox, index: prev })
+                }}
+                className="absolute left-4 p-3 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors"
+              >
+                <ChevronLeft size={32} />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  const next = lightbox.index === lightbox.images.length - 1 ? 0 : lightbox.index + 1
+                  setLightbox({ ...lightbox, index: next })
+                }}
+                className="absolute right-4 p-3 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors"
+              >
+                <ChevronRight size={32} />
+              </button>
+
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
+                {lightbox.images.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setLightbox({ ...lightbox, index: idx })
+                    }}
+                    className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === lightbox.index ? 'bg-white' : 'bg-white/40 hover:bg-white/60'}`}
+                  />
                 ))}
               </div>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* Gastos pendientes */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Gastos Pendientes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {gastosPendientes.length === 0 ? (
-              <p className="text-gray-500 text-sm">No hay gastos pendientes</p>
-            ) : (
-              <div className="space-y-4">
-                {gastosPendientes.map((gasto) => (
-                  <div key={gasto.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {gasto.concepto} {gasto.propiedades?.nombre ? `- ${gasto.propiedades.nombre}` : ''}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Vence: {gasto.vencimiento ? formatFecha(gasto.vencimiento) : 'Sin fecha'}
-                      </p>
-                    </div>
-                    <span className="font-semibold text-gray-900">{formatMonto(gasto.monto)}</span>
-                  </div>
-                ))}
+              <div className="absolute bottom-6 right-6 text-white/80 text-sm">
+                {lightbox.index + 1} / {lightbox.images.length}
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Alertas */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
-              Alertas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {alertas.length === 0 ? (
-              <p className="text-gray-500 text-sm">No hay alertas</p>
-            ) : (
-              <div className="space-y-3">
-                {alertas.map((alerta, i) => (
-                  <div
-                    key={i}
-                    className={`flex items-start gap-3 p-3 rounded-lg ${
-                      alerta.tipo === 'danger' ? 'bg-costa-coral/10' : 'bg-costa-beige'
-                    }`}
-                  >
-                    <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                      alerta.tipo === 'danger' ? 'text-costa-coral' : 'text-costa-gris'
-                    }`} />
-                    <div>
-                      <p className={`font-medium ${
-                        alerta.tipo === 'danger' ? 'text-costa-coral' : 'text-costa-navy'
-                      }`}>{alerta.titulo}</p>
-                      <p className={`text-sm ${
-                        alerta.tipo === 'danger' ? 'text-costa-coral' : 'text-costa-gris'
-                      }`}>{alerta.mensaje}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }

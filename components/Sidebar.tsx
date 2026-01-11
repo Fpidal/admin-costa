@@ -10,20 +10,26 @@ import {
   Receipt,
   Info,
   Menu,
-  X
+  X,
+  LogOut,
+  Globe
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navigation = [
-  { name: 'Propiedades', href: '/propiedades', icon: Building2 },
-  { name: 'Reservas', href: '/reservas', icon: CalendarDays },
-  { name: 'Inquilinos', href: '/inquilinos', icon: Users },
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Administración', href: '/gastos', icon: Receipt },
-  { name: 'Info útil', href: '/info-util', icon: Info },
+  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Propiedades', href: '/admin/propiedades', icon: Building2 },
+  { name: 'Reservas', href: '/admin/reservas', icon: CalendarDays },
+  { name: 'Inquilinos', href: '/admin/inquilinos', icon: Users },
+  { name: 'Administración', href: '/admin/gastos', icon: Receipt },
+  { name: 'Info útil', href: '/admin/info-util', icon: Info },
 ]
 
-export default function Sidebar() {
+interface SidebarProps {
+  onLogout?: () => void
+}
+
+export default function Sidebar({ onLogout }: SidebarProps) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -89,10 +95,23 @@ export default function Sidebar() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-costa-beige">
-            <p className="text-xs text-costa-gris text-center font-medium">
-              Admin Costa v1.0
-            </p>
+          <div className="p-4 border-t border-costa-beige space-y-2">
+            <Link
+              href="/"
+              className="flex items-center justify-center gap-2 px-4 py-2 text-sm text-costa-gris hover:text-costa-navy hover:bg-costa-white/50 rounded-lg transition-colors"
+            >
+              <Globe size={16} />
+              Ver sitio público
+            </Link>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-costa-coral hover:bg-costa-coral/10 rounded-lg transition-colors"
+              >
+                <LogOut size={16} />
+                Cerrar sesión
+              </button>
+            )}
           </div>
         </div>
       </aside>

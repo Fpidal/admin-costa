@@ -147,7 +147,7 @@ export default function ReservasPage() {
     const [resReservas, resPropiedades, resInquilinos] = await Promise.all([
       supabase.from('reservas').select('*, propiedades(id, nombre), inquilinos(id, nombre, documento, telefono, email, acompanantes)').order('fecha_inicio', { ascending: false }),
       supabase.from('propiedades').select('id, nombre').order('nombre'),
-      supabase.from('inquilinos').select('id, nombre, documento, telefono, email, acompanantes').order('nombre')
+      supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').order('nombre')
     ])
 
     if (resReservas.data) setReservas(resReservas.data)
