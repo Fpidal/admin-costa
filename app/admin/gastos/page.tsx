@@ -1,14 +1,20 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select } from '@/components/ui'
-import { Plus, DollarSign, TrendingDown, TrendingUp, Calendar, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, Upload } from 'lucide-react'
+import { Plus, DollarSign, TrendingDown, TrendingUp, Calendar, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, Upload, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Propiedad {
   id: number
   nombre: string
+}
+
+interface DetalleExpensa {
+  concepto: string
+  monto: number
+  fecha_vencimiento?: string
 }
 
 interface Gasto {
@@ -21,6 +27,7 @@ interface Gasto {
   vencimiento: string | null
   estado: string
   comprobante: string | null
+  detalle: DetalleExpensa[] | null
   propiedades?: Propiedad
 }
 
@@ -115,6 +122,7 @@ export default function AdministracionPage() {
   const [textoEidico, setTextoEidico] = useState('')
   const [expensasParseadas, setExpensasParseadas] = useState<ExpensaParseada[]>([])
   const [importando, setImportando] = useState(false)
+  const [expandedGastos, setExpandedGastos] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     fetchData()
@@ -268,17 +276,32 @@ export default function AdministracionPage() {
 
     setImportando(true)
 
-    const gastosAInsertar = seleccionadas.map(e => ({
-      propiedad_id: importPropiedadId,
-      fecha: new Date().toISOString().split('T')[0],
-      tipo: 'expensa',
+    // Calcular el total de todas las expensas seleccionadas
+    const totalMonto = seleccionadas.reduce((acc, e) => acc + e.debe, 0)
+
+    // Obtener el período del primer item (asumimos que todas son del mismo período)
+    const primerFecha = seleccionadas[0].fecha_vencimiento
+    const periodo = primerFecha.substring(0, 7).split('-').reverse().join('/') // mm/yyyy
+
+    // Crear el array de detalle con cada concepto
+    const detalle = seleccionadas.map(e => ({
       concepto: e.concepto,
       monto: e.debe,
-      periodo: e.fecha_vencimiento.substring(0, 7).split('-').reverse().join('/'), // mm/yyyy
       fecha_vencimiento: e.fecha_vencimiento,
     }))
 
-    const { error } = await supabase.from('gastos').insert(gastosAInsertar)
+    // Crear un solo registro agrupado
+    const gastoAgrupado = {
+      propiedad_id: importPropiedadId,
+      fecha: new Date().toISOString().split('T')[0],
+      categoria: 'servicios',
+      concepto: `Expensas - ${periodo}`,
+      monto: totalMonto,
+      estado: 'pendiente',
+      detalle: detalle,
+    }
+
+    const { error } = await supabase.from('gastos').insert([gastoAgrupado])
 
     if (!error) {
       setImportModalOpen(false)
@@ -286,7 +309,7 @@ export default function AdministracionPage() {
       setExpensasParseadas([])
       setImportPropiedadId('')
       fetchData()
-      alert(`Se importaron ${seleccionadas.length} expensas correctamente`)
+      alert(`Se importaron ${seleccionadas.length} conceptos como "Expensas - ${periodo}"`)
     } else {
       alert('Error al importar: ' + error.message)
     }
@@ -315,6 +338,16 @@ export default function AdministracionPage() {
   const formatMontoExpensa = (monto: number) => {
     if (!monto && monto !== 0) return '-'
     return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto)
+  }
+
+  function toggleGastoExpanded(id: number) {
+    const newExpanded = new Set(expandedGastos)
+    if (newExpanded.has(id)) {
+      newExpanded.delete(id)
+    } else {
+      newExpanded.add(id)
+    }
+    setExpandedGastos(newExpanded)
   }
 
   // Cálculos
@@ -447,25 +480,64 @@ export default function AdministracionPage() {
                   </thead>
                   <tbody className="divide-y divide-costa-beige">
                     {gastos.map((gasto) => (
-                      <tr key={gasto.id} className="hover:bg-costa-beige/30">
-                        <td className="px-4 py-3 font-medium text-costa-navy">{gasto.concepto}</td>
-                        <td className="px-4 py-3 text-costa-gris">{gasto.propiedades?.nombre || '-'}</td>
-                        <td className="px-4 py-3"><Badge variant="default">{gasto.categoria}</Badge></td>
-                        <td className="px-4 py-3 text-costa-gris">{formatFecha(gasto.fecha)}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-costa-navy">{formatMonto(gasto.monto)}</td>
-                        <td className="px-4 py-3">
-                          <Badge variant={estadoVariant[gasto.estado as keyof typeof estadoVariant] || 'default'}>{gasto.estado}</Badge>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex justify-end gap-1">
-                            {gasto.estado === 'pendiente' && (
-                              <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>Pagar</Button>
-                            )}
-                            <Button variant="ghost" size="sm" onClick={() => openModal(gasto)}><Pencil size={14} /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(gasto.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
-                          </div>
-                        </td>
-                      </tr>
+                      <React.Fragment key={gasto.id}>
+                        <tr className="hover:bg-costa-beige/30">
+                          <td className="px-4 py-3 font-medium text-costa-navy">
+                            <div className="flex items-center gap-2">
+                              {gasto.detalle && gasto.detalle.length > 0 && (
+                                <button
+                                  onClick={() => toggleGastoExpanded(gasto.id)}
+                                  className="p-1 hover:bg-costa-beige rounded transition-colors"
+                                >
+                                  {expandedGastos.has(gasto.id) ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                </button>
+                              )}
+                              <span>{gasto.concepto}</span>
+                              {gasto.detalle && gasto.detalle.length > 0 && (
+                                <span className="text-xs text-costa-gris">({gasto.detalle.length} items)</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-costa-gris">{gasto.propiedades?.nombre || '-'}</td>
+                          <td className="px-4 py-3"><Badge variant="default">{gasto.categoria}</Badge></td>
+                          <td className="px-4 py-3 text-costa-gris">{formatFecha(gasto.fecha)}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-costa-navy">{formatMonto(gasto.monto)}</td>
+                          <td className="px-4 py-3">
+                            <Badge variant={estadoVariant[gasto.estado as keyof typeof estadoVariant] || 'default'}>{gasto.estado}</Badge>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex justify-end gap-1">
+                              {gasto.estado === 'pendiente' && (
+                                <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>Pagar</Button>
+                              )}
+                              <Button variant="ghost" size="sm" onClick={() => openModal(gasto)}><Pencil size={14} /></Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDelete(gasto.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
+                            </div>
+                          </td>
+                        </tr>
+                        {/* Fila expandible con detalle */}
+                        {gasto.detalle && gasto.detalle.length > 0 && expandedGastos.has(gasto.id) && (
+                          <tr className="bg-costa-beige/20">
+                            <td colSpan={7} className="px-4 py-3">
+                              <div className="ml-8 border-l-2 border-costa-navy/20 pl-4">
+                                <p className="text-xs font-medium text-costa-gris mb-2">Detalle de conceptos:</p>
+                                <div className="space-y-1">
+                                  {gasto.detalle.map((item, idx) => (
+                                    <div key={idx} className="flex justify-between items-center text-sm py-1 border-b border-costa-beige/50 last:border-0">
+                                      <span className="text-costa-navy">{item.concepto}</span>
+                                      <span className="font-medium text-costa-navy">{formatMonto(item.monto)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                                <div className="flex justify-between items-center mt-2 pt-2 border-t border-costa-navy/20 font-semibold">
+                                  <span className="text-costa-navy">Total</span>
+                                  <span className="text-costa-navy">{formatMonto(gasto.monto)}</span>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
