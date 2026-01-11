@@ -14,6 +14,7 @@ interface Propiedad {
   capacidad: number
   habitaciones: number
   banos: number
+  plantas: number
   toilette: boolean
   cochera: boolean
   pileta: boolean
@@ -270,6 +271,7 @@ export default function LandingPage() {
                             propiedad.habitaciones > 0 && `${propiedad.habitaciones} dormitorio${propiedad.habitaciones > 1 ? 's' : ''}`,
                             propiedad.banos > 0 && `${propiedad.banos} baño${propiedad.banos > 1 ? 's' : ''}`,
                             propiedad.toilette && 'Toilette',
+                            propiedad.plantas > 1 && `${propiedad.plantas} plantas`,
                             propiedad.cochera && 'Cochera'
                           ].filter(Boolean).join(' • ')}
                         </p>

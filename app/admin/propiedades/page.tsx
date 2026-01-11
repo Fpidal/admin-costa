@@ -16,6 +16,7 @@ interface Propiedad {
   habitaciones: number
   banos: number
   camas: number
+  plantas: number
   cochera: boolean
   precio_alquiler: number
   estado: string
@@ -81,6 +82,7 @@ const initialForm = {
   habitaciones: 0,
   banos: 0,
   camas: 0,
+  plantas: 1,
   cochera: false,
   precio_alquiler: 0,
   estado: 'disponible',
@@ -176,6 +178,7 @@ export default function PropiedadesPage() {
         habitaciones: propiedad.habitaciones || 0,
         banos: propiedad.banos || 0,
         camas: propiedad.camas || 0,
+        plantas: propiedad.plantas || 1,
         cochera: propiedad.cochera || false,
         precio_alquiler: propiedad.precio_alquiler || 0,
         estado: propiedad.estado || 'disponible',
@@ -265,6 +268,7 @@ export default function PropiedadesPage() {
       habitaciones: Number(form.habitaciones),
       banos: Number(form.banos),
       camas: Number(form.camas),
+      plantas: Number(form.plantas),
       cochera: form.cochera,
       precio_alquiler: Number(form.precio_alquiler),
       estado: form.estado,
@@ -499,7 +503,8 @@ export default function PropiedadesPage() {
                       {[
                         propiedad.habitaciones > 0 && `${propiedad.habitaciones} dormitorio${propiedad.habitaciones > 1 ? 's' : ''}`,
                         propiedad.banos > 0 && `${propiedad.banos} baño${propiedad.banos > 1 ? 's' : ''}`,
-                        propiedad.toilette && 'Toilette'
+                        propiedad.toilette && 'Toilette',
+                        propiedad.plantas > 1 && `${propiedad.plantas} plantas`
                       ].filter(Boolean).join(' • ')}
                       {propiedad.cochera && ' • Cochera'}
                     </p>
@@ -661,7 +666,7 @@ export default function PropiedadesPage() {
 
           {/* Campos numéricos - ocultar si es lote */}
           {form.tipo !== 'lote' && (
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
               <Input
                 label="Habit."
                 type="number"
@@ -684,7 +689,14 @@ export default function PropiedadesPage() {
                 onChange={(e) => setForm({ ...form, camas: Number(e.target.value) || 0 })}
               />
               <Input
-                label="Precio/mes"
+                label="Plantas"
+                type="number"
+                min="1"
+                value={form.plantas || ''}
+                onChange={(e) => setForm({ ...form, plantas: Number(e.target.value) || 1 })}
+              />
+              <Input
+                label="$/mes"
                 type="number"
                 min="0"
                 value={form.precio_alquiler || ''}
