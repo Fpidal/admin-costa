@@ -30,8 +30,8 @@ interface Gasto {
   id: number
   concepto: string
   monto: number
-  vencimiento: string
-  estado: string
+  fecha_vencimiento: string
+  pagado: boolean
   tipo: string
   propiedad_id: number
   propiedades?: Propiedad
@@ -91,20 +91,19 @@ export default function Dashboard() {
           .eq('estado', 'pendiente')
         setReservasPendientes(resPendientes || 0)
 
-        // Gastos realizados (pagados) del mes
+        // Gastos realizados (pagados) - todos los gastos pagados
         const { data: gastosPagados } = await supabase
           .from('gastos')
           .select('monto')
-          .eq('estado', 'pagado')
-          .gte('fecha_pago', inicioMesStr)
+          .eq('pagado', true)
         const totalGastosRealizados = gastosPagados?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         setGastosRealizados(totalGastosRealizados)
 
-        // Gastos pendientes (total)
+        // Gastos pendientes (no pagados) - todos los gastos pendientes
         const { data: gastosPend } = await supabase
           .from('gastos')
           .select('monto')
-          .eq('estado', 'pendiente')
+          .eq('pagado', false)
         const totalGastosPendientes = gastosPend?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         setGastosPendientesTotal(totalGastosPendientes)
 
@@ -117,12 +116,12 @@ export default function Dashboard() {
         const totalIngresosUSD = cobrosAlquiler?.filter(c => c.moneda === 'USD').reduce((acc, c) => acc + (c.monto || 0), 0) || 0
         setIngresosAlquiler(totalIngresosUSD)
 
-        // Expensas (gastos de tipo expensa)
+        // Expensas pendientes (gastos de tipo expensa no pagados)
         const { data: expensas } = await supabase
           .from('gastos')
           .select('monto')
           .eq('tipo', 'expensa')
-          .eq('estado', 'pendiente')
+          .eq('pagado', false)
         const totalExpensas = expensas?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         setExpensasTotal(totalExpensas)
 
@@ -140,8 +139,8 @@ export default function Dashboard() {
         const { data: gastosList } = await supabase
           .from('gastos')
           .select('*, propiedades(nombre)')
-          .eq('estado', 'pendiente')
-          .order('vencimiento', { ascending: true })
+          .eq('pagado', false)
+          .order('fecha_vencimiento', { ascending: true })
           .limit(5)
         setGastosPendientesList(gastosList || [])
 
@@ -160,15 +159,15 @@ export default function Dashboard() {
         // Gastos vencidos
         const { data: gastosVencidos } = await supabase
           .from('gastos')
-          .select('concepto, vencimiento')
-          .eq('estado', 'pendiente')
-          .lt('vencimiento', hoy)
+          .select('concepto, fecha_vencimiento')
+          .eq('pagado', false)
+          .lt('fecha_vencimiento', hoy)
 
         gastosVencidos?.forEach(gasto => {
           alertasTemp.push({
             tipo: 'danger',
             titulo: 'Gasto vencido',
-            mensaje: `${gasto.concepto} venció el ${formatFecha(gasto.vencimiento)}`
+            mensaje: `${gasto.concepto} venció el ${formatFecha(gasto.fecha_vencimiento)}`
           })
         })
 
@@ -297,7 +296,7 @@ export default function Dashboard() {
                         {gasto.concepto} {gasto.propiedades?.nombre ? `- ${gasto.propiedades.nombre}` : ''}
                       </p>
                       <p className="text-sm text-gray-500">
-                        Vence: {gasto.vencimiento ? formatFecha(gasto.vencimiento) : 'Sin fecha'}
+                        Vence: {gasto.fecha_vencimiento ? formatFecha(gasto.fecha_vencimiento) : 'Sin fecha'}
                       </p>
                     </div>
                     <span className="font-semibold text-gray-900">{formatMonto(gasto.monto)}</span>
