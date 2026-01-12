@@ -1,7 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar } from 'lucide-react'
 import Link from 'next/link'
 
@@ -51,7 +53,10 @@ const formatWhatsApp = (telefono: string | null | undefined): string => {
   return limpio
 }
 
-export default function LandingPage() {
+function LandingContent() {
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
+
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [loading, setLoading] = useState(true)
@@ -59,6 +64,22 @@ export default function LandingPage() {
   const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
 
   useEffect(() => {
+    if (isDemo) {
+      // Convertir IDs de demo a números para compatibilidad
+      setPropiedades(demoPropiedades.map((p, idx) => ({
+        ...p,
+        id: idx + 1
+      })) as unknown as Propiedad[])
+      setReservas(demoReservas.map((r, idx) => ({
+        id: idx + 1,
+        propiedad_id: parseInt(r.propiedad_id.replace('demo-prop-', '')),
+        fecha_inicio: r.fecha_inicio,
+        fecha_fin: r.fecha_fin,
+        estado: r.estado
+      })) as Reserva[])
+      setLoading(false)
+      return
+    }
     async function fetchData() {
       const [resPropiedades, resReservas] = await Promise.all([
         supabase.from('propiedades').select('*').order('nombre'),
@@ -69,7 +90,7 @@ export default function LandingPage() {
       setLoading(false)
     }
     fetchData()
-  }, [])
+  }, [isDemo])
 
   // Bloquear scroll del body cuando lightbox está abierto
   useEffect(() => {
@@ -97,6 +118,13 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen">
+      {/* Demo Banner */}
+      {isDemo && (
+        <div className="bg-amber-100 text-amber-800 text-center py-2 text-sm font-medium">
+          🔍 Modo Demo - Datos ficticios de ejemplo
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
         {/* Background Image */}
@@ -123,7 +151,7 @@ export default function LandingPage() {
               Ver propiedades
             </a>
             <Link
-              href="/admin"
+              href={isDemo ? "/admin?demo=true" : "/admin"}
               className="px-8 py-3 border-2 border-white/50 text-white font-medium rounded-lg hover:bg-white/10 transition-colors"
             >
               Acceso dueños
@@ -416,7 +444,7 @@ export default function LandingPage() {
             </div>
             <div>
               <h4 className="font-semibold mb-4">Accesos</h4>
-              <Link href="/admin" className="text-white/70 hover:text-white transition-colors text-sm block mb-2">
+              <Link href={isDemo ? "/admin?demo=true" : "/admin"} className="text-white/70 hover:text-white transition-colors text-sm block mb-2">
                 Acceso dueños
               </Link>
             </div>
@@ -523,5 +551,13 @@ export default function LandingPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function LandingPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-gray-500">Cargando...</div></div>}>
+      <LandingContent />
+    </Suspense>
   )
 }

@@ -102,7 +102,7 @@ export default function Sidebar({ onLogout, isDemo = false }: SidebarProps) {
           {/* Quick actions */}
           <div className="px-3 py-3 border-b border-costa-beige flex gap-2">
             <Link
-              href="/"
+              href={isDemo ? "/?demo=true" : "/"}
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-costa-gris hover:text-costa-navy hover:bg-costa-white/50 rounded-lg transition-colors border border-costa-beige"
             >
               <Globe size={14} />
