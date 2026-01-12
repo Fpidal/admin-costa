@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
-import { Building2, CalendarDays, Users, DollarSign, AlertCircle, Clock, CheckCircle, Receipt } from 'lucide-react'
+import { Building2, CalendarDays, Users, DollarSign, AlertCircle, Clock, CheckCircle, Receipt, Eye } from 'lucide-react'
+import { demoReservas, demoGastos, getDemoStats } from '@/lib/demoData'
 
 interface Propiedad {
   id: number
@@ -12,7 +14,7 @@ interface Propiedad {
 }
 
 interface Reserva {
-  id: number
+  id: number | string
   huesped: string
   check_in: string
   check_out: string
@@ -21,20 +23,20 @@ interface Reserva {
   estado: string
   monto: number
   cantidad_personas: number
-  propiedad_id: number
-  propiedades?: Propiedad
+  propiedad_id: number | string
+  propiedades?: Propiedad | { id: string; nombre: string; direccion: string }
   inquilinos?: { nombre: string }
 }
 
 interface Gasto {
-  id: number
+  id: number | string
   concepto: string
   monto: number
   fecha_vencimiento: string
   pagado: boolean
   tipo: string
-  propiedad_id: number
-  propiedades?: Propiedad
+  propiedad_id: number | string
+  propiedades?: Propiedad | { id: string; nombre: string; direccion: string }
 }
 
 interface Cobro {
@@ -56,7 +58,10 @@ const formatFecha = (fecha: string) => {
   return new Date(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
 }
 
-export default function Dashboard() {
+function DashboardContent() {
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
+
   const [inquilinosCount, setInquilinosCount] = useState(0)
   const [reservasPendientes, setReservasPendientes] = useState(0)
   const [gastosRealizados, setGastosRealizados] = useState(0)
@@ -69,6 +74,55 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (isDemo) {
+      // Cargar datos demo
+      const stats = getDemoStats()
+      setInquilinosCount(stats.totalInquilinos)
+      setReservasPendientes(stats.reservasPendientes)
+      setGastosRealizados(stats.gastosPagados)
+      setGastosPendientesTotal(stats.gastosPendientes)
+      setIngresosAlquiler(stats.ingresosAlquiler)
+      setExpensasTotal(stats.expensasPendientes)
+
+      // Próximas reservas demo
+      const hoy = new Date().toISOString().split('T')[0]
+      const proximas = demoReservas
+        .filter(r => r.fecha_inicio >= hoy)
+        .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))
+        .slice(0, 5) as unknown as Reserva[]
+      setProximasReservas(proximas)
+
+      // Gastos pendientes demo
+      const gastosPend = demoGastos
+        .filter(g => !g.pagado)
+        .sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento))
+        .slice(0, 5) as unknown as Gasto[]
+      setGastosPendientesList(gastosPend)
+
+      // Alertas demo
+      const alertasTemp: { tipo: string; titulo: string; mensaje: string }[] = []
+      if (stats.reservasPendientes > 0) {
+        alertasTemp.push({
+          tipo: 'warning',
+          titulo: 'Reservas pendientes',
+          mensaje: `Hay ${stats.reservasPendientes} reserva${stats.reservasPendientes > 1 ? 's' : ''} pendiente${stats.reservasPendientes > 1 ? 's' : ''} de confirmar`
+        })
+      }
+      // Gastos vencidos demo
+      const gastosVencidos = demoGastos.filter(g => !g.pagado && g.fecha_vencimiento < hoy)
+      gastosVencidos.forEach(gasto => {
+        alertasTemp.push({
+          tipo: 'danger',
+          titulo: 'Gasto vencido',
+          mensaje: `${gasto.concepto} venció el ${formatFecha(gasto.fecha_vencimiento)}`
+        })
+      })
+      setAlertas(alertasTemp)
+
+      setLoading(false)
+      return
+    }
+
     async function fetchData() {
       try {
         const hoy = new Date().toISOString().split('T')[0]
@@ -180,7 +234,7 @@ export default function Dashboard() {
     }
 
     fetchData()
-  }, [])
+  }, [isDemo])
 
   const stats = [
     { name: 'Inquilinos', value: inquilinosCount.toString(), icon: Users, color: 'text-costa-navy', bg: 'bg-costa-beige' },
@@ -208,6 +262,15 @@ export default function Dashboard() {
         title="Dashboard"
         description="Resumen general de tu gestión de propiedades"
       />
+
+      {/* Demo Mode Banner */}
+      {isDemo && (
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+          <Eye className="w-5 h-5 text-amber-600" />
+          <span className="text-amber-800 font-medium">Modo Demo</span>
+          <span className="text-amber-600 text-sm">- Los datos mostrados son ficticios</span>
+        </div>
+      )}
 
       {/* Stats Grid - Reservas e Ingresos */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
@@ -259,7 +322,7 @@ export default function Dashboard() {
                     <div>
                       <p className="font-medium text-gray-900">{reserva.propiedades?.nombre || 'Propiedad'}</p>
                       <p className="text-sm text-gray-500">
-                        {reserva.inquilinos?.nombre || '-'} • {formatFecha(reserva.check_in || reserva.fecha_inicio)} - {formatFecha(reserva.check_out || reserva.fecha_fin)}
+                        {reserva.inquilinos?.nombre || '-'} • {formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -346,5 +409,13 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function Dashboard() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>}>
+      <DashboardContent />
+    </Suspense>
   )
 }

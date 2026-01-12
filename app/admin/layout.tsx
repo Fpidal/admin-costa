@@ -1,15 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Sidebar from '@/components/Sidebar'
 import { Lock, Eye, EyeOff } from 'lucide-react'
 
-export default function AdminLayout({
+function AdminLayoutContent({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
+
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [password, setPassword] = useState('')
@@ -18,12 +21,19 @@ export default function AdminLayout({
   const router = useRouter()
 
   useEffect(() => {
+    // En modo demo, autenticar automáticamente
+    if (isDemo) {
+      setIsAuthenticated(true)
+      setIsLoading(false)
+      return
+    }
+
     const auth = localStorage.getItem('admin-costa-auth')
     if (auth === 'authenticated') {
       setIsAuthenticated(true)
     }
     setIsLoading(false)
-  }, [])
+  }, [isDemo])
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
@@ -129,7 +139,7 @@ export default function AdminLayout({
       </div>
 
       <div className="flex min-h-screen max-w-full">
-        <Sidebar onLogout={handleLogout} />
+        <Sidebar onLogout={handleLogout} isDemo={isDemo} />
         <main className="flex-1 lg:ml-0 min-w-0">
           <div className="p-4 lg:p-8 pt-16 lg:pt-8 max-w-full">
             {children}
@@ -137,5 +147,21 @@ export default function AdminLayout({
         </main>
       </div>
     </>
+  )
+}
+
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-costa-beige">
+        <div className="text-costa-gris">Cargando...</div>
+      </div>
+    }>
+      <AdminLayoutContent>{children}</AdminLayoutContent>
+    </Suspense>
   )
 }

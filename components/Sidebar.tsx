@@ -12,7 +12,8 @@ import {
   Menu,
   X,
   LogOut,
-  Globe
+  Globe,
+  Eye
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -27,11 +28,15 @@ const navigation = [
 
 interface SidebarProps {
   onLogout?: () => void
+  isDemo?: boolean
 }
 
-export default function Sidebar({ onLogout }: SidebarProps) {
+export default function Sidebar({ onLogout, isDemo = false }: SidebarProps) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  // Agregar ?demo=true a los links si estamos en modo demo
+  const getHref = (href: string) => isDemo ? `${href}?demo=true` : href
 
   return (
     <>
@@ -43,8 +48,13 @@ export default function Sidebar({ onLogout }: SidebarProps) {
         >
           {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
-        <span className="text-lg font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</span>
-        {onLogout && (
+        <div className="flex items-center gap-2">
+          <span className="text-lg font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</span>
+          {isDemo && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">DEMO</span>
+          )}
+        </div>
+        {onLogout && !isDemo && (
           <button
             onClick={onLogout}
             className="p-2 rounded-lg text-costa-coral hover:bg-costa-coral/10"
@@ -53,6 +63,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
             <LogOut size={22} />
           </button>
         )}
+        {isDemo && <div className="w-10" />}
       </div>
 
       {/* Overlay */}
@@ -76,9 +87,16 @@ export default function Sidebar({ onLogout }: SidebarProps) {
           {/* Logo */}
           <div className="h-24 flex flex-col items-center justify-center px-4 border-b border-costa-beige text-center">
             <h1 className="text-2xl font-semibold tracking-wide" style={{ fontFamily: 'var(--font-playfair)', color: '#1e3a5f' }}>Admin Costa</h1>
-            <p className="text-sm font-normal mt-2" style={{ color: '#6b7c8a' }}>
-              Administrada por sus dueños
-            </p>
+            {isDemo ? (
+              <div className="flex items-center gap-1.5 mt-2 px-3 py-1 bg-amber-100 rounded-full">
+                <Eye size={14} className="text-amber-600" />
+                <span className="text-xs font-medium text-amber-700">Modo Demo</span>
+              </div>
+            ) : (
+              <p className="text-sm font-normal mt-2" style={{ color: '#6b7c8a' }}>
+                Administrada por sus dueños
+              </p>
+            )}
           </div>
 
           {/* Quick actions */}
@@ -90,7 +108,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
               <Globe size={14} />
               Ver sitio
             </Link>
-            {onLogout && (
+            {onLogout && !isDemo && (
               <button
                 onClick={onLogout}
                 className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-costa-coral hover:bg-costa-coral/10 rounded-lg transition-colors border border-costa-coral/30"
@@ -108,7 +126,7 @@ export default function Sidebar({ onLogout }: SidebarProps) {
               return (
                 <Link
                   key={item.name}
-                  href={item.href}
+                  href={getHref(item.href)}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`
                     flex items-center gap-3 px-4 py-3 text-sm font-medium
