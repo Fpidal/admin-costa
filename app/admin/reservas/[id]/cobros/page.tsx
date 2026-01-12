@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useEffect, useState, Suspense } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { getDemoReservaById, getDemoCobrosByReservaId, getDemoLiquidacionByReservaId, demoReservas } from '@/lib/demoData'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
 import { ArrowLeft, Plus, FileText, Receipt, Calculator, Trash2, DollarSign, Calendar, User, Home, Pencil, ChevronLeft, ChevronRight } from 'lucide-react'
 import { jsPDF } from 'jspdf'
@@ -130,9 +131,11 @@ const initialLiquidacion = {
   notas: '',
 }
 
-export default function CobrosPage() {
+function CobrosContent() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
   const reservaId = params.id as string
 
   const [reserva, setReserva] = useState<Reserva | null>(null)
@@ -157,10 +160,93 @@ export default function CobrosPage() {
 
   useEffect(() => {
     fetchData()
-  }, [reservaId])
+  }, [reservaId, isDemo])
 
   async function fetchData() {
     setLoading(true)
+
+    if (isDemo) {
+      // Demo mode: load demo data
+      setReservaIds(demoReservas.map(r => r.id))
+
+      const demoReserva = getDemoReservaById(reservaId)
+      if (demoReserva) {
+        setReserva({
+          id: parseInt(demoReserva.id.replace('demo-res-', '')),
+          propiedad_id: parseInt(demoReserva.propiedad_id.replace('demo-prop-', '')),
+          inquilino_id: parseInt(demoReserva.inquilino_id.replace('demo-inq-', '')),
+          fecha_inicio: demoReserva.fecha_inicio,
+          fecha_fin: demoReserva.fecha_fin,
+          cantidad_personas: demoReserva.cantidad_personas,
+          precio_noche: demoReserva.precio_noche,
+          moneda: demoReserva.moneda,
+          deposito: demoReserva.deposito,
+          deposito_pesos: demoReserva.deposito_pesos,
+          sena: demoReserva.sena,
+          limpieza_final: demoReserva.limpieza_final,
+          monto_lavadero: demoReserva.monto_lavadero,
+          kw_inicial: demoReserva.kw_inicial,
+          estado: demoReserva.estado,
+          propiedades: demoReserva.propiedades ? {
+            id: parseInt(demoReserva.propiedades.id.replace('demo-prop-', '')),
+            nombre: demoReserva.propiedades.nombre,
+            direccion: demoReserva.propiedades.direccion
+          } : undefined,
+          inquilinos: demoReserva.inquilinos ? {
+            id: parseInt(demoReserva.inquilinos.id.replace('demo-inq-', '')),
+            nombre: demoReserva.inquilinos.nombre,
+            documento: demoReserva.inquilinos.documento,
+            telefono: demoReserva.inquilinos.telefono,
+            email: demoReserva.inquilinos.email
+          } : undefined
+        } as Reserva)
+      }
+
+      const demoCobros = getDemoCobrosByReservaId(reservaId)
+      setCobros(demoCobros.map((c, idx) => ({
+        id: idx + 1,
+        reserva_id: parseInt(c.reserva_id.replace('demo-res-', '')),
+        fecha: c.fecha,
+        aplicar_a: c.aplicar_a,
+        concepto: c.concepto,
+        monto: c.monto,
+        moneda: c.moneda,
+        medio_pago: c.medio_pago,
+        recibo_generado: c.recibo_generado,
+        created_at: c.fecha
+      })) as Cobro[])
+
+      const demoLiq = getDemoLiquidacionByReservaId(reservaId)
+      if (demoLiq) {
+        setLiquidacion({
+          id: parseInt(demoLiq.id.replace('demo-liq-', '')),
+          reserva_id: parseInt(demoLiq.reserva_id.replace('demo-res-', '')),
+          deposito_recibido: demoLiq.deposito_recibido,
+          kw_final: demoLiq.kw_final,
+          costo_kw: demoLiq.costo_kw,
+          consumo_energia: demoLiq.consumo_energia,
+          roturas: demoLiq.roturas,
+          otros_descuentos: demoLiq.otros_descuentos,
+          cotizacion_dolar: demoLiq.cotizacion_dolar,
+          notas: demoLiq.notas,
+          monto_devolver: demoLiq.monto_devolver,
+          fecha_liquidacion: demoLiq.fecha_liquidacion
+        } as Liquidacion)
+        setLiquidacionForm({
+          deposito_recibido: demoLiq.deposito_recibido || 0,
+          kw_final: demoLiq.kw_final || 0,
+          costo_kw: demoLiq.costo_kw || 0,
+          consumo_energia: demoLiq.consumo_energia || 0,
+          roturas: demoLiq.roturas || 0,
+          otros_descuentos: demoLiq.otros_descuentos || 0,
+          cotizacion_dolar: demoLiq.cotizacion_dolar || 0,
+          notas: demoLiq.notas || '',
+        })
+      }
+
+      setLoading(false)
+      return
+    }
 
     // Fetch all reservation IDs for navigation
     const { data: allReservas } = await supabase
@@ -514,16 +600,18 @@ export default function CobrosPage() {
     return <div className="text-center py-10 text-gray-500">Reserva no encontrada</div>
   }
 
+  const demoParam = isDemo ? '?demo=true' : ''
+
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <Link href="/admin/reservas" className="inline-flex items-center gap-1 text-sm text-costa-gris hover:text-costa-navy transition-colors">
+        <Link href={`/admin/reservas${demoParam}`} className="inline-flex items-center gap-1 text-sm text-costa-gris hover:text-costa-navy transition-colors">
           <ArrowLeft size={16} />
           Volver
         </Link>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => prevReservaId && router.push(`/admin/reservas/${prevReservaId}/cobros`)}
+            onClick={() => prevReservaId && router.push(`/admin/reservas/${prevReservaId}/cobros${demoParam}`)}
             disabled={!prevReservaId}
             className={`p-1.5 rounded transition-colors ${prevReservaId ? 'text-costa-navy hover:bg-costa-beige' : 'text-gray-300 cursor-not-allowed'}`}
             title="Reserva anterior"
@@ -534,7 +622,7 @@ export default function CobrosPage() {
             Gestión de Cobros - #{String(reserva.id).slice(-6).toUpperCase()}
           </h1>
           <button
-            onClick={() => nextReservaId && router.push(`/admin/reservas/${nextReservaId}/cobros`)}
+            onClick={() => nextReservaId && router.push(`/admin/reservas/${nextReservaId}/cobros${demoParam}`)}
             disabled={!nextReservaId}
             className={`p-1.5 rounded transition-colors ${nextReservaId ? 'text-costa-navy hover:bg-costa-beige' : 'text-gray-300 cursor-not-allowed'}`}
             title="Reserva siguiente"
@@ -1171,5 +1259,13 @@ export default function CobrosPage() {
         </form>
       </Modal>
     </div>
+  )
+}
+
+export default function CobrosPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>}>
+      <CobrosContent />
+    </Suspense>
   )
 }

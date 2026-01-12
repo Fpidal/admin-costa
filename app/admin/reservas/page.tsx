@@ -955,7 +955,7 @@ function ReservasContent() {
                                 </Button>
                               </>
                             )}
-                            <Link href={`/admin/reservas/${reserva.id}/cobros`}>
+                            <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
                               <Button variant="ghost" size="sm" title="Gestión de cobros"><Wallet size={14} className="text-costa-olivo" /></Button>
                             </Link>
                             <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={14} /></Button>
@@ -1032,7 +1032,7 @@ function ReservasContent() {
                           <span className="font-semibold text-costa-navy text-sm">
                             {formatMonto(totalCobrado, firstCobro.moneda)}
                           </span>
-                          <Link href={`/admin/reservas/${reservaId}/cobros`} onClick={(e) => e.stopPropagation()}>
+                          <Link href={`/admin/reservas/${reservaId}/cobros${isDemo ? '?demo=true' : ''}`} onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="sm" title="Gestionar cobros">
                               <Wallet size={14} />
                             </Button>
