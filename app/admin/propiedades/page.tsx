@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
+import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
 import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, Share2 } from 'lucide-react'
 import Link from 'next/link'
@@ -106,7 +108,10 @@ const initialForm = {
   metros_lote: 0,
 }
 
-export default function PropiedadesPage() {
+function PropiedadesContent() {
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
+
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [loading, setLoading] = useState(true)
@@ -115,13 +120,25 @@ export default function PropiedadesPage() {
   const [form, setForm] = useState(initialForm)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
+  const [imageIndexes, setImageIndexes] = useState<Record<number | string, number>>({})
   const [fechaBusqueda, setFechaBusqueda] = useState({ inicio: '', fin: '' })
   const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
 
   useEffect(() => {
+    if (isDemo) {
+      setPropiedades(demoPropiedades as unknown as Propiedad[])
+      setReservas(demoReservas.map(r => ({
+        id: r.id as unknown as number,
+        propiedad_id: r.propiedad_id as unknown as number,
+        fecha_inicio: r.fecha_inicio,
+        fecha_fin: r.fecha_fin,
+        estado: r.estado,
+      })) as Reserva[])
+      setLoading(false)
+      return
+    }
     fetchData()
-  }, [])
+  }, [isDemo])
 
   async function fetchData() {
     const [resPropiedades, resReservas] = await Promise.all([
@@ -927,5 +944,13 @@ export default function PropiedadesPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function PropiedadesPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>}>
+      <PropiedadesContent />
+    </Suspense>
   )
 }

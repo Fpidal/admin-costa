@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
 import { Plus, User, Phone, Mail, Users, Calendar, Pencil, Trash2, History, FileText, ChevronDown, ChevronUp, Check } from 'lucide-react'
+import { demoInquilinos } from '@/lib/demoData'
 
 interface Reserva {
   id: number
@@ -99,7 +101,10 @@ const initialForm = {
 
 const emptyAcompanante: Acompanante = { nombre: '', apellido: '', documento: '', edad: '' }
 
-export default function InquilinosPage() {
+function InquilinosContent() {
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
+
   const [inquilinos, setInquilinos] = useState<Inquilino[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -114,8 +119,13 @@ export default function InquilinosPage() {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    if (isDemo) {
+      setInquilinos(demoInquilinos as unknown as Inquilino[])
+      setLoading(false)
+      return
+    }
     fetchData()
-  }, [])
+  }, [isDemo])
 
   async function fetchData() {
     // Primero traemos los inquilinos
@@ -544,5 +554,13 @@ export default function InquilinosPage() {
         )}
       </Modal>
     </div>
+  )
+}
+
+export default function InquilinosPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>}>
+      <InquilinosContent />
+    </Suspense>
   )
 }

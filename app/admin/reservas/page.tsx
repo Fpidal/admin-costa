@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
 import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
+import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
 
 interface Propiedad {
   id: number
@@ -155,7 +157,10 @@ const initialForm = {
 
 const emptyAcompanante: Acompanante = { nombre: '', apellido: '', documento: '', edad: '' }
 
-export default function ReservasPage() {
+function ReservasContent() {
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
+
   const [activeTab, setActiveTab] = useState<'reservas' | 'cobros'>('reservas')
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cobros, setCobros] = useState<Cobro[]>([])
@@ -173,8 +178,16 @@ export default function ReservasPage() {
   const [expandedReservas, setExpandedReservas] = useState<Set<string>>(new Set())
 
   useEffect(() => {
+    if (isDemo) {
+      setReservas(demoReservas as unknown as Reserva[])
+      setPropiedades(demoPropiedades.map(p => ({ id: p.id as unknown as number, nombre: p.nombre })) as Propiedad[])
+      setInquilinos(demoInquilinos as unknown as Inquilino[])
+      setCobros(demoCobros as unknown as Cobro[])
+      setLoading(false)
+      return
+    }
     fetchData()
-  }, [])
+  }, [isDemo])
 
   async function fetchData() {
     const [resReservas, resPropiedades, resInquilinos, resCobros] = await Promise.all([
@@ -1328,5 +1341,13 @@ export default function ReservasPage() {
         </form>
       </Modal>
     </div>
+  )
+}
+
+export default function ReservasPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>}>
+      <ReservasContent />
+    </Suspense>
   )
 }

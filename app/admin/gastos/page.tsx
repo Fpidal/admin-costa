@@ -1,7 +1,9 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { demoGastos, demoPropiedades } from '@/lib/demoData'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select } from '@/components/ui'
 import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp, Check } from 'lucide-react'
@@ -75,7 +77,10 @@ const initialNuevoProveedor = {
   telefono: '',
 }
 
-export default function AdministracionPage() {
+function AdministracionContent() {
+  const searchParams = useSearchParams()
+  const isDemo = searchParams.get('demo') === 'true'
+
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [proveedores, setProveedores] = useState<ProveedorServicio[]>([])
@@ -154,8 +159,15 @@ export default function AdministracionPage() {
   })
 
   useEffect(() => {
+    if (isDemo) {
+      setGastos(demoGastos as unknown as Gasto[])
+      setPropiedades(demoPropiedades.map(p => ({ id: p.id, nombre: p.nombre })))
+      setProveedores([])
+      setLoading(false)
+      return
+    }
     fetchData()
-  }, [])
+  }, [isDemo])
 
   async function fetchData() {
     const [resGastos, resPropiedades, resProveedores] = await Promise.all([
@@ -952,5 +964,13 @@ export default function AdministracionPage() {
         )}
       </Modal>
     </div>
+  )
+}
+
+export default function AdministracionPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>}>
+      <AdministracionContent />
+    </Suspense>
   )
 }
