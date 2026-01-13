@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { getDemoReservaById, getDemoCobrosByReservaId, getDemoLiquidacionByReservaId, demoReservas } from '@/lib/demoData'
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
 import { ArrowLeft, Plus, FileText, Receipt, Calculator, Trash2, DollarSign, Calendar, User, Home, Pencil, ChevronLeft, ChevronRight } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
@@ -1016,15 +1016,10 @@ function CobrosContent() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Monto"
-              type="number"
-              min="0"
-              step="0.01"
-              value={cobroForm.monto || ''}
-              onChange={(e) => setCobroForm({ ...cobroForm, monto: Number(e.target.value) })}
-              required
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Monto</label>
+              <InputNumber value={cobroForm.monto} onChange={(val) => setCobroForm({ ...cobroForm, monto: val })} />
+            </div>
             <Select
               label="Moneda"
               value={cobroForm.moneda}
@@ -1136,35 +1131,24 @@ function CobrosContent() {
           <div className="border rounded-lg p-3">
             <p className="text-sm font-medium text-costa-navy mb-2">Descuentos (en pesos)</p>
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Roturas/Daños ($)"
-                type="number"
-                min="0"
-                value={liquidacionForm.roturas || ''}
-                onChange={(e) => setLiquidacionForm({ ...liquidacionForm, roturas: Number(e.target.value) })}
-              />
-              <Input
-                label="Otros descuentos ($)"
-                type="number"
-                min="0"
-                value={liquidacionForm.otros_descuentos || ''}
-                onChange={(e) => setLiquidacionForm({ ...liquidacionForm, otros_descuentos: Number(e.target.value) })}
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Roturas/Daños ($)</label>
+                <InputNumber value={liquidacionForm.roturas} onChange={(val) => setLiquidacionForm({ ...liquidacionForm, roturas: val })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Otros descuentos ($)</label>
+                <InputNumber value={liquidacionForm.otros_descuentos} onChange={(val) => setLiquidacionForm({ ...liquidacionForm, otros_descuentos: val })} />
+              </div>
             </div>
           </div>
 
           {/* Cotización dólar blue */}
           <div className="border rounded-lg p-3 bg-blue-50/50">
             <p className="text-sm font-medium text-costa-navy mb-2">Conversión a Dólares</p>
-            <Input
-              label="Cotización dólar blue ($)"
-              type="number"
-              min="0"
-              step="0.01"
-              value={liquidacionForm.cotizacion_dolar || ''}
-              onChange={(e) => setLiquidacionForm({ ...liquidacionForm, cotizacion_dolar: Number(e.target.value) })}
-              placeholder="Ej: 1200"
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cotización dólar blue ($)</label>
+              <InputNumber value={liquidacionForm.cotizacion_dolar} onChange={(val) => setLiquidacionForm({ ...liquidacionForm, cotizacion_dolar: val })} placeholder="Ej: 1200" />
+            </div>
             {liquidacionForm.cotizacion_dolar > 0 && totalDescuentosPesos > 0 && (
               <p className="text-xs text-costa-gris mt-2">
                 Descuentos: {formatMonto(totalDescuentosPesos, 'ARS')} = {formatMonto(descuentosEnUSD, 'USD')}
@@ -1220,36 +1204,24 @@ function CobrosContent() {
             </Button>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label={`Precio por noche (${monedaAlquiler})`}
-              type="number"
-              min="0"
-              value={reservaForm.precio_noche || ''}
-              onChange={(e) => setReservaForm({ ...reservaForm, precio_noche: Number(e.target.value) })}
-            />
-            <Input
-              label="Depósito ($)"
-              type="number"
-              min="0"
-              value={reservaForm.deposito_pesos || ''}
-              onChange={(e) => setReservaForm({ ...reservaForm, deposito_pesos: Number(e.target.value) })}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Precio por noche ({monedaAlquiler})</label>
+              <InputNumber value={reservaForm.precio_noche} onChange={(val) => setReservaForm({ ...reservaForm, precio_noche: val })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Depósito ($)</label>
+              <InputNumber value={reservaForm.deposito_pesos} onChange={(val) => setReservaForm({ ...reservaForm, deposito_pesos: val })} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Limpieza final ($)"
-              type="number"
-              min="0"
-              value={reservaForm.limpieza_final || ''}
-              onChange={(e) => setReservaForm({ ...reservaForm, limpieza_final: Number(e.target.value) })}
-            />
-            <Input
-              label="Lavadero ($)"
-              type="number"
-              min="0"
-              value={reservaForm.monto_lavadero || ''}
-              onChange={(e) => setReservaForm({ ...reservaForm, monto_lavadero: Number(e.target.value) })}
-            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Limpieza final ($)</label>
+              <InputNumber value={reservaForm.limpieza_final} onChange={(val) => setReservaForm({ ...reservaForm, limpieza_final: val })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Lavadero ($)</label>
+              <InputNumber value={reservaForm.monto_lavadero} onChange={(val) => setReservaForm({ ...reservaForm, monto_lavadero: val })} />
+            </div>
           </div>
           <Input
             label="KW Inicial"

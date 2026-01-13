@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { demoGastos, demoPropiedades } from '@/lib/demoData'
 import { PageHeader } from '@/components/PageHeader'
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select } from '@/components/ui'
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, InputNumber } from '@/components/ui'
 import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp, Check } from 'lucide-react'
 
 interface Propiedad {
@@ -800,7 +800,10 @@ function AdministracionContent() {
 
           {/* Monto y Fecha */}
           <div className="grid grid-cols-2 gap-3">
-            <Input label="Importe" type="number" min="0" value={form.monto} onChange={(e) => setForm({ ...form, monto: Number(e.target.value) })} required />
+            <div>
+              <label className="block text-sm font-medium text-costa-navy mb-1">Importe</label>
+              <InputNumber value={form.monto} onChange={(val) => setForm({ ...form, monto: val })} />
+            </div>
             <Input label="Fecha" type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
           </div>
 

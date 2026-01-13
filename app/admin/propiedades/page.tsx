@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
-import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
+import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
 import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, Share2 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -734,13 +734,13 @@ function PropiedadesContent() {
                 value={form.plantas || ''}
                 onChange={(e) => setForm({ ...form, plantas: Number(e.target.value) || 1 })}
               />
-              <Input
-                label="$/mes"
-                type="number"
-                min="0"
-                value={form.precio_alquiler || ''}
-                onChange={(e) => setForm({ ...form, precio_alquiler: Number(e.target.value) || 0 })}
-              />
+              <div>
+                <label className="block text-xs font-medium text-costa-navy mb-1">$/mes</label>
+                <InputNumber
+                  value={form.precio_alquiler}
+                  onChange={(val) => setForm({ ...form, precio_alquiler: val })}
+                />
+              </div>
             </div>
           )}
 
@@ -751,32 +751,32 @@ function PropiedadesContent() {
               onChange={(e) => setForm({ ...form, estado: e.target.value })}
               options={estadosPropiedad}
             />
-            <Input
-              label="M² lote"
-              type="number"
-              min="0"
-              value={form.metros_lote || ''}
-              onChange={(e) => setForm({ ...form, metros_lote: Number(e.target.value) || 0 })}
-            />
+            <div>
+              <label className="block text-xs font-medium text-costa-navy mb-1">M² lote</label>
+              <InputNumber
+                value={form.metros_lote}
+                onChange={(val) => setForm({ ...form, metros_lote: val })}
+              />
+            </div>
           </div>
 
           {/* Metros cubiertos - ocultar si es lote */}
           {form.tipo !== 'lote' && (
             <div className="grid grid-cols-2 gap-2">
-              <Input
-                label="M² cubiertos"
-                type="number"
-                min="0"
-                value={form.metros_cubiertos || ''}
-                onChange={(e) => setForm({ ...form, metros_cubiertos: Number(e.target.value) || 0 })}
-              />
-              <Input
-                label="M² semicub."
-                type="number"
-                min="0"
-                value={form.metros_semicubiertos || ''}
-                onChange={(e) => setForm({ ...form, metros_semicubiertos: Number(e.target.value) || 0 })}
-              />
+              <div>
+                <label className="block text-xs font-medium text-costa-navy mb-1">M² cubiertos</label>
+                <InputNumber
+                  value={form.metros_cubiertos}
+                  onChange={(val) => setForm({ ...form, metros_cubiertos: val })}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-costa-navy mb-1">M² semicub.</label>
+                <InputNumber
+                  value={form.metros_semicubiertos}
+                  onChange={(val) => setForm({ ...form, metros_semicubiertos: val })}
+                />
+              </div>
             </div>
           )}
 

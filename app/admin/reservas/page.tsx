@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
+import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
 import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
@@ -1127,8 +1127,14 @@ function ReservasContent() {
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Tarifas y pagos</p>
           <div className="grid grid-cols-3 gap-4">
             <Select label="Moneda" value={form.moneda} onChange={(e) => setForm({ ...form, moneda: e.target.value })} options={monedas} />
-            <Input label="Precio por noche" type="number" min="0" value={form.precio_noche || ''} onChange={(e) => setForm({ ...form, precio_noche: Number(e.target.value) })} />
-            <Input label="Depósito USD" type="number" min="0" value={form.deposito || ''} onChange={(e) => setForm({ ...form, deposito: Number(e.target.value) })} />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Precio por noche</label>
+              <InputNumber value={form.precio_noche} onChange={(val) => setForm({ ...form, precio_noche: val })} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Depósito USD</label>
+              <InputNumber value={form.deposito} onChange={(val) => setForm({ ...form, deposito: val })} />
+            </div>
           </div>
 
           {/* Resumen calculado */}
@@ -1289,13 +1295,8 @@ function ReservasContent() {
                 <label htmlFor="incluye_limpieza" className="text-sm text-gray-700">Limpieza final</label>
               </div>
               <div className="mt-2">
-                <Input
-                  label="Monto ($)"
-                  type="number"
-                  min="0"
-                  value={form.limpieza_final || ''}
-                  onChange={(e) => setForm({ ...form, limpieza_final: Number(e.target.value) })}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Monto ($)</label>
+                <InputNumber value={form.limpieza_final} onChange={(val) => setForm({ ...form, limpieza_final: val })} />
               </div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg">
@@ -1314,13 +1315,8 @@ function ReservasContent() {
                 <label htmlFor="incluye_lavadero" className="text-sm text-gray-700">Lavadero</label>
               </div>
               <div className="mt-2">
-                <Input
-                  label="Monto ($)"
-                  type="number"
-                  min="0"
-                  value={form.monto_lavadero || ''}
-                  onChange={(e) => setForm({ ...form, monto_lavadero: Number(e.target.value) })}
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Monto ($)</label>
+                <InputNumber value={form.monto_lavadero} onChange={(val) => setForm({ ...form, monto_lavadero: val })} />
               </div>
             </div>
           </div>
