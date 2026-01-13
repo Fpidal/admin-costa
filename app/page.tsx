@@ -43,6 +43,24 @@ interface Reserva {
   estado: string
 }
 
+const barrios = [
+  'Todos',
+  'Deportiva 1',
+  'Deportiva 2',
+  'Golf 1',
+  'Golf 2',
+  'Bosque',
+  'Senderos 1',
+  'Senderos 2',
+  'Senderos 3',
+  'Senderos 4',
+  'Residencial 1',
+  'Residencial 2',
+  'Maritimo 1',
+  'Maritimo 2',
+  'Maritimo 3',
+]
+
 // Formatear teléfono para WhatsApp (sin +, espacios ni guiones, con código de país)
 const formatWhatsApp = (telefono: string | null | undefined): string => {
   if (!telefono) return '541160473922' // Default
@@ -65,6 +83,12 @@ function LandingContent() {
   const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
   const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
   const [servicioModal, setServicioModal] = useState<string | null>(null)
+  const [filtroBarrio, setFiltroBarrio] = useState('Todos')
+
+  // Filtrar propiedades por barrio
+  const propiedadesFiltradas = filtroBarrio === 'Todos'
+    ? propiedades
+    : propiedades.filter(p => p.nombre === filtroBarrio)
 
   // Datos de contacto para cada servicio
   const serviciosContacto: Record<string, { titulo: string, contactos: { nombre: string, telefono: string }[] }> = {
@@ -407,15 +431,38 @@ function LandingContent() {
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
             Nuestras propiedades
           </h2>
-          <p className="text-costa-gris text-center mb-12">
+          <p className="text-costa-gris text-center mb-8">
             Encontrá el lugar ideal para tu estadía en Costa Esmeralda
           </p>
 
+          {/* Filtro por barrio */}
+          <div className="flex justify-center mb-8">
+            <div className="flex items-center gap-3 bg-costa-beige/50 px-4 py-2 rounded-full">
+              <span className="text-sm text-costa-navy font-medium">Filtrar por barrio:</span>
+              <select
+                value={filtroBarrio}
+                onChange={(e) => setFiltroBarrio(e.target.value)}
+                className="bg-white border border-costa-beige rounded-lg px-3 py-1.5 text-sm text-costa-navy focus:outline-none focus:ring-2 focus:ring-costa-navy"
+              >
+                {barrios.map((barrio) => (
+                  <option key={barrio} value={barrio}>{barrio}</option>
+                ))}
+              </select>
+              {filtroBarrio !== 'Todos' && (
+                <span className="text-xs text-costa-gris">
+                  ({propiedadesFiltradas.length} {propiedadesFiltradas.length === 1 ? 'propiedad' : 'propiedades'})
+                </span>
+              )}
+            </div>
+          </div>
+
           {loading ? (
             <div className="text-center text-costa-gris py-12">Cargando propiedades...</div>
+          ) : propiedadesFiltradas.length === 0 ? (
+            <div className="text-center text-costa-gris py-12">No hay propiedades en este barrio</div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {propiedades.map((propiedad) => {
+              {propiedadesFiltradas.map((propiedad) => {
                 const reservada = estaReservada(propiedad.id)
                 const images = propiedad.imagenes?.length > 0 ? propiedad.imagenes : (propiedad.imagen_url ? [propiedad.imagen_url] : [])
                 const currentIndex = imageIndexes[propiedad.id] || 0
