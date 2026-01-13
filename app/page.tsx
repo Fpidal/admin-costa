@@ -10,6 +10,7 @@ import Link from 'next/link'
 interface Propiedad {
   id: number
   nombre: string
+  lote: string
   direccion: string
   referencia: string
   telefono_contacto: string
@@ -497,7 +498,7 @@ function LandingContent() {
                     <div className="p-5">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="text-xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
-                          {propiedad.nombre}
+                          {propiedad.nombre}{propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}
                         </h3>
                         {propiedad.estado === 'alquilada' ? (
                           <span className="px-2 py-0.5 bg-costa-coral text-white text-xs rounded-full flex-shrink-0">
@@ -578,7 +579,7 @@ function LandingContent() {
                       {/* WhatsApp Buttons */}
                       <div className="flex gap-2">
                         <a
-                          href={`https://wa.me/${formatWhatsApp(propiedad.telefono_contacto)}?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
+                          href={`https://wa.me/${formatWhatsApp(propiedad.telefono_contacto)}?text=Hola! Me interesa la propiedad ${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center justify-center gap-2 flex-1 py-3 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg font-medium transition-colors"
@@ -591,7 +592,7 @@ function LandingContent() {
                         <button
                           onClick={() => {
                             const baseUrl = window.location.origin
-                            const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
+                            const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
                             window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
                           }}
                           className="flex items-center justify-center gap-2 px-4 py-3 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg font-medium transition-colors"

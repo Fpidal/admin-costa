@@ -13,6 +13,7 @@ import Link from 'next/link'
 interface Propiedad {
   id: number
   nombre: string
+  lote: string
   direccion: string
   referencia: string
   telefono_contacto: string
@@ -94,6 +95,7 @@ const formatMonto = (monto: number) => {
 
 const initialForm = {
   nombre: '',
+  lote: '',
   direccion: '',
   referencia: '',
   telefono_contacto: '',
@@ -204,7 +206,7 @@ function PropiedadesContent() {
 
   function compartirWhatsApp(propiedad: Propiedad) {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
+    const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
     const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
   }
@@ -214,6 +216,7 @@ function PropiedadesContent() {
       setEditingId(propiedad.id)
       setForm({
         nombre: propiedad.nombre || '',
+        lote: propiedad.lote || '',
         direccion: propiedad.direccion || '',
         referencia: propiedad.referencia || '',
         telefono_contacto: propiedad.telefono_contacto || '',
@@ -305,6 +308,7 @@ function PropiedadesContent() {
 
     const data = {
       nombre: form.nombre,
+      lote: form.lote,
       direccion: form.direccion,
       referencia: form.referencia,
       telefono_contacto: form.telefono_contacto,
@@ -510,7 +514,7 @@ function PropiedadesContent() {
 
                 <div className="p-4 flex flex-col flex-1">
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-bold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>{propiedad.nombre}</h3>
+                    <h3 className="text-lg font-bold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>{propiedad.nombre}{propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}</h3>
                     {propiedad.estado === 'alquilada' || reservaActual ? (
                       <span className="px-2 py-0.5 bg-costa-coral text-white text-xs rounded-full">
                         Alquilada
@@ -633,7 +637,7 @@ function PropiedadesContent() {
                   <div className="pt-2 border-t border-costa-beige flex items-center justify-end mt-auto">
                     <div className="flex items-center gap-1">
                       <a
-                        href={`https://wa.me/541160473922?text=Hola! Me interesa la propiedad ${propiedad.nombre}`}
+                        href={`https://wa.me/541160473922?text=Hola! Me interesa la propiedad ${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center gap-1 px-2 py-1 rounded-lg bg-costa-olivo hover:bg-costa-olivo/80 text-white text-xs font-medium transition-colors"
@@ -680,12 +684,18 @@ function PropiedadesContent() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Select
               label="Barrio"
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
               options={barrios}
+            />
+            <Input
+              label="Lote"
+              value={form.lote}
+              onChange={(e) => setForm({ ...form, lote: e.target.value })}
+              placeholder="Ej: 123"
             />
             <Select
               label="Tipo"
