@@ -135,28 +135,28 @@ function LandingContent() {
           <div className="absolute inset-0 bg-gradient-to-b from-costa-navy/60 via-costa-navy/40 to-costa-navy/70" />
         </div>
 
+        {/* Acceso dueños - arriba derecha */}
+        <Link
+          href={isDemo ? "/admin?demo=true" : "/admin"}
+          className="absolute top-4 right-4 z-20 px-4 py-2 text-sm text-white/80 hover:text-white border border-white/30 hover:border-white/50 rounded-lg transition-colors"
+        >
+          Acceso dueños
+        </Link>
+
         {/* Content */}
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-semibold text-white mb-4 tracking-wide" style={{ fontFamily: 'var(--font-playfair)' }}>
-            Admin Costa
+            Tu casa en Costa Esmeralda
           </h1>
           <p className="text-xl md:text-2xl text-white/90 mb-8 font-light">
-            Gestión directa de propiedades por sus dueños
+            Propiedades administradas directamente por sus dueños
           </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            <a
-              href="#propiedades"
-              className="px-8 py-3 bg-white text-costa-navy font-medium rounded-lg hover:bg-costa-beige transition-colors"
-            >
-              Ver propiedades
-            </a>
-            <Link
-              href={isDemo ? "/admin?demo=true" : "/admin"}
-              className="px-8 py-3 border-2 border-white/50 text-white font-medium rounded-lg hover:bg-white/10 transition-colors"
-            >
-              Acceso dueños
-            </Link>
-          </div>
+          <a
+            href="#propiedades"
+            className="inline-block px-8 py-3 bg-white text-costa-navy font-medium rounded-lg hover:bg-costa-beige transition-colors"
+          >
+            Ver propiedades
+          </a>
         </div>
 
         {/* Scroll indicator */}
