@@ -298,7 +298,7 @@ function LandingContent() {
             </h3>
             <div className="rounded-2xl overflow-hidden shadow-lg">
               <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d25456.41751723988!2d-56.78926988671873!3d-36.88726!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x959b6b5d9d5f5b5b%3A0x6b5b5b5b5b5b5b5b!2sCosta%20Esmeralda%2C%20Buenos%20Aires!5e0!3m2!1ses-419!2sar!4v1705000000000!5m2!1ses-419!2sar"
+                src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d12500!2d-56.799169!3d-37.017881!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMzfCsDAxJzA0LjQiUyA1NsKwNDcnNTcuMCJX!5e0!3m2!1ses-419!2sar!4v1705000000000!5m2!1ses-419!2sar"
                 width="100%"
                 height="400"
                 style={{ border: 0 }}
