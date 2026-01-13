@@ -65,6 +65,23 @@ const estadosPropiedad = [
   { value: 'mantenimiento', label: 'Mantenimiento' },
 ]
 
+const barrios = [
+  { value: 'Deportiva 1', label: 'Deportiva 1' },
+  { value: 'Deportiva 2', label: 'Deportiva 2' },
+  { value: 'Golf 1', label: 'Golf 1' },
+  { value: 'Golf 2', label: 'Golf 2' },
+  { value: 'Bosque', label: 'Bosque' },
+  { value: 'Senderos 1', label: 'Senderos 1' },
+  { value: 'Senderos 2', label: 'Senderos 2' },
+  { value: 'Senderos 3', label: 'Senderos 3' },
+  { value: 'Senderos 4', label: 'Senderos 4' },
+  { value: 'Residencial 1', label: 'Residencial 1' },
+  { value: 'Residencial 2', label: 'Residencial 2' },
+  { value: 'Maritimo 1', label: 'Maritimo 1' },
+  { value: 'Maritimo 2', label: 'Maritimo 2' },
+  { value: 'Maritimo 3', label: 'Maritimo 3' },
+]
+
 const estadoVariant = {
   'alquilada': 'success',
   'disponible': 'info',
@@ -664,11 +681,11 @@ function PropiedadesContent() {
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Nombre"
+            <Select
+              label="Barrio"
               value={form.nombre}
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              required
+              options={barrios}
             />
             <Select
               label="Tipo"
