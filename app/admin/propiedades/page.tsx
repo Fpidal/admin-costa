@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
@@ -111,6 +112,7 @@ const initialForm = {
 function PropiedadesContent() {
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+  const { userId } = useAuth()
 
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
@@ -329,7 +331,7 @@ function PropiedadesContent() {
     } else {
       const { error } = await supabase
         .from('propiedades')
-        .insert([data])
+        .insert([{ ...data, user_id: userId }])
 
       if (error) {
         alert('Error al crear: ' + error.message)

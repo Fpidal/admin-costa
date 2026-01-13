@@ -3,6 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { demoGastos, demoPropiedades } from '@/lib/demoData'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select } from '@/components/ui'
@@ -80,6 +81,7 @@ const initialNuevoProveedor = {
 function AdministracionContent() {
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+  const { userId } = useAuth()
 
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
@@ -266,7 +268,7 @@ function AdministracionContent() {
       const { error } = await supabase.from('gastos').update(data).eq('id', editingId)
       if (error) alert('Error al actualizar: ' + error.message)
     } else {
-      const { error } = await supabase.from('gastos').insert([data])
+      const { error } = await supabase.from('gastos').insert([{ ...data, user_id: userId }])
       if (error) alert('Error al crear: ' + error.message)
     }
 
@@ -444,7 +446,7 @@ function AdministracionContent() {
       detalle: detalle,
     }
 
-    const { error } = await supabase.from('gastos').insert([gastoAgrupado])
+    const { error } = await supabase.from('gastos').insert([{ ...gastoAgrupado, user_id: userId }])
 
     if (!error) {
       setImportModalOpen(false)

@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
 import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet } from 'lucide-react'
@@ -160,6 +161,7 @@ const emptyAcompanante: Acompanante = { nombre: '', apellido: '', documento: '',
 function ReservasContent() {
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+  const { userId } = useAuth()
 
   const [activeTab, setActiveTab] = useState<'reservas' | 'cobros'>('reservas')
   const [reservas, setReservas] = useState<Reserva[]>([])
@@ -339,7 +341,7 @@ function ReservasContent() {
       const { error } = await supabase.from('reservas').update(data).eq('id', editingId)
       if (error) alert('Error al actualizar: ' + error.message)
     } else {
-      const { error } = await supabase.from('reservas').insert([data])
+      const { error } = await supabase.from('reservas').insert([{ ...data, user_id: userId }])
       if (error) alert('Error al crear: ' + error.message)
     }
 

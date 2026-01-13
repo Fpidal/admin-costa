@@ -2,8 +2,9 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
-import { Lock, Eye, EyeOff } from 'lucide-react'
+import { Lock, Eye, EyeOff, Mail, User } from 'lucide-react'
 
 function AdminLayoutContent({
   children,
@@ -15,9 +16,17 @@ function AdminLayoutContent({
 
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isRegistering, setIsRegistering] = useState(false)
+
+  // Form fields
+  const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [nombre, setNombre] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
   const router = useRouter()
 
   useEffect(() => {
@@ -28,27 +37,80 @@ function AdminLayoutContent({
       return
     }
 
-    const auth = localStorage.getItem('admin-costa-auth')
-    if (auth === 'authenticated') {
-      setIsAuthenticated(true)
+    // Verificar sesión de Supabase
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        setIsAuthenticated(true)
+      }
+      setIsLoading(false)
     }
-    setIsLoading(false)
+
+    checkSession()
+
+    // Escuchar cambios de autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session) {
+        setIsAuthenticated(true)
+      } else {
+        setIsAuthenticated(false)
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [isDemo])
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (password === 'admincosta') {
-      localStorage.setItem('admin-costa-auth', 'authenticated')
-      setIsAuthenticated(true)
-      setError('')
-      router.push('/admin/propiedades')
+    setError('')
+    setSubmitting(true)
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    })
+
+    if (error) {
+      setError(error.message === 'Invalid login credentials'
+        ? 'Email o contraseña incorrectos'
+        : error.message)
+      setSubmitting(false)
     } else {
-      setError('Clave incorrecta')
+      router.push('/admin/propiedades')
     }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('admin-costa-auth')
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setMessage('')
+    setSubmitting(true)
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          nombre: nombre,
+        }
+      }
+    })
+
+    if (error) {
+      setError(error.message)
+      setSubmitting(false)
+    } else {
+      setMessage('¡Registro exitoso! Revisá tu email para confirmar tu cuenta.')
+      setSubmitting(false)
+      // Limpiar formulario
+      setEmail('')
+      setPassword('')
+      setNombre('')
+    }
+  }
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
     setIsAuthenticated(false)
     router.push('/')
   }
@@ -71,14 +133,60 @@ function AdminLayoutContent({
               <h1 className="text-3xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
                 Admin Costa
               </h1>
-              <p className="text-sm text-costa-gris mt-2">Acceso para propietarios</p>
+              <p className="text-sm text-costa-gris mt-2">
+                {isRegistering ? 'Crear cuenta nueva' : 'Acceso para propietarios'}
+              </p>
             </div>
 
             {/* Form */}
-            <form onSubmit={handleLogin} className="space-y-6">
+            <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-4">
+              {/* Nombre (solo en registro) */}
+              {isRegistering && (
+                <div>
+                  <label className="block text-sm font-medium text-costa-navy mb-2">
+                    Nombre
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <User size={18} className="text-costa-gris" />
+                    </div>
+                    <input
+                      type="text"
+                      value={nombre}
+                      onChange={(e) => setNombre(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                      placeholder="Tu nombre"
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Email */}
               <div>
                 <label className="block text-sm font-medium text-costa-navy mb-2">
-                  Clave de acceso
+                  Email
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Mail size={18} className="text-costa-gris" />
+                  </div>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                    placeholder="tu@email.com"
+                    required
+                    autoFocus={!isRegistering}
+                  />
+                </div>
+              </div>
+
+              {/* Contraseña */}
+              <div>
+                <label className="block text-sm font-medium text-costa-navy mb-2">
+                  Contraseña
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -89,8 +197,9 @@ function AdminLayoutContent({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full pl-10 pr-12 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
-                    placeholder="Ingresá la clave"
-                    autoFocus
+                    placeholder={isRegistering ? 'Mínimo 6 caracteres' : 'Tu contraseña'}
+                    required
+                    minLength={6}
                   />
                   <button
                     type="button"
@@ -100,21 +209,50 @@ function AdminLayoutContent({
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </div>
-                {error && (
-                  <p className="mt-2 text-sm text-costa-coral">{error}</p>
-                )}
               </div>
 
+              {/* Error message */}
+              {error && (
+                <p className="text-sm text-costa-coral bg-costa-coral/10 p-3 rounded-lg">{error}</p>
+              )}
+
+              {/* Success message */}
+              {message && (
+                <p className="text-sm text-green-600 bg-green-50 p-3 rounded-lg">{message}</p>
+              )}
+
+              {/* Submit button */}
               <button
                 type="submit"
-                className="w-full py-3 bg-costa-navy text-white rounded-lg font-medium hover:bg-costa-navy/90 transition-colors"
+                disabled={submitting}
+                className="w-full py-3 bg-costa-navy text-white rounded-lg font-medium hover:bg-costa-navy/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Ingresar
+                {submitting
+                  ? 'Procesando...'
+                  : isRegistering
+                    ? 'Crear cuenta'
+                    : 'Ingresar'}
               </button>
             </form>
 
-            {/* Link to public */}
+            {/* Toggle login/register */}
             <div className="mt-6 text-center">
+              <button
+                onClick={() => {
+                  setIsRegistering(!isRegistering)
+                  setError('')
+                  setMessage('')
+                }}
+                className="text-sm text-costa-navy hover:underline"
+              >
+                {isRegistering
+                  ? '¿Ya tenés cuenta? Iniciá sesión'
+                  : '¿No tenés cuenta? Registrate'}
+              </button>
+            </div>
+
+            {/* Link to public */}
+            <div className="mt-4 text-center">
               <a
                 href="/"
                 className="text-sm text-costa-gris hover:text-costa-navy transition-colors"

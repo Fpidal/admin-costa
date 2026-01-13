@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { getDemoReservaById, getDemoCobrosByReservaId, getDemoLiquidacionByReservaId, demoReservas } from '@/lib/demoData'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
 import { ArrowLeft, Plus, FileText, Receipt, Calculator, Trash2, DollarSign, Calendar, User, Home, Pencil, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -136,6 +137,7 @@ function CobrosContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+  const { userId } = useAuth()
   const reservaId = params.id as string
 
   const [reserva, setReserva] = useState<Reserva | null>(null)
@@ -424,7 +426,7 @@ function CobrosContent() {
       const res = await supabase.from('cobros').update(data).eq('id', editingCobroId)
       error = res.error
     } else {
-      const res = await supabase.from('cobros').insert(data)
+      const res = await supabase.from('cobros').insert({ ...data, user_id: userId })
       error = res.error
     }
 
@@ -466,7 +468,7 @@ function CobrosContent() {
       const res = await supabase.from('liquidaciones').update(data).eq('id', liquidacion.id)
       error = res.error
     } else {
-      const res = await supabase.from('liquidaciones').insert(data)
+      const res = await supabase.from('liquidaciones').insert({ ...data, user_id: userId })
       error = res.error
     }
 

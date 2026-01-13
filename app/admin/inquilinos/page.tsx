@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
 import { Plus, User, Phone, Mail, Users, Calendar, Pencil, Trash2, History, FileText, ChevronDown, ChevronUp, Check } from 'lucide-react'
@@ -104,6 +105,7 @@ const emptyAcompanante: Acompanante = { nombre: '', apellido: '', documento: '',
 function InquilinosContent() {
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+  const { userId } = useAuth()
 
   const [inquilinos, setInquilinos] = useState<Inquilino[]>([])
   const [loading, setLoading] = useState(true)
@@ -258,7 +260,7 @@ function InquilinosContent() {
       const { error } = await supabase.from('inquilinos').update(data).eq('id', editingId)
       if (error) alert('Error al actualizar: ' + error.message)
     } else {
-      const { error } = await supabase.from('inquilinos').insert([data])
+      const { error } = await supabase.from('inquilinos').insert([{ ...data, user_id: userId }])
       if (error) alert('Error al crear: ' + error.message)
     }
 
