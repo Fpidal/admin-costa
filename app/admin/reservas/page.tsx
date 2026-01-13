@@ -599,10 +599,10 @@ function ReservasContent() {
       y += notasLines.length * 4 + 3
     }
 
-    // ===== CONDICIONES (más arriba) =====
-    y = Math.max(y + 5, 185)
+    // ===== CONDICIONES DEL ALQUILER =====
+    y = Math.max(y + 5, 175)
     doc.setFillColor(250, 250, 250)
-    doc.rect(15, y - 3, pageWidth - 30, 72, 'F')
+    doc.rect(15, y - 3, pageWidth - 30, 32, 'F')
 
     doc.setTextColor(100, 100, 100)
     doc.setFontSize(8)
@@ -616,7 +616,27 @@ function ReservasContent() {
       '• Horario de ingreso: 14:00 hs - Horario de salida: 10:00 hs',
       '• Se incluyen 110 kW de electricidad cada 7 días. El excedente se cobra al valor vigente.',
       '• Prohibido fumar dentro de la propiedad. No se admiten mascotas sin autorización previa.',
-      '• El depósito se devuelve al verificar el estado de la propiedad.',
+      '• El depósito se devuelve al verificar el estado de la propiedad.'
+    ]
+    condiciones.forEach(c => {
+      doc.text(c, 20, y)
+      y += 4
+    })
+
+    // ===== USOS Y CUIDADOS DE LA PROPIEDAD =====
+    y += 8
+    doc.setFillColor(250, 250, 250)
+    doc.rect(15, y - 3, pageWidth - 30, 48, 'F')
+
+    doc.setTextColor(100, 100, 100)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.text('USOS Y CUIDADOS DE LA PROPIEDAD', 20, y + 2)
+
+    y += 8
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    const usosCuidados = [
       '• Apagar luces, aires acondicionados y artefactos eléctricos al salir de la vivienda.',
       '• Mantener la casa ordenada durante la estadía.',
       '• Ventilar los ambientes diariamente.',
@@ -624,13 +644,13 @@ function ReservasContent() {
       '• Respetar las normas de convivencia del barrio.',
       '• Informar cualquier inconveniente o daño a la brevedad.'
     ]
-    condiciones.forEach(c => {
+    usosCuidados.forEach(c => {
       doc.text(c, 20, y)
       y += 4
     })
 
     // Link info útil
-    y += 2
+    y += 3
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
     doc.text('Para teléfonos útiles, servicios, emergencias y contactos del barrio:', 20, y)
