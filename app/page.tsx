@@ -14,6 +14,7 @@ interface Propiedad {
   referencia: string
   telefono_contacto: string
   tipo: string
+  estado: string
   capacidad: number
   habitaciones: number
   banos: number
