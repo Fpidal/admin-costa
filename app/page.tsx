@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
-import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope } from 'lucide-react'
+import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope, Phone } from 'lucide-react'
 import Link from 'next/link'
 
 interface Propiedad {
@@ -62,6 +62,69 @@ function LandingContent() {
   const [loading, setLoading] = useState(true)
   const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
   const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
+  const [servicioModal, setServicioModal] = useState<string | null>(null)
+
+  // Datos de contacto para cada servicio
+  const serviciosContacto: Record<string, { titulo: string, contactos: { nombre: string, telefono: string }[] }> = {
+    'seguridad': {
+      titulo: 'Seguridad 24 hs',
+      contactos: [
+        { nombre: 'Central de Seguridad', telefono: '2254-123456' },
+        { nombre: 'Guardia de acceso', telefono: '2254-123457' },
+      ]
+    },
+    'medicos': {
+      titulo: 'Ambulancia y Médicos',
+      contactos: [
+        { nombre: 'Emergencias médicas', telefono: '2254-601696' },
+        { nombre: 'Médico 24 hs', telefono: '2254-601696' },
+      ]
+    },
+    'golf': {
+      titulo: 'Campo de Golf',
+      contactos: [
+        { nombre: 'Pro Shop / Reservas', telefono: '2254-123460' },
+      ]
+    },
+    'polo': {
+      titulo: 'Cancha de Polo',
+      contactos: [
+        { nombre: 'Reservas', telefono: '2254-123461' },
+      ]
+    },
+    'deportivo': {
+      titulo: 'Centro Deportivo',
+      contactos: [
+        { nombre: 'Recepción', telefono: '2254-123462' },
+      ]
+    },
+    'restaurantes': {
+      titulo: 'Restaurantes y Club House',
+      contactos: [
+        { nombre: 'Club House', telefono: '2254-123463' },
+        { nombre: 'Reservas restaurante', telefono: '2254-123464' },
+      ]
+    },
+    'cuatriciclos': {
+      titulo: 'Cuatriciclos y UTVs',
+      contactos: [
+        { nombre: 'Alquiler', telefono: '2254-123465' },
+      ]
+    },
+    'cabalgatas': {
+      titulo: 'Cabalgatas',
+      contactos: [
+        { nombre: 'Reservas paseos', telefono: '2254-123466' },
+      ]
+    },
+    'proveeduria': {
+      titulo: 'Proveeduría',
+      contactos: [
+        { nombre: 'Proveeduría Costa', telefono: '2254-123467' },
+        { nombre: 'Carnicería', telefono: '2254-123468' },
+      ]
+    },
+  }
 
   useEffect(() => {
     if (isDemo) {
@@ -220,7 +283,7 @@ function LandingContent() {
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+            <button onClick={() => setServicioModal('seguridad')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <Shield size={24} className="text-costa-navy" />
               </div>
@@ -228,9 +291,9 @@ function LandingContent() {
                 <h3 className="font-semibold text-costa-navy">Seguridad 24 hs</h3>
                 <p className="text-sm text-costa-gris">Seguridad privada las 24 horas</p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+            <button onClick={() => setServicioModal('medicos')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <Stethoscope size={24} className="text-costa-navy" />
               </div>
@@ -238,9 +301,9 @@ function LandingContent() {
                 <h3 className="font-semibold text-costa-navy">Ambulancia y médicos</h3>
                 <p className="text-sm text-costa-gris">Atención médica las 24 hs</p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+            <button onClick={() => setServicioModal('golf')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <Flag size={24} className="text-costa-navy" />
               </div>
@@ -248,9 +311,9 @@ function LandingContent() {
                 <h3 className="font-semibold text-costa-navy">Campo de golf</h3>
                 <p className="text-sm text-costa-gris">27 hoyos de nivel internacional</p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+            <button onClick={() => setServicioModal('polo')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <Trophy size={24} className="text-costa-navy" />
               </div>
@@ -258,9 +321,9 @@ function LandingContent() {
                 <h3 className="font-semibold text-costa-navy">Cancha de polo</h3>
                 <p className="text-sm text-costa-gris">Para aficionados y profesionales</p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+            <button onClick={() => setServicioModal('deportivo')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <Dumbbell size={24} className="text-costa-navy" />
               </div>
@@ -268,9 +331,9 @@ function LandingContent() {
                 <h3 className="font-semibold text-costa-navy">Centro deportivo</h3>
                 <p className="text-sm text-costa-gris">Gimnasio, tenis y más</p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+            <button onClick={() => setServicioModal('restaurantes')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <UtensilsCrossed size={24} className="text-costa-navy" />
               </div>
@@ -278,9 +341,9 @@ function LandingContent() {
                 <h3 className="font-semibold text-costa-navy">Restaurantes</h3>
                 <p className="text-sm text-costa-gris">Gastronomía y club house</p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+            <button onClick={() => setServicioModal('cuatriciclos')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <Car size={24} className="text-costa-navy" />
               </div>
@@ -288,9 +351,9 @@ function LandingContent() {
                 <h3 className="font-semibold text-costa-navy">Cuatriciclos y UTVs</h3>
                 <p className="text-sm text-costa-gris">Alquiler para pasear</p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+            <button onClick={() => setServicioModal('cabalgatas')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <TreePine size={24} className="text-costa-navy" />
               </div>
@@ -298,9 +361,9 @@ function LandingContent() {
                 <h3 className="font-semibold text-costa-navy">Cabalgatas</h3>
                 <p className="text-sm text-costa-gris">Alquiler de caballos y paseos</p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm sm:col-span-2 lg:col-span-1">
+            <button onClick={() => setServicioModal('proveeduria')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer sm:col-span-2 lg:col-span-1">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <ShoppingCart size={24} className="text-costa-navy" />
               </div>
@@ -308,7 +371,7 @@ function LandingContent() {
                 <h3 className="font-semibold text-costa-navy">Proveeduría</h3>
                 <p className="text-sm text-costa-gris">Carnicería, almacén y más</p>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Mapa de ubicación */}
@@ -675,6 +738,47 @@ function LandingContent() {
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Modal de Servicios */}
+      {servicioModal && serviciosContacto[servicioModal] && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+          onClick={() => setServicioModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-costa-navy px-6 py-4 flex items-center justify-between">
+              <h3 className="text-white font-semibold text-lg">{serviciosContacto[servicioModal].titulo}</h3>
+              <button
+                onClick={() => setServicioModal(null)}
+                className="text-white/70 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-costa-gris mb-4">Teléfonos útiles:</p>
+              {serviciosContacto[servicioModal].contactos.map((contacto, idx) => (
+                <a
+                  key={idx}
+                  href={`tel:${contacto.telefono.replace(/-/g, '')}`}
+                  className="flex items-center justify-between p-4 bg-costa-beige/30 rounded-xl hover:bg-costa-beige/50 transition-colors"
+                >
+                  <div>
+                    <p className="font-medium text-costa-navy">{contacto.nombre}</p>
+                    <p className="text-sm text-costa-gris">{contacto.telefono}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-costa-olivo flex items-center justify-center">
+                    <Phone size={20} className="text-white" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
