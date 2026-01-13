@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
-import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar } from 'lucide-react'
+import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart } from 'lucide-react'
 import Link from 'next/link'
 
 interface Propiedad {
@@ -209,8 +209,92 @@ function LandingContent() {
         </div>
       </section>
 
+      {/* Descubrí Costa Esmeralda Section */}
+      <section className="py-16 bg-costa-beige/30">
+        <div className="max-w-6xl mx-auto px-4">
+          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
+            Descubrí Costa Esmeralda
+          </h2>
+          <p className="text-costa-gris text-center mb-12 max-w-3xl mx-auto">
+            No alquilás solo una casa. Vivís una experiencia en Costa Esmeralda: un barrio privado sobre el mar con seguridad las 24 horas, naturaleza, y una infraestructura pensada para disfrutar en cualquier época del año.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
+                <Shield size={24} className="text-costa-navy" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-costa-navy">Seguridad 24 hs</h3>
+                <p className="text-sm text-costa-gris">Seguridad privada y ambulancia</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
+                <Flag size={24} className="text-costa-navy" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-costa-navy">Campo de golf</h3>
+                <p className="text-sm text-costa-gris">27 hoyos de nivel internacional</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
+                <Trophy size={24} className="text-costa-navy" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-costa-navy">Cancha de polo</h3>
+                <p className="text-sm text-costa-gris">Para aficionados y profesionales</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
+                <Dumbbell size={24} className="text-costa-navy" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-costa-navy">Centro deportivo</h3>
+                <p className="text-sm text-costa-gris">Gimnasio, tenis y más</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
+                <UtensilsCrossed size={24} className="text-costa-navy" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-costa-navy">Restaurantes</h3>
+                <p className="text-sm text-costa-gris">Gastronomía y club house</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
+                <Car size={24} className="text-costa-navy" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-costa-navy">Cuatriciclos y UTVs</h3>
+                <p className="text-sm text-costa-gris">Alquiler para pasear</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm sm:col-span-2 lg:col-span-1 lg:col-start-2">
+              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
+                <ShoppingCart size={24} className="text-costa-navy" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-costa-navy">Proveeduría</h3>
+                <p className="text-sm text-costa-gris">Carnicería, almacén y más</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Properties Section */}
-      <section id="propiedades" className="py-16 bg-costa-beige/30">
+      <section id="propiedades" className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
             Nuestras propiedades
