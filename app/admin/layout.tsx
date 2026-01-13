@@ -17,6 +17,8 @@ function AdminLayoutContent({
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isRegistering, setIsRegistering] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isInactive, setIsInactive] = useState(false)
 
   // Form fields
   const [email, setEmail] = useState('')
@@ -41,7 +43,20 @@ function AdminLayoutContent({
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (session) {
-        setIsAuthenticated(true)
+        // Verificar si el usuario está activo
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('activo, is_admin')
+          .eq('id', session.user.id)
+          .single()
+
+        if (profile?.activo === false) {
+          setIsInactive(true)
+          setIsAuthenticated(false)
+        } else {
+          setIsAuthenticated(true)
+          setIsAdmin(profile?.is_admin || false)
+        }
       }
       setIsLoading(false)
     }
@@ -119,6 +134,36 @@ function AdminLayoutContent({
     return (
       <div className="min-h-screen flex items-center justify-center bg-costa-beige">
         <div className="text-costa-gris">Cargando...</div>
+      </div>
+    )
+  }
+
+  if (isInactive) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-costa-beige to-costa-beige-light">
+        <div className="w-full max-w-md p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-coral/10 flex items-center justify-center">
+              <Lock size={32} className="text-costa-coral" />
+            </div>
+            <h1 className="text-2xl font-semibold text-costa-navy mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>
+              Cuenta Desactivada
+            </h1>
+            <p className="text-costa-gris mb-6">
+              Tu cuenta ha sido desactivada. Contactá al administrador para más información.
+            </p>
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut()
+                setIsInactive(false)
+                router.push('/')
+              }}
+              className="w-full py-3 bg-costa-navy text-white rounded-lg font-medium hover:bg-costa-navy/90 transition-colors"
+            >
+              Volver al inicio
+            </button>
+          </div>
+        </div>
       </div>
     )
   }
@@ -277,7 +322,7 @@ function AdminLayoutContent({
       </div>
 
       <div className="flex min-h-screen max-w-full">
-        <Sidebar onLogout={handleLogout} isDemo={isDemo} />
+        <Sidebar onLogout={handleLogout} isDemo={isDemo} isAdmin={isAdmin} />
         <main className="flex-1 lg:ml-0 min-w-0">
           <div className="p-4 lg:p-8 pt-16 lg:pt-8 max-w-full">
             {children}

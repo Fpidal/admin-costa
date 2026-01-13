@@ -13,7 +13,8 @@ import {
   X,
   LogOut,
   Globe,
-  Eye
+  Eye,
+  Shield
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -29,14 +30,20 @@ const navigation = [
 interface SidebarProps {
   onLogout?: () => void
   isDemo?: boolean
+  isAdmin?: boolean
 }
 
-export default function Sidebar({ onLogout, isDemo = false }: SidebarProps) {
+export default function Sidebar({ onLogout, isDemo = false, isAdmin = false }: SidebarProps) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   // Agregar ?demo=true a los links si estamos en modo demo
   const getHref = (href: string) => isDemo ? `${href}?demo=true` : href
+
+  // Navegación con item de admin condicional
+  const fullNavigation = isAdmin
+    ? [...navigation, { name: 'Usuarios', href: '/admin/usuarios', icon: Shield }]
+    : navigation
 
   return (
     <>
@@ -121,7 +128,7 @@ export default function Sidebar({ onLogout, isDemo = false }: SidebarProps) {
 
           {/* Navigation */}
           <nav className="flex-1 px-3 py-6 space-y-1">
-            {navigation.map((item) => {
+            {fullNavigation.map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link
