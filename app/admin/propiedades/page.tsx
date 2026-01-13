@@ -311,6 +311,7 @@ function PropiedadesContent() {
       aire_acondicionado: form.aire_acondicionado,
       calefaccion: form.calefaccion,
       fogonero: form.fogonero,
+      wifi: form.wifi,
       metros_cubiertos: Number(form.metros_cubiertos),
       metros_semicubiertos: Number(form.metros_semicubiertos),
       metros_lote: Number(form.metros_lote),
