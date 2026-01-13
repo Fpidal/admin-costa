@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
-import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart } from 'lucide-react'
+import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine } from 'lucide-react'
 import Link from 'next/link'
 
 interface Propiedad {
@@ -280,7 +280,17 @@ function LandingContent() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm sm:col-span-2 lg:col-span-1 lg:col-start-2">
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
+                <TreePine size={24} className="text-costa-navy" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-costa-navy">Cabalgatas</h3>
+                <p className="text-sm text-costa-gris">Alquiler de caballos y paseos</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm sm:col-span-2 lg:col-span-1">
               <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
                 <ShoppingCart size={24} className="text-costa-navy" />
               </div>
