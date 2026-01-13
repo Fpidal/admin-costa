@@ -491,19 +491,7 @@ function LandingContent() {
                         </div>
                       )}
 
-                      {/* Status badge */}
-                      <div className="absolute top-3 right-3">
-                        {reservada ? (
-                          <span className="px-3 py-1 bg-costa-coral text-white text-xs font-medium rounded-full">
-                            Reservada
-                          </span>
-                        ) : (
-                          <span className="px-3 py-1 bg-costa-olivo text-white text-xs font-medium rounded-full">
-                            Disponible
-                          </span>
-                        )}
                       </div>
-                    </div>
 
                     {/* Content */}
                     <div className="p-5">
