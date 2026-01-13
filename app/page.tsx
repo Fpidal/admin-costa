@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
-import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine } from 'lucide-react'
+import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope } from 'lucide-react'
 import Link from 'next/link'
 
 interface Propiedad {
@@ -226,7 +226,17 @@ function LandingContent() {
               </div>
               <div>
                 <h3 className="font-semibold text-costa-navy">Seguridad 24 hs</h3>
-                <p className="text-sm text-costa-gris">Seguridad privada y ambulancia</p>
+                <p className="text-sm text-costa-gris">Seguridad privada las 24 horas</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm">
+              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
+                <Stethoscope size={24} className="text-costa-navy" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-costa-navy">Ambulancia y médicos</h3>
+                <p className="text-sm text-costa-gris">Atención médica las 24 hs</p>
               </div>
             </div>
 
