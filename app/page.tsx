@@ -506,9 +506,24 @@ function LandingContent() {
 
                     {/* Content */}
                     <div className="p-5">
-                      <h3 className="text-xl font-semibold text-costa-navy mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>
-                        {propiedad.nombre}
-                      </h3>
+                      <div className="flex items-start justify-between mb-2">
+                        <h3 className="text-xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
+                          {propiedad.nombre}
+                        </h3>
+                        {propiedad.estado === 'alquilada' ? (
+                          <span className="px-2 py-0.5 bg-costa-coral text-white text-xs rounded-full flex-shrink-0">
+                            Alquilada
+                          </span>
+                        ) : propiedad.estado === 'mantenimiento' ? (
+                          <span className="px-2 py-0.5 bg-yellow-500 text-white text-xs rounded-full flex-shrink-0">
+                            Mantenimiento
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 bg-costa-olivo text-white text-xs rounded-full flex-shrink-0">
+                            Disponible
+                          </span>
+                        )}
+                      </div>
 
                       {propiedad.direccion && (
                         <div className="flex items-start gap-2 text-costa-gris mb-3">
