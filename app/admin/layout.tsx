@@ -17,6 +17,7 @@ function AdminLayoutContent({
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isRegistering, setIsRegistering] = useState(false)
+  const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isInactive, setIsInactive] = useState(false)
 
@@ -124,6 +125,24 @@ function AdminLayoutContent({
     }
   }
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setMessage('')
+    setSubmitting(true)
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/admin`,
+    })
+
+    if (error) {
+      setError(error.message)
+    } else {
+      setMessage('Te enviamos un email con instrucciones para restablecer tu contraseña.')
+    }
+    setSubmitting(false)
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setIsAuthenticated(false)
@@ -179,14 +198,18 @@ function AdminLayoutContent({
                 Admin Costa
               </h1>
               <p className="text-sm text-costa-gris mt-2">
-                {isRegistering ? 'Crear cuenta nueva' : 'Acceso para propietarios'}
+                {isResettingPassword
+                  ? 'Restablecer contraseña'
+                  : isRegistering
+                    ? 'Crear cuenta nueva'
+                    : 'Acceso para propietarios'}
               </p>
             </div>
 
             {/* Form */}
-            <form onSubmit={isRegistering ? handleRegister : handleLogin} className="space-y-4">
+            <form onSubmit={isResettingPassword ? handleResetPassword : isRegistering ? handleRegister : handleLogin} className="space-y-4">
               {/* Nombre (solo en registro) */}
-              {isRegistering && (
+              {isRegistering && !isResettingPassword && (
                 <div>
                   <label className="block text-sm font-medium text-costa-navy mb-2">
                     Nombre
@@ -228,33 +251,35 @@ function AdminLayoutContent({
                 </div>
               </div>
 
-              {/* Contraseña */}
-              <div>
-                <label className="block text-sm font-medium text-costa-navy mb-2">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock size={18} className="text-costa-gris" />
+              {/* Contraseña (ocultar en reset) */}
+              {!isResettingPassword && (
+                <div>
+                  <label className="block text-sm font-medium text-costa-navy mb-2">
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Lock size={18} className="text-costa-gris" />
+                    </div>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-12 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                      placeholder={isRegistering ? 'Mínimo 6 caracteres' : 'Tu contraseña'}
+                      required
+                      minLength={6}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-costa-gris hover:text-costa-navy"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
-                    placeholder={isRegistering ? 'Mínimo 6 caracteres' : 'Tu contraseña'}
-                    required
-                    minLength={6}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-costa-gris hover:text-costa-navy"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
                 </div>
-              </div>
+              )}
 
               {/* Error message */}
               {error && (
@@ -274,25 +299,46 @@ function AdminLayoutContent({
               >
                 {submitting
                   ? 'Procesando...'
-                  : isRegistering
-                    ? 'Crear cuenta'
-                    : 'Ingresar'}
+                  : isResettingPassword
+                    ? 'Enviar email'
+                    : isRegistering
+                      ? 'Crear cuenta'
+                      : 'Ingresar'}
               </button>
             </form>
 
+            {/* Forgot password link (solo en login) */}
+            {!isRegistering && !isResettingPassword && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => {
+                    setIsResettingPassword(true)
+                    setError('')
+                    setMessage('')
+                  }}
+                  className="text-sm text-costa-gris hover:text-costa-navy hover:underline"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
+            )}
+
             {/* Toggle login/register */}
-            <div className="mt-6 text-center">
+            <div className="mt-4 text-center">
               <button
                 onClick={() => {
                   setIsRegistering(!isRegistering)
+                  setIsResettingPassword(false)
                   setError('')
                   setMessage('')
                 }}
                 className="text-sm text-costa-navy hover:underline"
               >
-                {isRegistering
-                  ? '¿Ya tenés cuenta? Iniciá sesión'
-                  : '¿No tenés cuenta? Registrate'}
+                {isResettingPassword
+                  ? 'Volver a iniciar sesión'
+                  : isRegistering
+                    ? '¿Ya tenés cuenta? Iniciá sesión'
+                    : '¿No tenés cuenta? Registrate'}
               </button>
             </div>
 
