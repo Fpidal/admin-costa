@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
-import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope, Phone } from 'lucide-react'
+import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope, Phone, ThermometerSun, Zap, WashingMachine, Ruler, LandPlot, Eye } from 'lucide-react'
 import Link from 'next/link'
 
 interface Propiedad {
@@ -27,10 +27,15 @@ interface Propiedad {
   parrilla: boolean
   wifi: boolean
   aire_acondicionado: boolean
+  calefaccion: boolean
   lavadero: boolean
   lavavajillas: boolean
+  grupo_electrogeno: boolean
+  fogonero: boolean
   metros_cubiertos: number
+  metros_semicubiertos: number
   metros_lote: number
+  descripcion: string
   imagenes: string[]
   imagen_url: string | null
 }
@@ -84,6 +89,8 @@ function LandingContent() {
   const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
   const [servicioModal, setServicioModal] = useState<string | null>(null)
   const [filtroBarrio, setFiltroBarrio] = useState('Todos')
+  const [propiedadModal, setPropiedadModal] = useState<Propiedad | null>(null)
+  const [modalImageIndex, setModalImageIndex] = useState(0)
 
   // Filtrar propiedades por barrio
   const propiedadesFiltradas = filtroBarrio === 'Todos'
@@ -623,8 +630,18 @@ function LandingContent() {
                         )}
                       </div>
 
-                      {/* WhatsApp Buttons */}
+                      {/* Buttons */}
                       <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setPropiedadModal(propiedad)
+                            setModalImageIndex(0)
+                          }}
+                          className="flex items-center justify-center gap-2 flex-1 py-3 bg-costa-beige hover:bg-costa-beige/80 text-costa-navy rounded-lg font-medium transition-colors"
+                        >
+                          <Eye size={18} />
+                          Ver más
+                        </button>
                         <a
                           href={`https://wa.me/${formatWhatsApp(propiedad.telefono_contacto)}?text=Hola! Me interesa la propiedad ${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}`}
                           target="_blank"
@@ -636,22 +653,6 @@ function LandingContent() {
                           </svg>
                           Consultar
                         </a>
-                        <button
-                          onClick={() => {
-                            const baseUrl = window.location.origin
-                            const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
-                            window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
-                          }}
-                          className="flex items-center justify-center gap-2 px-4 py-3 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg font-medium transition-colors"
-                          title="Compartir por WhatsApp"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                            <polyline points="16 6 12 2 8 6"/>
-                            <line x1="12" y1="2" x2="12" y2="15"/>
-                          </svg>
-                          Compartir
-                        </button>
                       </div>
                     </div>
                   </div>
@@ -829,6 +830,279 @@ function LandingContent() {
                   </div>
                 </a>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Detalle de Propiedad */}
+      {propiedadModal && (
+        <div
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 overflow-y-auto"
+          onClick={() => setPropiedadModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto my-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header con imagen */}
+            <div className="relative h-64 md:h-80 bg-costa-beige group">
+              {(() => {
+                const images = propiedadModal.imagenes?.length > 0 ? propiedadModal.imagenes : (propiedadModal.imagen_url ? [propiedadModal.imagen_url] : [])
+                return images.length > 0 ? (
+                  <>
+                    <img
+                      src={images[modalImageIndex]}
+                      alt={propiedadModal.nombre}
+                      className="w-full h-full object-cover"
+                    />
+                    {images.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => setModalImageIndex(modalImageIndex === 0 ? images.length - 1 : modalImageIndex - 1)}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+                        >
+                          <ChevronLeft size={24} />
+                        </button>
+                        <button
+                          onClick={() => setModalImageIndex(modalImageIndex === images.length - 1 ? 0 : modalImageIndex + 1)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+                        >
+                          <ChevronRight size={24} />
+                        </button>
+                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                          {images.map((_, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => setModalImageIndex(idx)}
+                              className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === modalImageIndex ? 'bg-white' : 'bg-white/50'}`}
+                            />
+                          ))}
+                        </div>
+                        <div className="absolute bottom-4 right-4 text-white/80 text-sm bg-black/40 px-2 py-1 rounded">
+                          {modalImageIndex + 1} / {images.length}
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-costa-gris">
+                    Sin imagen
+                  </div>
+                )
+              })()}
+
+              {/* Botón cerrar */}
+              <button
+                onClick={() => setPropiedadModal(null)}
+                className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+              >
+                <X size={24} />
+              </button>
+
+              {/* Badge estado */}
+              <div className="absolute top-4 left-4">
+                {propiedadModal.estado === 'alquilada' ? (
+                  <span className="px-3 py-1 bg-costa-coral text-white text-sm rounded-full font-medium">
+                    Alquilada
+                  </span>
+                ) : propiedadModal.estado === 'mantenimiento' ? (
+                  <span className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-full font-medium">
+                    Mantenimiento
+                  </span>
+                ) : (
+                  <span className="px-3 py-1 bg-costa-olivo text-white text-sm rounded-full font-medium">
+                    Disponible
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Contenido */}
+            <div className="p-6">
+              {/* Título y ubicación */}
+              <h2 className="text-2xl font-semibold text-costa-navy mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>
+                {propiedadModal.nombre}{propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}
+              </h2>
+
+              {propiedadModal.direccion && (
+                <div className="flex items-start gap-2 text-costa-gris mb-4">
+                  <MapPin size={18} className="text-costa-coral mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p>{propiedadModal.direccion}</p>
+                    {propiedadModal.referencia && (
+                      <p className="text-sm italic mt-0.5">{propiedadModal.referencia}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Info principal */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y border-costa-beige mb-4">
+                {propiedadModal.capacidad > 0 && (
+                  <div className="text-center">
+                    <div className="text-2xl mb-1">👤</div>
+                    <p className="text-lg font-semibold text-costa-navy">{propiedadModal.capacidad}</p>
+                    <p className="text-xs text-costa-gris">Personas</p>
+                  </div>
+                )}
+                {propiedadModal.habitaciones > 0 && (
+                  <div className="text-center">
+                    <Bed size={24} className="mx-auto mb-1 text-costa-navy" />
+                    <p className="text-lg font-semibold text-costa-navy">{propiedadModal.habitaciones}</p>
+                    <p className="text-xs text-costa-gris">Dormitorios</p>
+                  </div>
+                )}
+                {propiedadModal.banos > 0 && (
+                  <div className="text-center">
+                    <Bath size={24} className="mx-auto mb-1 text-costa-navy" />
+                    <p className="text-lg font-semibold text-costa-navy">{propiedadModal.banos}</p>
+                    <p className="text-xs text-costa-gris">Baños</p>
+                  </div>
+                )}
+                {propiedadModal.plantas > 1 && (
+                  <div className="text-center">
+                    <div className="text-2xl mb-1">🏠</div>
+                    <p className="text-lg font-semibold text-costa-navy">{propiedadModal.plantas}</p>
+                    <p className="text-xs text-costa-gris">Plantas</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Metros */}
+              {(propiedadModal.metros_cubiertos > 0 || propiedadModal.metros_lote > 0) && (
+                <div className="flex flex-wrap gap-4 mb-4">
+                  {propiedadModal.metros_cubiertos > 0 && (
+                    <div className="flex items-center gap-2 text-costa-gris">
+                      <Ruler size={18} />
+                      <span>{propiedadModal.metros_cubiertos} m² cubiertos</span>
+                    </div>
+                  )}
+                  {propiedadModal.metros_semicubiertos > 0 && (
+                    <div className="flex items-center gap-2 text-costa-gris">
+                      <Ruler size={18} />
+                      <span>{propiedadModal.metros_semicubiertos} m² semicubiertos</span>
+                    </div>
+                  )}
+                  {propiedadModal.metros_lote > 0 && (
+                    <div className="flex items-center gap-2 text-costa-gris">
+                      <LandPlot size={18} />
+                      <span>{propiedadModal.metros_lote} m² lote</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Amenities */}
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-costa-navy mb-3">Amenities</h3>
+                <div className="flex flex-wrap gap-2">
+                  {propiedadModal.pileta && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <Waves size={16} />
+                      {propiedadModal.pileta_climatizada ? 'Pileta climatizada' : 'Pileta'}
+                    </span>
+                  )}
+                  {propiedadModal.aire_acondicionado && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <Snowflake size={16} />
+                      Aire acondicionado
+                    </span>
+                  )}
+                  {propiedadModal.calefaccion && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <ThermometerSun size={16} />
+                      Calefacción
+                    </span>
+                  )}
+                  {propiedadModal.parrilla && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <Flame size={16} />
+                      Parrilla
+                    </span>
+                  )}
+                  {propiedadModal.fogonero && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <Flame size={16} />
+                      Fogonero
+                    </span>
+                  )}
+                  {propiedadModal.wifi && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <Wifi size={16} />
+                      WiFi
+                    </span>
+                  )}
+                  {propiedadModal.grupo_electrogeno && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <Zap size={16} />
+                      Grupo electrógeno
+                    </span>
+                  )}
+                  {propiedadModal.lavadero && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <WashingMachine size={16} />
+                      Lavadero
+                    </span>
+                  )}
+                  {propiedadModal.lavavajillas && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <UtensilsCrossed size={16} />
+                      Lavavajillas
+                    </span>
+                  )}
+                  {propiedadModal.cochera && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <Car size={16} />
+                      Cochera
+                    </span>
+                  )}
+                  {propiedadModal.toilette && (
+                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
+                      <Bath size={16} />
+                      Toilette
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Descripción */}
+              {propiedadModal.descripcion && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-costa-navy mb-2">Descripción</h3>
+                  <p className="text-costa-gris whitespace-pre-line">{propiedadModal.descripcion}</p>
+                </div>
+              )}
+
+              {/* Botones de acción */}
+              <div className="flex gap-3">
+                <a
+                  href={`https://wa.me/${formatWhatsApp(propiedadModal.telefono_contacto)}?text=Hola! Me interesa la propiedad ${propiedadModal.nombre}${propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 flex-1 py-3 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg font-medium transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                  Consultar disponibilidad
+                </a>
+                <button
+                  onClick={() => {
+                    const baseUrl = window.location.origin
+                    const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} personas | 🛏️ ${propiedadModal.habitaciones} hab | 🚿 ${propiedadModal.banos} baños\n\n${baseUrl}/#propiedades`
+                    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
+                  }}
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg font-medium transition-colors"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                    <polyline points="16 6 12 2 8 6"/>
+                    <line x1="12" y1="2" x2="12" y2="15"/>
+                  </svg>
+                  Compartir
+                </button>
+              </div>
             </div>
           </div>
         </div>
