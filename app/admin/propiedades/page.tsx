@@ -159,12 +159,14 @@ function PropiedadesContent() {
       return
     }
     fetchData()
-  }, [isDemo])
+  }, [isDemo, userId])
 
   async function fetchData() {
+    if (!userId) return
+
     const [resPropiedades, resReservas] = await Promise.all([
-      supabase.from('propiedades').select('*').order('created_at', { ascending: false }),
-      supabase.from('reservas').select('id, propiedad_id, fecha_inicio, fecha_fin, estado').in('estado', ['confirmada', 'pendiente'])
+      supabase.from('propiedades').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+      supabase.from('reservas').select('id, propiedad_id, fecha_inicio, fecha_fin, estado').eq('user_id', userId).in('estado', ['confirmada', 'pendiente'])
     ])
 
     if (resPropiedades.data) setPropiedades(resPropiedades.data)

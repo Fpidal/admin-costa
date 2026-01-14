@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
 import { Building2, CalendarDays, Users, DollarSign, AlertCircle, Clock, CheckCircle, Receipt, Eye } from 'lucide-react'
@@ -61,6 +62,7 @@ const formatFecha = (fecha: string) => {
 function DashboardContent() {
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+  const { userId } = useAuth()
 
   const [inquilinosCount, setInquilinosCount] = useState(0)
   const [reservasPendientes, setReservasPendientes] = useState(0)
@@ -124,6 +126,8 @@ function DashboardContent() {
     }
 
     async function fetchData() {
+      if (!userId) return
+
       try {
         const hoy = new Date().toISOString().split('T')[0]
         const inicioMes = new Date()
@@ -134,6 +138,7 @@ function DashboardContent() {
         const { data: reservasActivas } = await supabase
           .from('reservas')
           .select('cantidad_personas')
+          .eq('user_id', userId)
           .in('estado', ['confirmada', 'pendiente'])
         const totalInquilinos = reservasActivas?.reduce((acc, r) => acc + (r.cantidad_personas || 1), 0) || 0
         setInquilinosCount(totalInquilinos)
@@ -142,6 +147,7 @@ function DashboardContent() {
         const { count: resPendientes } = await supabase
           .from('reservas')
           .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
           .eq('estado', 'pendiente')
         setReservasPendientes(resPendientes || 0)
 
@@ -149,6 +155,7 @@ function DashboardContent() {
         const { data: gastosPagados } = await supabase
           .from('gastos')
           .select('monto')
+          .eq('user_id', userId)
           .eq('pagado', true)
         const totalGastosRealizados = gastosPagados?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         setGastosRealizados(totalGastosRealizados)
@@ -157,6 +164,7 @@ function DashboardContent() {
         const { data: gastosPend } = await supabase
           .from('gastos')
           .select('monto')
+          .eq('user_id', userId)
           .eq('pagado', false)
         const totalGastosPendientes = gastosPend?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         setGastosPendientesTotal(totalGastosPendientes)
@@ -165,6 +173,7 @@ function DashboardContent() {
         const { data: cobrosAlquiler } = await supabase
           .from('cobros')
           .select('monto, moneda')
+          .eq('user_id', userId)
           .eq('aplicar_a', 'alquiler')
           .gte('fecha', inicioMesStr)
         const totalIngresosUSD = cobrosAlquiler?.filter(c => c.moneda === 'USD').reduce((acc, c) => acc + (c.monto || 0), 0) || 0
@@ -174,6 +183,7 @@ function DashboardContent() {
         const { data: expensas } = await supabase
           .from('gastos')
           .select('monto')
+          .eq('user_id', userId)
           .eq('tipo', 'expensa')
           .eq('pagado', false)
         const totalExpensas = expensas?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
@@ -183,6 +193,7 @@ function DashboardContent() {
         const { data: proxReservas } = await supabase
           .from('reservas')
           .select('*, propiedades(nombre), inquilinos(nombre)')
+          .eq('user_id', userId)
           .gte('fecha_inicio', hoy)
           .in('estado', ['confirmada', 'pendiente'])
           .order('fecha_inicio', { ascending: true })
@@ -193,6 +204,7 @@ function DashboardContent() {
         const { data: gastosList } = await supabase
           .from('gastos')
           .select('*, propiedades(nombre)')
+          .eq('user_id', userId)
           .eq('pagado', false)
           .order('fecha_vencimiento', { ascending: true })
           .limit(5)
@@ -214,6 +226,7 @@ function DashboardContent() {
         const { data: gastosVencidos } = await supabase
           .from('gastos')
           .select('concepto, fecha_vencimiento')
+          .eq('user_id', userId)
           .eq('pagado', false)
           .lt('fecha_vencimiento', hoy)
 
@@ -234,7 +247,7 @@ function DashboardContent() {
     }
 
     fetchData()
-  }, [isDemo])
+  }, [isDemo, userId])
 
   const stats = [
     { name: 'Inquilinos', value: inquilinosCount.toString(), icon: Users, color: 'text-costa-navy', bg: 'bg-costa-beige' },

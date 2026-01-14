@@ -169,13 +169,15 @@ function AdministracionContent() {
       return
     }
     fetchData()
-  }, [isDemo])
+  }, [isDemo, userId])
 
   async function fetchData() {
+    if (!userId) return
+
     const [resGastos, resPropiedades, resProveedores] = await Promise.all([
-      supabase.from('gastos').select('*, propiedades(id, nombre)').order('fecha', { ascending: false }),
-      supabase.from('propiedades').select('id, nombre').order('nombre'),
-      supabase.from('proveedores_servicios').select('*').order('nombre')
+      supabase.from('gastos').select('*, propiedades(id, nombre)').eq('user_id', userId).order('fecha', { ascending: false }),
+      supabase.from('propiedades').select('id, nombre').eq('user_id', userId).order('nombre'),
+      supabase.from('proveedores_servicios').select('*').eq('user_id', userId).order('nombre')
     ])
 
     if (resGastos.data) setGastos(resGastos.data)

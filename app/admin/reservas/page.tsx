@@ -189,14 +189,16 @@ function ReservasContent() {
       return
     }
     fetchData()
-  }, [isDemo])
+  }, [isDemo, userId])
 
   async function fetchData() {
+    if (!userId) return
+
     const [resReservas, resPropiedades, resInquilinos, resCobros] = await Promise.all([
-      supabase.from('reservas').select('*, propiedades(id, nombre), inquilinos(id, nombre, documento, telefono, email, acompanantes)').order('fecha_inicio', { ascending: false }),
-      supabase.from('propiedades').select('id, nombre').order('nombre'),
-      supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').order('nombre'),
-      supabase.from('cobros').select('*, reservas(id, fecha_inicio, fecha_fin, propiedades(nombre), inquilinos(nombre))').order('fecha', { ascending: false })
+      supabase.from('reservas').select('*, propiedades(id, nombre), inquilinos(id, nombre, documento, telefono, email, acompanantes)').eq('user_id', userId).order('fecha_inicio', { ascending: false }),
+      supabase.from('propiedades').select('id, nombre').eq('user_id', userId).order('nombre'),
+      supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').eq('user_id', userId).order('nombre'),
+      supabase.from('cobros').select('*, reservas(id, fecha_inicio, fecha_fin, propiedades(nombre), inquilinos(nombre))').eq('user_id', userId).order('fecha', { ascending: false })
     ])
 
     if (resReservas.data) setReservas(resReservas.data)

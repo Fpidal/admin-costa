@@ -127,13 +127,16 @@ function InquilinosContent() {
       return
     }
     fetchData()
-  }, [isDemo])
+  }, [isDemo, userId])
 
   async function fetchData() {
+    if (!userId) return
+
     // Primero traemos los inquilinos
     const { data: inquilinosData, error: inquilinosError } = await supabase
       .from('inquilinos')
       .select('*')
+      .eq('user_id', userId)
       .order('nombre')
 
     if (inquilinosError) {
@@ -147,6 +150,7 @@ function InquilinosContent() {
     const { data: reservasData } = await supabase
       .from('reservas')
       .select('id, inquilino_id, check_in, check_out, monto, precio_noche, estado, propiedad_id, propiedades(nombre)')
+      .eq('user_id', userId)
 
     // Combinamos los datos
     const inquilinosConReservas = (inquilinosData || []).map(inquilino => ({
