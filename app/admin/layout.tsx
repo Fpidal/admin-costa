@@ -18,12 +18,14 @@ function AdminLayoutContent({
   const [isLoading, setIsLoading] = useState(true)
   const [isRegistering, setIsRegistering] = useState(false)
   const [isResettingPassword, setIsResettingPassword] = useState(false)
+  const [isSettingNewPassword, setIsSettingNewPassword] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [isInactive, setIsInactive] = useState(false)
 
   // Form fields
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [nombre, setNombre] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
@@ -66,15 +68,20 @@ function AdminLayoutContent({
 
     // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
+      if (event === 'PASSWORD_RECOVERY') {
+        // Usuario viene del link de recuperación - forzar cambio de contraseña
+        setIsSettingNewPassword(true)
+        setIsAuthenticated(false)
+        setIsLoading(false)
+      } else if (session && !isSettingNewPassword) {
         setIsAuthenticated(true)
-      } else {
+      } else if (!session) {
         setIsAuthenticated(false)
       }
     })
 
     return () => subscription.unsubscribe()
-  }, [isDemo])
+  }, [isDemo, isSettingNewPassword])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -143,6 +150,39 @@ function AdminLayoutContent({
     setSubmitting(false)
   }
 
+  const handleSetNewPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setMessage('')
+
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden')
+      return
+    }
+
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres')
+      return
+    }
+
+    setSubmitting(true)
+
+    const { error } = await supabase.auth.updateUser({ password })
+
+    if (error) {
+      setError(error.message)
+      setSubmitting(false)
+    } else {
+      setMessage('¡Contraseña actualizada correctamente!')
+      setPassword('')
+      setConfirmPassword('')
+      setIsSettingNewPassword(false)
+      setSubmitting(false)
+      // Redirigir al admin
+      router.push('/admin/propiedades')
+    }
+  }
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     setIsAuthenticated(false)
@@ -181,6 +221,92 @@ function AdminLayoutContent({
             >
               Volver al inicio
             </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Pantalla para establecer nueva contraseña (después de recovery)
+  if (isSettingNewPassword) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-costa-beige to-costa-beige-light">
+        <div className="w-full max-w-md p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="text-center mb-8">
+              <h1 className="text-3xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
+                Admin Costa
+              </h1>
+              <p className="text-sm text-costa-gris mt-2">
+                Crear nueva contraseña
+              </p>
+            </div>
+
+            <form onSubmit={handleSetNewPassword} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-costa-navy mb-2">
+                  Nueva contraseña
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock size={18} className="text-costa-gris" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full pl-10 pr-12 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                    placeholder="Mínimo 6 caracteres"
+                    required
+                    minLength={6}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-costa-gris hover:text-costa-navy"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-costa-navy mb-2">
+                  Confirmar contraseña
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Lock size={18} className="text-costa-gris" />
+                  </div>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                    placeholder="Repetir contraseña"
+                    required
+                    minLength={6}
+                  />
+                </div>
+              </div>
+
+              {error && (
+                <p className="text-sm text-costa-coral bg-costa-coral/10 p-3 rounded-lg">{error}</p>
+              )}
+
+              {message && (
+                <p className="text-sm text-green-600 bg-green-50 p-3 rounded-lg">{message}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full py-3 bg-costa-navy text-white rounded-lg font-medium hover:bg-costa-navy/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {submitting ? 'Guardando...' : 'Guardar nueva contraseña'}
+              </button>
+            </form>
           </div>
         </div>
       </div>
