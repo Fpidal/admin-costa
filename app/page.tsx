@@ -637,9 +637,9 @@ function LandingContent() {
                             setPropiedadModal(propiedad)
                             setModalImageIndex(0)
                           }}
-                          className="flex items-center justify-center gap-2 flex-1 py-3 bg-costa-beige hover:bg-costa-beige/80 text-costa-navy rounded-lg font-medium transition-colors"
+                          className="flex items-center justify-center gap-1.5 px-3 py-3 bg-costa-beige hover:bg-costa-beige/80 text-costa-navy rounded-lg text-sm transition-colors"
                         >
-                          <Eye size={18} />
+                          <Eye size={16} />
                           Ver más
                         </button>
                         <a
@@ -653,6 +653,21 @@ function LandingContent() {
                           </svg>
                           Consultar
                         </a>
+                        <button
+                          onClick={() => {
+                            const baseUrl = window.location.origin
+                            const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
+                            window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
+                          }}
+                          className="flex items-center justify-center p-3 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg transition-colors"
+                          title="Compartir por WhatsApp"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
+                            <polyline points="16 6 12 2 8 6"/>
+                            <line x1="12" y1="2" x2="12" y2="15"/>
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   </div>
