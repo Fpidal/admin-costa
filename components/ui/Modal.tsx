@@ -28,7 +28,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   const sizeClasses = {
     sm: 'sm:max-w-md',
     md: 'sm:max-w-lg',
-    lg: 'sm:max-w-[850px]',
+    lg: 'sm:max-w-2xl',
     xl: 'sm:max-w-4xl',
   }
 
