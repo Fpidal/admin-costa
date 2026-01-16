@@ -10,10 +10,13 @@ import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, Chevr
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
+import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 
 interface Propiedad {
   id: number
   nombre: string
+  direccion: string | null
+  lote: string | null
 }
 
 interface Inquilino {
@@ -178,6 +181,8 @@ function ReservasContent() {
   const [editingAcompIdx, setEditingAcompIdx] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [expandedReservas, setExpandedReservas] = useState<Set<string>>(new Set())
+  const [precioSugerido, setPrecioSugerido] = useState<{ precio: number; total: number; noches: number } | null>(null)
+  const [cargandoPrecio, setCargandoPrecio] = useState(false)
 
   useEffect(() => {
     if (isDemo) {
@@ -195,18 +200,67 @@ function ReservasContent() {
     if (!userId) return
 
     const [resReservas, resPropiedades, resInquilinos, resCobros] = await Promise.all([
-      supabase.from('reservas').select('*, propiedades(id, nombre), inquilinos(id, nombre, documento, telefono, email, acompanantes)').eq('user_id', userId).order('fecha_inicio', { ascending: false }),
-      supabase.from('propiedades').select('id, nombre').eq('user_id', userId).order('nombre'),
+      supabase.from('reservas').select('*, propiedades(id, nombre, lote, direccion), inquilinos(id, nombre, documento, telefono, email, acompanantes)').eq('user_id', userId).order('fecha_inicio', { ascending: false }),
+      supabase.from('propiedades').select('id, nombre, direccion, lote').eq('user_id', userId).order('nombre'),
       supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').eq('user_id', userId).order('nombre'),
       supabase.from('cobros').select('*, reservas(id, fecha_inicio, fecha_fin, propiedades(nombre), inquilinos(nombre))').eq('user_id', userId).order('fecha', { ascending: false })
     ])
 
     if (resReservas.data) setReservas(resReservas.data)
-    if (resPropiedades.data) setPropiedades(resPropiedades.data)
+    if (resPropiedades.data) {
+      console.log('Propiedades cargadas:', resPropiedades.data)
+      setPropiedades(resPropiedades.data)
+    }
     if (resInquilinos.data) setInquilinos(resInquilinos.data)
     if (resCobros.data) setCobros(resCobros.data)
     setLoading(false)
   }
+
+  // Obtener precio sugerido del calendario cuando cambia la propiedad o las fechas
+  useEffect(() => {
+    async function fetchPrecioSugerido() {
+      if (!form.propiedad_id || !form.check_in || !form.check_out || isDemo) {
+        setPrecioSugerido(null)
+        return
+      }
+
+      setCargandoPrecio(true)
+      try {
+        const { data: precios } = await supabase
+          .from('precios_calendario')
+          .select('*')
+          .eq('propiedad_id', form.propiedad_id)
+          .gte('fecha_fin', form.check_in)
+          .lte('fecha_inicio', form.check_out)
+
+        if (precios && precios.length > 0) {
+          const resultado = calcularPrecioReserva(
+            new Date(form.check_in),
+            new Date(form.check_out),
+            precios as PrecioCalendario[]
+          )
+
+          if (resultado.precioPromedio > 0) {
+            setPrecioSugerido({
+              precio: resultado.precioPromedio,
+              total: resultado.total,
+              noches: resultado.noches
+            })
+          } else {
+            setPrecioSugerido(null)
+          }
+        } else {
+          setPrecioSugerido(null)
+        }
+      } catch (error) {
+        console.error('Error al obtener precio sugerido:', error)
+        setPrecioSugerido(null)
+      }
+      setCargandoPrecio(false)
+    }
+
+    fetchPrecioSugerido()
+  }, [form.propiedad_id, form.check_in, form.check_out, isDemo])
 
   function openModal(reserva?: Reserva) {
     if (reserva) {
@@ -249,6 +303,7 @@ function ReservasContent() {
     setAcompanantesExpanded(false)
     setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
     setEditingAcompIdx(null)
+    setPrecioSugerido(null)
   }
 
   function confirmarAcompanante() {
@@ -938,7 +993,7 @@ function ReservasContent() {
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between mb-2">
                     <div>
-                      <p className="font-medium text-costa-navy">{reserva.propiedades?.nombre || '-'}</p>
+                      <p className="font-medium text-costa-navy">{reserva.propiedades?.nombre || '-'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}</p>
                       <p className="text-sm text-costa-gris">{reserva.inquilinos?.nombre || '-'}</p>
                     </div>
                     <Badge variant={estadoVariant[reserva.estado as keyof typeof estadoVariant] || 'default'}>
@@ -1028,7 +1083,7 @@ function ReservasContent() {
                     return (
                       <tr key={reserva.id} className="hover:bg-costa-beige/30">
                         <td className="px-3 py-2">
-                          <span className="font-medium text-costa-navy text-sm">{reserva.propiedades?.nombre || '-'}</span>
+                          <span className="font-medium text-costa-navy text-sm">{reserva.propiedades?.nombre || '-'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}</span>
                         </td>
                         <td className="px-3 py-2">
                           <span className="text-costa-navy text-sm">{reserva.inquilinos?.nombre || '-'}</span>
@@ -1192,7 +1247,7 @@ function ReservasContent() {
               label="Propiedad"
               value={form.propiedad_id}
               onChange={(e) => setForm({ ...form, propiedad_id: e.target.value })}
-              options={propiedades.map(p => ({ value: p.id.toString(), label: p.nombre }))}
+              options={propiedades.map(p => ({ value: p.id.toString(), label: `${p.nombre}${p.lote ? ` - Lote ${p.lote}` : ''}${p.direccion ? ` (${p.direccion})` : ''}` }))}
               required
             />
             <Select
@@ -1243,6 +1298,21 @@ function ReservasContent() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Precio por noche</label>
               <InputNumber value={form.precio_noche} onChange={(val) => setForm({ ...form, precio_noche: val })} />
+              {/* Precio sugerido del calendario */}
+              {cargandoPrecio && (
+                <p className="text-xs text-gray-400 mt-1">Buscando precio...</p>
+              )}
+              {precioSugerido && !cargandoPrecio && (
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, precio_noche: precioSugerido.precio })}
+                  className="text-xs text-costa-olivo hover:text-costa-navy mt-1 flex items-center gap-1"
+                >
+                  <Calendar size={12} />
+                  Sugerido: {form.moneda === 'USD' ? 'U$D' : '$'} {precioSugerido.precio.toLocaleString('es-AR')}
+                  <span className="text-gray-400">(click para aplicar)</span>
+                </button>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Depósito USD</label>

@@ -16,7 +16,7 @@ interface Reserva {
   monto: number
   precio_noche: number
   estado: string
-  propiedades?: { nombre: string }
+  propiedades?: { nombre: string; lote: string | null; direccion: string | null }
 }
 
 interface Acompanante {
@@ -149,7 +149,7 @@ function InquilinosContent() {
     // Luego traemos las reservas por separado
     const { data: reservasData } = await supabase
       .from('reservas')
-      .select('id, inquilino_id, check_in, check_out, monto, precio_noche, estado, propiedad_id, propiedades(nombre)')
+      .select('id, inquilino_id, check_in, check_out, monto, precio_noche, estado, propiedad_id, propiedades(nombre, lote, direccion)')
       .eq('user_id', userId)
 
     // Combinamos los datos
@@ -592,7 +592,7 @@ function InquilinosContent() {
             {selectedInquilino.reservas.map((reserva) => (
               <div key={reserva.id} className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:bg-gray-50">
                 <div>
-                  <p className="font-medium text-gray-900">{reserva.propiedades?.nombre || 'Propiedad'}</p>
+                  <p className="font-medium text-gray-900">{reserva.propiedades?.nombre || 'Propiedad'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}{reserva.propiedades?.direccion ? ` (${reserva.propiedades.direccion})` : ''}</p>
                   <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
                     <Calendar size={14} />
                     <span>{formatFecha(reserva.check_in)} → {formatFecha(reserva.check_out)}</span>

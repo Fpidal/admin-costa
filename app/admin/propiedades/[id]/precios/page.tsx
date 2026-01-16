@@ -16,6 +16,13 @@ interface Propiedad {
   lote: string
 }
 
+interface Reserva {
+  id: number
+  fecha_inicio: string
+  fecha_fin: string
+  inquilinos?: { nombre: string }
+}
+
 export default function PreciosPage() {
   const params = useParams()
   const router = useRouter()
@@ -24,6 +31,7 @@ export default function PreciosPage() {
 
   const [propiedad, setPropiedad] = useState<Propiedad | null>(null)
   const [precios, setPrecios] = useState<PrecioCalendario[]>([])
+  const [reservas, setReservas] = useState<Reserva[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [anio, setAnio] = useState(new Date().getFullYear())
@@ -51,7 +59,7 @@ export default function PreciosPage() {
   }, [userId, propiedadId, anio])
 
   async function fetchData() {
-    const [resProp, resPrecios] = await Promise.all([
+    const [resProp, resPrecios, resReservas] = await Promise.all([
       supabase.from('propiedades').select('id, nombre, lote').eq('id', propiedadId).single(),
       supabase
         .from('precios_calendario')
@@ -60,10 +68,19 @@ export default function PreciosPage() {
         .gte('fecha_inicio', `${anio}-01-01`)
         .lte('fecha_fin', `${anio}-12-31`)
         .order('fecha_inicio'),
+      supabase
+        .from('reservas')
+        .select('id, fecha_inicio, fecha_fin, inquilinos(nombre)')
+        .eq('propiedad_id', propiedadId)
+        .neq('estado', 'cancelada')
+        .gte('fecha_fin', `${anio}-01-01`)
+        .lte('fecha_inicio', `${anio}-12-31`)
+        .order('fecha_inicio'),
     ])
 
     if (resProp.data) setPropiedad(resProp.data)
     if (resPrecios.data) setPrecios(resPrecios.data)
+    if (resReservas.data) setReservas(resReservas.data)
     setLoading(false)
   }
 
@@ -309,6 +326,7 @@ export default function PreciosPage() {
         <CardContent className="py-4">
           <CalendarioPrecios
             precios={precios}
+            reservas={reservas}
             anio={anio}
             onSelectRange={handleSelectRange}
             onChangeAnio={setAnio}

@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope, Phone, ThermometerSun, Zap, WashingMachine, Ruler, LandPlot, Eye } from 'lucide-react'
 import Link from 'next/link'
+import { SelectorFechasPublico } from '@/components/SelectorFechasPublico'
+import { calcularPrecioReserva, formatPrecio, PrecioCalendario } from '@/lib/calcularPrecio'
 
 interface Propiedad {
   id: number
@@ -91,6 +93,12 @@ function LandingContent() {
   const [filtroBarrio, setFiltroBarrio] = useState('Todos')
   const [propiedadModal, setPropiedadModal] = useState<Propiedad | null>(null)
   const [modalImageIndex, setModalImageIndex] = useState(0)
+
+  // Estado para búsqueda de fechas y precios
+  const [fechasBusqueda, setFechasBusqueda] = useState<{ checkIn: string; checkOut: string } | null>(null)
+  const [preciosCalendario, setPreciosCalendario] = useState<Record<number, PrecioCalendario[]>>({})
+  const [preciosCalculados, setPreciosCalculados] = useState<Record<number, { total: number; noches: number; promedio: number; disponible: boolean }>>({})
+  const [loadingPrecios, setLoadingPrecios] = useState(false)
 
   // Filtrar propiedades por barrio
   const propiedadesFiltradas = filtroBarrio === 'Todos'
@@ -199,6 +207,92 @@ function LandingContent() {
       document.body.style.overflow = ''
     }
   }, [lightbox])
+
+  // Buscar precios cuando se seleccionan fechas
+  useEffect(() => {
+    if (!fechasBusqueda || propiedades.length === 0) return
+    if (isDemo) {
+      // En modo demo, generar precios ficticios
+      const calculados: Record<number, { total: number; noches: number; promedio: number; disponible: boolean }> = {}
+      const checkIn = new Date(fechasBusqueda.checkIn)
+      const checkOut = new Date(fechasBusqueda.checkOut)
+      const noches = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
+
+      propiedades.forEach(p => {
+        // Precio demo aleatorio entre 150 y 300 USD
+        const precioNoche = 150 + Math.floor(Math.random() * 150)
+        calculados[p.id] = {
+          total: precioNoche * noches,
+          noches,
+          promedio: precioNoche,
+          disponible: Math.random() > 0.2 // 80% disponible
+        }
+      })
+      setPreciosCalculados(calculados)
+      return
+    }
+
+    async function fetchPreciosYCalcular() {
+      setLoadingPrecios(true)
+      try {
+        // Obtener precios de todas las propiedades
+        const { data: precios } = await supabase
+          .from('precios_calendario')
+          .select('*')
+          .gte('fecha_fin', fechasBusqueda!.checkIn)
+          .lte('fecha_inicio', fechasBusqueda!.checkOut)
+
+        if (precios) {
+          // Agrupar precios por propiedad
+          const preciosPorPropiedad: Record<number, PrecioCalendario[]> = {}
+          precios.forEach(p => {
+            if (!preciosPorPropiedad[p.propiedad_id]) {
+              preciosPorPropiedad[p.propiedad_id] = []
+            }
+            preciosPorPropiedad[p.propiedad_id].push(p)
+          })
+          setPreciosCalendario(preciosPorPropiedad)
+
+          // Calcular precio total para cada propiedad
+          const calculados: Record<number, { total: number; noches: number; promedio: number; disponible: boolean }> = {}
+
+          propiedades.forEach(prop => {
+            const preciosProp = preciosPorPropiedad[prop.id] || []
+            if (preciosProp.length > 0) {
+              const resultado = calcularPrecioReserva(
+                new Date(fechasBusqueda!.checkIn),
+                new Date(fechasBusqueda!.checkOut),
+                preciosProp
+              )
+              calculados[prop.id] = {
+                total: resultado.total,
+                noches: resultado.noches,
+                promedio: resultado.precioPromedio,
+                disponible: resultado.disponible
+              }
+            }
+          })
+          setPreciosCalculados(calculados)
+        }
+      } catch (error) {
+        console.error('Error al cargar precios:', error)
+      }
+      setLoadingPrecios(false)
+    }
+
+    fetchPreciosYCalcular()
+  }, [fechasBusqueda, propiedades, isDemo])
+
+  // Handlers para el selector de fechas
+  const handleBuscarFechas = (checkIn: string, checkOut: string) => {
+    setFechasBusqueda({ checkIn, checkOut })
+  }
+
+  const handleLimpiarFechas = () => {
+    setFechasBusqueda(null)
+    setPreciosCalculados({})
+    setPreciosCalendario({})
+  }
 
   // Check if property is currently reserved
   const estaReservada = (propiedadId: number) => {
@@ -442,6 +536,18 @@ function LandingContent() {
             Encontrá el lugar ideal para tu estadía en Costa Esmeralda
           </p>
 
+          {/* Selector de fechas */}
+          <div className="max-w-2xl mx-auto mb-8">
+            <SelectorFechasPublico
+              onBuscar={handleBuscarFechas}
+              onLimpiar={handleLimpiarFechas}
+              fechasActivas={fechasBusqueda}
+            />
+            {loadingPrecios && (
+              <p className="text-center text-costa-gris text-sm mt-2">Calculando precios...</p>
+            )}
+          </div>
+
           {/* Filtro por barrio */}
           <div className="flex justify-center mb-8">
             <div className="flex items-center gap-3 bg-costa-beige/50 px-4 py-2 rounded-full">
@@ -629,6 +735,27 @@ function LandingContent() {
                           </span>
                         )}
                       </div>
+
+                      {/* Precio calculado */}
+                      {fechasBusqueda && preciosCalculados[propiedad.id] && (
+                        <div className={`mb-4 p-3 rounded-lg ${preciosCalculados[propiedad.id].disponible ? 'bg-costa-olivo/10' : 'bg-red-50'}`}>
+                          {preciosCalculados[propiedad.id].disponible ? (
+                            <>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-lg font-bold text-costa-navy">
+                                  {formatPrecio(preciosCalculados[propiedad.id].total)}
+                                </span>
+                                <span className="text-xs text-costa-gris">total</span>
+                              </div>
+                              <p className="text-xs text-costa-gris">
+                                {preciosCalculados[propiedad.id].noches} noche{preciosCalculados[propiedad.id].noches > 1 ? 's' : ''} × {formatPrecio(preciosCalculados[propiedad.id].promedio)}/noche
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-sm text-red-600 font-medium">No disponible en estas fechas</p>
+                          )}
+                        </div>
+                      )}
 
                       {/* Buttons */}
                       <div className="flex gap-2">

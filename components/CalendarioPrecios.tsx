@@ -4,8 +4,16 @@ import { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { PrecioCalendario, TEMPORADAS_PRESETS } from '@/lib/calcularPrecio'
 
+interface Reserva {
+  id: number
+  fecha_inicio: string
+  fecha_fin: string
+  inquilinos?: { nombre: string }
+}
+
 interface CalendarioPreciosProps {
   precios: PrecioCalendario[]
+  reservas?: Reserva[]
   anio: number
   onSelectRange: (inicio: Date, fin: Date) => void
   onChangeAnio: (anio: number) => void
@@ -20,6 +28,7 @@ const DIAS_SEMANA = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
 export function CalendarioPrecios({
   precios,
+  reservas = [],
   anio,
   onSelectRange,
   onChangeAnio,
@@ -34,6 +43,14 @@ export function CalendarioPrecios({
     const fechaStr = fecha.toISOString().split('T')[0]
     return precios.find(
       p => fechaStr >= p.fecha_inicio && fechaStr <= p.fecha_fin
+    ) || null
+  }
+
+  // Verificar si una fecha tiene reserva
+  const getReservaFecha = (fecha: Date): Reserva | null => {
+    const fechaStr = fecha.toISOString().split('T')[0]
+    return reservas.find(
+      r => fechaStr >= r.fecha_inicio && fechaStr <= r.fecha_fin
     ) || null
   }
 
@@ -107,73 +124,77 @@ export function CalendarioPrecios({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2 max-w-xs">
       {/* Navegación de año */}
       <div className="flex items-center justify-between">
         <button
           onClick={() => onChangeAnio(anio - 1)}
-          className="p-2 hover:bg-costa-beige rounded-lg transition-colors"
+          className="p-1 hover:bg-costa-beige rounded transition-colors"
         >
-          <ChevronLeft size={20} />
+          <ChevronLeft size={14} />
         </button>
-        <h2 className="text-xl font-bold text-costa-navy">{anio}</h2>
+        <h2 className="text-sm font-bold text-costa-navy">{anio}</h2>
         <button
           onClick={() => onChangeAnio(anio + 1)}
-          className="p-2 hover:bg-costa-beige rounded-lg transition-colors"
+          className="p-1 hover:bg-costa-beige rounded transition-colors"
         >
-          <ChevronRight size={20} />
+          <ChevronRight size={14} />
         </button>
       </div>
 
       {/* Leyenda */}
-      <div className="flex flex-wrap gap-3 text-xs">
-        <div className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-red-100 border border-red-300"></span>
+      <div className="flex flex-wrap gap-2 text-[10px]">
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-red-100 border border-red-300"></span>
           <span>Alta</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-amber-100 border border-amber-300"></span>
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-300"></span>
           <span>Media</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-green-100 border border-green-300"></span>
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-green-100 border border-green-300"></span>
           <span>Baja</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-violet-100 border border-violet-300"></span>
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-violet-100 border border-violet-300"></span>
           <span>Especial</span>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-gray-300"></span>
-          <span>No disponible</span>
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-blue-500"></span>
+          <span>Reservado</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-gray-300"></span>
+          <span>Bloqueado</span>
         </div>
       </div>
 
       {/* Navegación de mes */}
-      <div className="flex items-center justify-between border-b border-costa-beige pb-2">
+      <div className="flex items-center justify-between border-b border-costa-beige pb-1">
         <button
           onClick={() => setMesActual(m => m > 0 ? m - 1 : 11)}
-          className="p-1 hover:bg-costa-beige rounded transition-colors"
+          className="p-0.5 hover:bg-costa-beige rounded transition-colors"
         >
-          <ChevronLeft size={16} />
+          <ChevronLeft size={12} />
         </button>
-        <h3 className="font-semibold text-costa-navy">{MESES[mesActual]}</h3>
+        <h3 className="text-xs font-semibold text-costa-navy">{MESES[mesActual]}</h3>
         <button
           onClick={() => setMesActual(m => m < 11 ? m + 1 : 0)}
-          className="p-1 hover:bg-costa-beige rounded transition-colors"
+          className="p-0.5 hover:bg-costa-beige rounded transition-colors"
         >
-          <ChevronRight size={16} />
+          <ChevronRight size={12} />
         </button>
       </div>
 
       {/* Calendario del mes */}
       <div>
         {/* Encabezado días de la semana */}
-        <div className="grid grid-cols-7 gap-1 mb-1">
+        <div className="grid grid-cols-7 gap-0.5 mb-0.5">
           {DIAS_SEMANA.map((dia, i) => (
             <div
               key={i}
-              className="text-center text-xs font-medium text-costa-gris py-1"
+              className="text-center text-[9px] font-medium text-costa-gris py-0.5"
             >
               {dia}
             </div>
@@ -181,17 +202,19 @@ export function CalendarioPrecios({
         </div>
 
         {/* Días del mes */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5">
           {getDiasMes(mesActual).map((fecha, i) => {
             if (!fecha) {
-              return <div key={i} className="aspect-square"></div>
+              return <div key={i} className="h-7"></div>
             }
 
             const precio = getPrecioFecha(fecha)
+            const reserva = getReservaFecha(fecha)
             const inRange = isInRange(fecha)
             const isStart = seleccionInicio && fecha.getTime() === seleccionInicio.getTime()
             const isEnd = seleccionFin && fecha.getTime() === seleccionFin.getTime()
             const noDisponible = precio && !precio.disponible
+            const estaReservado = !!reserva
 
             return (
               <button
@@ -199,24 +222,30 @@ export function CalendarioPrecios({
                 onClick={() => handleClickDia(fecha)}
                 onMouseEnter={() => setHoveredDate(fecha)}
                 onMouseLeave={() => setHoveredDate(null)}
+                title={estaReservado ? `Reservado: ${reserva?.inquilinos?.nombre || 'Sin nombre'}` : undefined}
                 className={`
-                  aspect-square p-1 rounded-lg border text-xs transition-all
+                  h-7 rounded border text-[9px] transition-all
                   flex flex-col items-center justify-center
-                  ${noDisponible ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : ''}
-                  ${!noDisponible && precio ? getColorTemporada(precio.temporada) : 'bg-white border-gray-200'}
-                  ${inRange ? 'ring-2 ring-costa-navy ring-offset-1' : ''}
+                  ${estaReservado ? 'bg-blue-500 text-white border-blue-600' : ''}
+                  ${!estaReservado && noDisponible ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : ''}
+                  ${!estaReservado && !noDisponible && precio ? getColorTemporada(precio.temporada) : ''}
+                  ${!estaReservado && !noDisponible && !precio ? 'bg-white border-gray-200' : ''}
+                  ${inRange ? 'ring-1 ring-costa-navy ring-offset-0' : ''}
                   ${isStart || isEnd ? 'bg-costa-navy text-white' : ''}
-                  ${!noDisponible ? 'hover:border-costa-navy cursor-pointer' : ''}
+                  ${!noDisponible && !estaReservado ? 'hover:border-costa-navy cursor-pointer' : ''}
                 `}
               >
-                <span className="font-medium">{fecha.getDate()}</span>
-                {precio && !noDisponible && (
-                  <span className="text-[10px] text-costa-gris truncate w-full text-center">
+                <span className="font-medium text-[10px]">{fecha.getDate()}</span>
+                {estaReservado && (
+                  <span className="text-[7px] leading-none">Res.</span>
+                )}
+                {!estaReservado && precio && !noDisponible && (
+                  <span className="text-[7px] text-costa-gris truncate w-full text-center leading-none">
                     ${precio.precio_noche}
                   </span>
                 )}
-                {noDisponible && (
-                  <span className="text-[10px]">—</span>
+                {!estaReservado && noDisponible && (
+                  <span className="text-[7px]">—</span>
                 )}
               </button>
             )
@@ -225,13 +254,13 @@ export function CalendarioPrecios({
       </div>
 
       {/* Vista de todos los meses (miniatura) */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-6">
+      <div className="grid grid-cols-6 gap-1 mt-3">
         {MESES.map((mes, idx) => (
           <button
             key={idx}
             onClick={() => setMesActual(idx)}
             className={`
-              p-2 text-xs rounded-lg border transition-colors
+              py-1 text-[9px] rounded border transition-colors
               ${idx === mesActual ? 'bg-costa-navy text-white border-costa-navy' : 'bg-white border-gray-200 hover:border-costa-navy'}
             `}
           >
