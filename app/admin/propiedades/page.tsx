@@ -716,9 +716,9 @@ function PropiedadesContent() {
         title={editingId ? 'Editar Propiedad' : 'Nueva Propiedad'}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {/* Botones arriba */}
-          <div className="flex justify-end gap-2 pb-2 border-b border-costa-beige">
+          <div className="flex justify-end gap-2 pb-3 border-b border-costa-beige">
             <Button type="button" variant="ghost" size="sm" onClick={closeModal}>
               Cancelar
             </Button>
@@ -727,166 +727,247 @@ function PropiedadesContent() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <Select
-              label="Barrio"
-              value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-              options={barrios}
-            />
-            <Input
-              label="Lote"
-              value={form.lote}
-              onChange={(e) => setForm({ ...form, lote: e.target.value })}
-              placeholder="Ej: 123"
-            />
-            <Select
-              label="Tipo"
-              value={form.tipo}
-              onChange={(e) => setForm({ ...form, tipo: e.target.value })}
-              options={tiposPropiedad}
-            />
-          </div>
-
-          <Input
-            label="Dirección"
-            value={form.direccion}
-            onChange={(e) => setForm({ ...form, direccion: e.target.value })}
-          />
-
-          <Input
-            label="Referencia (ej: A 300m del club house, cerca del mar)"
-            value={form.referencia}
-            onChange={(e) => setForm({ ...form, referencia: e.target.value })}
-            placeholder="Descripción corta de ubicación"
-          />
-
-          <div className="grid grid-cols-3 gap-3">
-            <Input
-              label="Tel. contacto (WhatsApp)"
-              value={form.telefono_contacto}
-              onChange={(e) => setForm({ ...form, telefono_contacto: e.target.value })}
-              placeholder="541160473922"
-            />
-            <Input
-              label="Capacidad"
-              type="number"
-              min="0"
-              value={form.capacidad || ''}
-              onChange={(e) => setForm({ ...form, capacidad: Number(e.target.value) || 0 })}
-              placeholder="Personas"
-            />
-            {form.tipo === 'lote' && (
-              <Select
-                label="Estado"
-                value={form.estado}
-                onChange={(e) => setForm({ ...form, estado: e.target.value })}
-                options={estadosPropiedad}
-              />
-            )}
-          </div>
-
-          {/* Campos numéricos - ocultar si es lote */}
-          {form.tipo !== 'lote' && (
-            <div className="grid grid-cols-6 gap-2">
-              <Input
-                label="Habit."
-                type="number"
-                min="0"
-                value={form.habitaciones || ''}
-                onChange={(e) => setForm({ ...form, habitaciones: Number(e.target.value) || 0 })}
-              />
-              <Input
-                label="Baños"
-                type="number"
-                min="0"
-                value={form.banos || ''}
-                onChange={(e) => setForm({ ...form, banos: Number(e.target.value) || 0 })}
-              />
-              <Input
-                label="Camas"
-                type="number"
-                min="0"
-                value={form.camas || ''}
-                onChange={(e) => setForm({ ...form, camas: Number(e.target.value) || 0 })}
-              />
-              <Input
-                label="Plantas"
-                type="number"
-                min="1"
-                value={form.plantas || ''}
-                onChange={(e) => setForm({ ...form, plantas: Number(e.target.value) || 1 })}
-              />
+          {/* BLOQUE 1: UBICACIÓN */}
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Ubicación</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-costa-navy mb-1">$/mes</label>
-                <InputNumber
-                  value={form.precio_alquiler}
-                  onChange={(val) => setForm({ ...form, precio_alquiler: val })}
+                <label className="block text-sm text-gray-600 mb-1">Barrio</label>
+                <select
+                  value={form.nombre}
+                  onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                  className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+                >
+                  <option value="">Seleccionar...</option>
+                  {barrios.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Lote</label>
+                <input
+                  type="text"
+                  value={form.lote}
+                  onChange={(e) => setForm({ ...form, lote: e.target.value })}
+                  placeholder="Ej: 123"
+                  className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
                 />
               </div>
-              <Select
-                label="Estado"
-                value={form.estado}
-                onChange={(e) => setForm({ ...form, estado: e.target.value })}
-                options={estadosPropiedad}
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Tipo</label>
+                <select
+                  value={form.tipo}
+                  onChange={(e) => setForm({ ...form, tipo: e.target.value })}
+                  className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+                >
+                  <option value="">Seleccionar...</option>
+                  {tiposPropiedad.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Dirección <span className="text-gray-400 text-xs">(opcional)</span></label>
+              <input
+                type="text"
+                value={form.direccion}
+                onChange={(e) => setForm({ ...form, direccion: e.target.value })}
+                placeholder="Dirección completa"
+                className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
               />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 mb-1">Referencia</label>
+              <input
+                type="text"
+                value={form.referencia}
+                onChange={(e) => setForm({ ...form, referencia: e.target.value })}
+                placeholder="Ej: cerca del club house, frente al lago"
+                className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+              />
+            </div>
+          </div>
+
+          {/* BLOQUE 2: CARACTERÍSTICAS - ocultar si es lote */}
+          {form.tipo !== 'lote' && (
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Características</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Habitaciones</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.habitaciones || ''}
+                    onChange={(e) => setForm({ ...form, habitaciones: Number(e.target.value) || 0 })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Baños</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.banos || ''}
+                    onChange={(e) => setForm({ ...form, banos: Number(e.target.value) || 0 })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Camas</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.camas || ''}
+                    onChange={(e) => setForm({ ...form, camas: Number(e.target.value) || 0 })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Plantas</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={form.plantas || ''}
+                    onChange={(e) => setForm({ ...form, plantas: Number(e.target.value) || 1 })}
+                    className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Capacidad</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.capacidad || ''}
+                    onChange={(e) => setForm({ ...form, capacidad: Number(e.target.value) || 0 })}
+                    placeholder="Personas"
+                    className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+                  />
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Metros */}
-          <div className={`grid gap-2 ${form.tipo !== 'lote' ? 'grid-cols-3' : 'grid-cols-1'}`}>
-            <div>
-              <label className="block text-xs font-medium text-costa-navy mb-1">M² lote</label>
-              <InputNumber
-                value={form.metros_lote}
-                onChange={(val) => setForm({ ...form, metros_lote: val })}
-              />
+          {/* Capacidad para lotes */}
+          {form.tipo === 'lote' && (
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Características</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">Capacidad</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.capacidad || ''}
+                    onChange={(e) => setForm({ ...form, capacidad: Number(e.target.value) || 0 })}
+                    placeholder="Personas"
+                    className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+                  />
+                </div>
+              </div>
             </div>
-            {form.tipo !== 'lote' && (
-              <>
-                <div>
-                  <label className="block text-xs font-medium text-costa-navy mb-1">M² cubiertos</label>
+          )}
+
+          {/* BLOQUE 3: SUPERFICIES */}
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Superficies</h3>
+            <div className={`grid gap-4 ${form.tipo !== 'lote' ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2'}`}>
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">M² lote</label>
+                <div className="relative">
                   <InputNumber
-                    value={form.metros_cubiertos}
-                    onChange={(val) => setForm({ ...form, metros_cubiertos: val })}
+                    value={form.metros_lote}
+                    onChange={(val) => setForm({ ...form, metros_lote: val })}
                   />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">m²</span>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-costa-navy mb-1">M² semicub.</label>
-                  <InputNumber
-                    value={form.metros_semicubiertos}
-                    onChange={(val) => setForm({ ...form, metros_semicubiertos: val })}
-                  />
-                </div>
-              </>
-            )}
+              </div>
+              {form.tipo !== 'lote' && (
+                <>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">M² cubiertos</label>
+                    <div className="relative">
+                      <InputNumber
+                        value={form.metros_cubiertos}
+                        onChange={(val) => setForm({ ...form, metros_cubiertos: val })}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">m²</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-600 mb-1">M² semicubiertos</label>
+                    <div className="relative">
+                      <InputNumber
+                        value={form.metros_semicubiertos}
+                        onChange={(val) => setForm({ ...form, metros_semicubiertos: val })}
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">m²</span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Amenities - ocultar si es lote */}
+          {/* BLOQUE 4: GESTIÓN */}
+          <div className="space-y-4 bg-gray-50 -mx-6 px-6 py-5 rounded-lg">
+            <h3 className="text-base font-semibold text-costa-navy border-b border-gray-200 pb-2">Gestión</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Tel. WhatsApp</label>
+                <input
+                  type="text"
+                  value={form.telefono_contacto}
+                  onChange={(e) => setForm({ ...form, telefono_contacto: e.target.value })}
+                  placeholder="541160473922"
+                  className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy bg-white"
+                />
+              </div>
+              {form.tipo !== 'lote' && (
+                <div>
+                  <label className="block text-sm text-gray-600 mb-1">$/mes</label>
+                  <InputNumber
+                    value={form.precio_alquiler}
+                    onChange={(val) => setForm({ ...form, precio_alquiler: val })}
+                  />
+                </div>
+              )}
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Estado</label>
+                <select
+                  value={form.estado}
+                  onChange={(e) => setForm({ ...form, estado: e.target.value })}
+                  className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy bg-white"
+                >
+                  {estadosPropiedad.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* BLOQUE 5: AMENITIES - ocultar si es lote */}
           {form.tipo !== 'lote' && (
-            <div className="border border-costa-beige rounded-lg p-2">
-              <p className="text-xs font-medium text-costa-navy mb-1.5">Amenities</p>
-              <div className="grid grid-cols-3 gap-1.5">
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Amenities</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {[
                   { id: 'cochera', label: 'Cochera', key: 'cochera' },
                   { id: 'pileta', label: 'Pileta', key: 'pileta' },
-                  { id: 'pileta_climatizada', label: 'Pileta climat.', key: 'pileta_climatizada' },
+                  { id: 'pileta_climatizada', label: 'Pileta climatizada', key: 'pileta_climatizada' },
                   { id: 'parrilla', label: 'Parrilla', key: 'parrilla' },
                   { id: 'fogonero', label: 'Fogonero', key: 'fogonero' },
-                  { id: 'grupo_electrogeno', label: 'Generador', key: 'grupo_electrogeno' },
+                  { id: 'grupo_electrogeno', label: 'Grupo electrógeno', key: 'grupo_electrogeno' },
                   { id: 'toilette', label: 'Toilette', key: 'toilette' },
                   { id: 'lavadero', label: 'Lavadero', key: 'lavadero' },
                   { id: 'lavavajillas', label: 'Lavavajillas', key: 'lavavajillas' },
-                  { id: 'aire_acondicionado', label: 'A/C', key: 'aire_acondicionado' },
+                  { id: 'aire_acondicionado', label: 'Aire acondicionado', key: 'aire_acondicionado' },
                   { id: 'calefaccion', label: 'Calefacción', key: 'calefaccion' },
                   { id: 'wifi', label: 'WiFi', key: 'wifi' },
                 ].map((amenity) => (
-                  <label key={amenity.id} className="flex items-center gap-1 text-xs text-costa-navy cursor-pointer">
+                  <label key={amenity.id} className="flex items-center gap-2.5 text-sm text-costa-navy cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
                     <input
                       type="checkbox"
                       checked={form[amenity.key as keyof typeof form] as boolean}
                       onChange={(e) => setForm({ ...form, [amenity.key]: e.target.checked })}
-                      className="w-3 h-3 rounded border-costa-gris text-costa-navy focus:ring-costa-navy"
+                      className="w-4 h-4 rounded border-gray-300 text-costa-navy focus:ring-costa-navy focus:ring-offset-0"
                     />
                     {amenity.label}
                   </label>
@@ -895,11 +976,15 @@ function PropiedadesContent() {
             </div>
           )}
 
-          <Textarea
-            label="Descripción"
-            value={form.descripcion}
-            onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-          />
+          {/* DESCRIPCIÓN */}
+          <div className="space-y-4">
+            <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Descripción</h3>
+            <Textarea
+              value={form.descripcion}
+              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+              placeholder="Descripción detallada de la propiedad..."
+            />
+          </div>
 
           {/* Upload de imágenes */}
           <div className="space-y-1.5">
