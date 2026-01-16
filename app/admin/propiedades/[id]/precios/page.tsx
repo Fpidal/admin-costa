@@ -81,7 +81,15 @@ export default function PreciosPage() {
 
     if (resProp.data) setPropiedad(resProp.data)
     if (resPrecios.data) setPrecios(resPrecios.data)
-    if (resReservas.data) setReservas(resReservas.data)
+    if (resReservas.data) {
+      setReservas(resReservas.data.map((r: any) => ({
+        id: r.id,
+        fecha_inicio: r.fecha_inicio,
+        fecha_fin: r.fecha_fin,
+        estado: r.estado,
+        inquilinos: r.inquilinos ? { nombre: r.inquilinos.nombre } : undefined
+      })))
+    }
     setLoading(false)
   }
 
