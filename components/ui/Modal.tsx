@@ -34,19 +34,20 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div className={`relative w-full ${sizes[size]} bg-costa-white rounded-xl shadow-2xl`}>
-          <div className="flex items-center justify-between px-4 py-3 border-b border-costa-beige">
+      <div className="fixed inset-0 bg-black/50 hidden sm:block" onClick={onClose} />
+      <div className="flex min-h-full items-center justify-center sm:p-4">
+        <div className={`relative w-full h-full sm:h-auto sm:${sizes[size]} bg-costa-white sm:rounded-xl shadow-2xl`}>
+          {/* Header fijo en móvil */}
+          <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 border-b border-costa-beige bg-costa-white sm:rounded-t-xl">
             <h2 className="text-base font-semibold text-costa-navy">{title}</h2>
             <button
               onClick={onClose}
-              className="p-1 rounded-full hover:bg-costa-beige transition-colors"
+              className="p-2 -mr-2 rounded-full hover:bg-costa-beige transition-colors"
             >
-              <X size={18} className="text-costa-gris" />
+              <X size={20} className="text-costa-gris" />
             </button>
           </div>
-          <div className="px-4 py-3 max-h-[75vh] overflow-y-auto">
+          <div className="px-4 py-3 overflow-y-auto max-h-[calc(100vh-60px)] sm:max-h-[75vh]">
             {children}
           </div>
         </div>

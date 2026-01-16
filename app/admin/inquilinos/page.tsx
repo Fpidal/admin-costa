@@ -304,84 +304,136 @@ function InquilinosContent() {
           </CardContent>
         </Card>
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <div>
-              <table className="w-full text-sm">
-                <thead className="bg-costa-beige/50 border-b border-costa-beige">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Nombre</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Contacto</th>
-                    <th className="px-2 py-2 text-center text-xs font-medium text-costa-gris uppercase">Pers.</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Origen</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Reservas</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Obs.</th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-costa-beige">
-                  {inquilinos.map((inquilino) => (
-                    <tr key={inquilino.id} className="hover:bg-costa-beige/30">
-                      <td className="px-3 py-2">
-                        <div>
-                          <p className="font-medium text-costa-navy text-sm">{inquilino.nombre}</p>
-                          {inquilino.documento && <p className="text-xs text-costa-gris">DNI: {inquilino.documento}</p>}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="text-xs">
-                          {inquilino.telefono && (
-                            <div className="flex items-center gap-1 text-costa-gris">
-                              <Phone size={10} />
-                              <span>{inquilino.telefono}</span>
-                            </div>
-                          )}
-                          {inquilino.email && (
-                            <div className="flex items-center gap-1 text-costa-gris">
-                              <Mail size={10} />
-                              <span className="truncate max-w-[120px]">{inquilino.email}</span>
-                            </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 text-center">
-                        <span className="text-costa-navy text-sm">{1 + (inquilino.acompanantes?.length || 0)}</span>
-                      </td>
-                      <td className="px-2 py-2">
-                        <Badge variant="default">{inquilino.origen || 'directo'}</Badge>
-                      </td>
-                      <td className="px-2 py-2">
-                        {inquilino.reservas && inquilino.reservas.length > 0 ? (
-                          <Button variant="ghost" size="sm" onClick={() => openHistorial(inquilino)}>
-                            <History size={12} />
-                            <span className="ml-1 text-xs">{inquilino.reservas.length}</span>
-                          </Button>
-                        ) : (
-                          <span className="text-costa-gris text-xs">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        {inquilino.observaciones ? (
-                          <p className="text-xs text-costa-gris truncate max-w-[120px]" title={inquilino.observaciones}>
-                            {inquilino.observaciones}
-                          </p>
-                        ) : (
-                          <span className="text-costa-gris text-xs">-</span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 text-right">
-                        <div className="flex justify-end gap-0.5">
-                          <Button variant="ghost" size="sm" onClick={() => openModal(inquilino)}><Pencil size={14} /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(inquilino.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
-                        </div>
-                      </td>
+        <>
+          {/* Vista móvil - Cards */}
+          <div className="sm:hidden space-y-3">
+            {inquilinos.map((inquilino) => (
+              <Card key={inquilino.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-medium text-costa-navy">{inquilino.nombre}</p>
+                      {inquilino.documento && <p className="text-xs text-costa-gris">DNI: {inquilino.documento}</p>}
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openModal(inquilino)}><Pencil size={16} /></Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleDelete(inquilino.id)}><Trash2 size={16} className="text-costa-gris" /></Button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                    {inquilino.telefono && (
+                      <div className="flex items-center gap-1 text-costa-gris">
+                        <Phone size={12} />
+                        <span className="truncate">{inquilino.telefono}</span>
+                      </div>
+                    )}
+                    {inquilino.email && (
+                      <div className="flex items-center gap-1 text-costa-gris">
+                        <Mail size={12} />
+                        <span className="truncate">{inquilino.email}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between pt-2 border-t border-costa-beige">
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1 text-xs text-costa-gris">
+                        <Users size={12} />
+                        {1 + (inquilino.acompanantes?.length || 0)} pers.
+                      </span>
+                      <Badge variant="default">{inquilino.origen || 'directo'}</Badge>
+                    </div>
+                    {inquilino.reservas && inquilino.reservas.length > 0 && (
+                      <Button variant="ghost" size="sm" onClick={() => openHistorial(inquilino)}>
+                        <History size={14} />
+                        <span className="ml-1 text-xs">{inquilino.reservas.length} reservas</span>
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Vista desktop - Tabla */}
+          <Card className="hidden sm:block">
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-costa-beige/50 border-b border-costa-beige">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Nombre</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Contacto</th>
+                      <th className="px-2 py-2 text-center text-xs font-medium text-costa-gris uppercase">Pers.</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Origen</th>
+                      <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Reservas</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Obs.</th>
+                      <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase"></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+                  </thead>
+                  <tbody className="divide-y divide-costa-beige">
+                    {inquilinos.map((inquilino) => (
+                      <tr key={inquilino.id} className="hover:bg-costa-beige/30">
+                        <td className="px-3 py-2">
+                          <div>
+                            <p className="font-medium text-costa-navy text-sm">{inquilino.nombre}</p>
+                            {inquilino.documento && <p className="text-xs text-costa-gris">DNI: {inquilino.documento}</p>}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2">
+                          <div className="text-xs">
+                            {inquilino.telefono && (
+                              <div className="flex items-center gap-1 text-costa-gris">
+                                <Phone size={10} />
+                                <span>{inquilino.telefono}</span>
+                              </div>
+                            )}
+                            {inquilino.email && (
+                              <div className="flex items-center gap-1 text-costa-gris">
+                                <Mail size={10} />
+                                <span className="truncate max-w-[120px]">{inquilino.email}</span>
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          <span className="text-costa-navy text-sm">{1 + (inquilino.acompanantes?.length || 0)}</span>
+                        </td>
+                        <td className="px-2 py-2">
+                          <Badge variant="default">{inquilino.origen || 'directo'}</Badge>
+                        </td>
+                        <td className="px-2 py-2">
+                          {inquilino.reservas && inquilino.reservas.length > 0 ? (
+                            <Button variant="ghost" size="sm" onClick={() => openHistorial(inquilino)}>
+                              <History size={12} />
+                              <span className="ml-1 text-xs">{inquilino.reservas.length}</span>
+                            </Button>
+                          ) : (
+                            <span className="text-costa-gris text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {inquilino.observaciones ? (
+                            <p className="text-xs text-costa-gris truncate max-w-[120px]" title={inquilino.observaciones}>
+                              {inquilino.observaciones}
+                            </p>
+                          ) : (
+                            <span className="text-costa-gris text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-2 text-right">
+                          <div className="flex justify-end gap-0.5">
+                            <Button variant="ghost" size="sm" onClick={() => openModal(inquilino)}><Pencil size={14} /></Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDelete(inquilino.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {/* Modal Formulario */}

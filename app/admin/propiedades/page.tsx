@@ -509,7 +509,7 @@ function PropiedadesContent() {
                               const prev = current === 0 ? propiedad.imagenes.length - 1 : current - 1
                               setImageIndexes({ ...imageIndexes, [propiedad.id]: prev })
                             }}
-                            className="absolute left-2 top-1/2 -translate-y-1/2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                            className="absolute left-2 top-1/2 -translate-y-1/2 p-2 sm:p-1 bg-black/50 text-white rounded-full sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-black/70"
                           >
                             <ChevronLeft size={20} />
                           </button>
@@ -520,7 +520,7 @@ function PropiedadesContent() {
                               const next = current === propiedad.imagenes.length - 1 ? 0 : current + 1
                               setImageIndexes({ ...imageIndexes, [propiedad.id]: next })
                             }}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/70"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 sm:p-1 bg-black/50 text-white rounded-full sm:opacity-0 sm:group-hover:opacity-100 transition-opacity hover:bg-black/70"
                           >
                             <ChevronRight size={20} />
                           </button>

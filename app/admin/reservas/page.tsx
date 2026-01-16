@@ -918,14 +918,90 @@ function ReservasContent() {
         </Card>
       </div>
 
-      {/* Tabla */}
-      <Card>
+      {/* Vista móvil - Cards */}
+      <div className="sm:hidden space-y-3">
+        {reservas.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center text-gray-500">No hay reservas registradas</CardContent>
+          </Card>
+        ) : (
+          reservas.map((reserva) => {
+            const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
+            const total = noches * (reserva.precio_noche || 0)
+            const cobradoAlquiler = cobros
+              .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler')
+              .reduce((acc, c) => acc + (c.monto || 0), 0)
+            const saldo = total - cobradoAlquiler
+            const moneda = reserva.moneda || 'ARS'
+            return (
+              <Card key={reserva.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-medium text-costa-navy">{reserva.propiedades?.nombre || '-'}</p>
+                      <p className="text-sm text-costa-gris">{reserva.inquilinos?.nombre || '-'}</p>
+                    </div>
+                    <Badge variant={estadoVariant[reserva.estado as keyof typeof estadoVariant] || 'default'}>
+                      {reserva.estado}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-costa-gris mb-3">
+                    <Calendar size={12} />
+                    <span>{formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}</span>
+                    <span className="text-costa-navy font-medium">({noches}n)</span>
+                    <span className="flex items-center gap-1 ml-2">
+                      <Users size={12} />
+                      {reserva.cantidad_personas || 1}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center py-2 bg-costa-beige/30 rounded-lg mb-3">
+                    <div>
+                      <p className="text-xs text-costa-gris">Total</p>
+                      <p className="font-semibold text-costa-navy text-sm"><FormatMontoStyled monto={total} moneda={moneda} /></p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-costa-gris">Cobrado</p>
+                      <p className="font-semibold text-costa-olivo text-sm"><FormatMontoStyled monto={cobradoAlquiler} moneda={moneda} /></p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-costa-gris">Saldo</p>
+                      <p className={`font-semibold text-sm ${saldo > 0 ? 'text-amber-600' : 'text-costa-olivo'}`}>
+                        <FormatMontoStyled monto={saldo} moneda={moneda} />
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-1 pt-2 border-t border-costa-beige">
+                    {reserva.estado === 'confirmada' && (
+                      <>
+                        <Button variant="ghost" size="sm" onClick={() => generarContratoPDF(reserva)} title="Contrato">
+                          <FileSignature size={16} className="text-costa-olivo" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Detalle">
+                          <FileText size={16} className="text-costa-navy" />
+                        </Button>
+                      </>
+                    )}
+                    <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
+                      <Button variant="ghost" size="sm" title="Cobros"><Wallet size={16} className="text-costa-olivo" /></Button>
+                    </Link>
+                    <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={16} /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={16} className="text-costa-gris" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
+      </div>
+
+      {/* Vista desktop - Tabla */}
+      <Card className="hidden sm:block">
         <CardHeader><CardTitle>Todas las reservas</CardTitle></CardHeader>
         <CardContent className="p-0">
           {reservas.length === 0 ? (
             <div className="py-12 text-center text-gray-500">No hay reservas registradas</div>
           ) : (
-            <div>
+            <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-costa-beige/50 border-b border-costa-beige">
                   <tr>
@@ -944,7 +1020,6 @@ function ReservasContent() {
                   {reservas.map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const total = noches * (reserva.precio_noche || 0)
-                    // Calcular total cobrado solo de alquiler
                     const cobradoAlquiler = cobros
                       .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler')
                       .reduce((acc, c) => acc + (c.monto || 0), 0)

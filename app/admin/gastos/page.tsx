@@ -578,8 +578,56 @@ function AdministracionContent() {
         </CardContent>
       </Card>
 
-      {/* Tabla de Gastos */}
-      <Card>
+      {/* Vista móvil - Cards */}
+      <div className="sm:hidden space-y-3">
+        {gastosFiltrados.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-costa-gris">No hay gastos registrados</CardContent>
+          </Card>
+        ) : (
+          gastosFiltrados.map((gasto) => (
+            <Card key={gasto.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="default">{gasto.concepto}</Badge>
+                      <Badge variant={gasto.pagado ? 'success' : 'warning'}>
+                        {gasto.pagado ? 'Pagado' : 'Pendiente'}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-costa-gris">{gasto.propiedades?.nombre || '-'}</p>
+                  </div>
+                  <p className="font-bold text-costa-navy text-lg">{formatMonto(gasto.monto)}</p>
+                </div>
+                {gasto.descripcion && (
+                  <p className="text-sm text-costa-navy mb-2">{gasto.descripcion}</p>
+                )}
+                <div className="flex items-center justify-between pt-2 border-t border-costa-beige">
+                  <span className="text-xs text-costa-gris">{formatFecha(gasto.fecha)}</span>
+                  <div className="flex gap-1">
+                    {gasto.detalle && gasto.detalle.length > 0 && (
+                      <Button variant="ghost" size="sm" onClick={() => abrirDetalle(gasto)}>
+                        <ChevronDown size={16} />
+                      </Button>
+                    )}
+                    {!gasto.pagado && (
+                      <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>
+                        <Check size={14} />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => openModal(gasto)}><Pencil size={16} /></Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(gasto.id)}><Trash2 size={16} className="text-costa-gris" /></Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Vista desktop - Tabla */}
+      <Card className="hidden sm:block">
         <CardHeader><CardTitle>Gastos y Expensas</CardTitle></CardHeader>
         <CardContent className="p-0">
           {gastosFiltrados.length === 0 ? (
