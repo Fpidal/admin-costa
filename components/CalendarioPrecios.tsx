@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Flag } from 'lucide-react'
 import {
   PriceRule,
   DayPrice,
@@ -10,6 +10,7 @@ import {
   calculatePriceForDate,
   calculateMonthPrices
 } from '@/lib/priceRules'
+import { obtenerInfoMes, Feriado } from '@/lib/calendarioArgentina'
 
 interface Reserva {
   id: number
@@ -50,6 +51,11 @@ export function CalendarioPrecios({
   const preciosMes = useMemo(() => {
     return calculateMonthPrices(anio, mesActual, rules)
   }, [anio, mesActual, rules])
+
+  // Obtener feriados del mes
+  const feriadosMes = useMemo(() => {
+    return obtenerInfoMes(anio, mesActual)
+  }, [anio, mesActual])
 
   // Obtener precio para una fecha
   const getPrecioFecha = (fecha: Date): DayPrice | null => {
@@ -165,7 +171,7 @@ export function CalendarioPrecios({
         </div>
       </div>
 
-      {/* Leyenda de reservas */}
+      {/* Leyenda de reservas y feriados */}
       <div className="flex flex-wrap gap-1.5 text-[9px] pt-1 border-t border-costa-beige">
         <div className="flex items-center gap-0.5">
           <span className="w-2.5 h-2.5 rounded bg-costa-olivo"></span>
@@ -174,6 +180,10 @@ export function CalendarioPrecios({
         <div className="flex items-center gap-0.5">
           <span className="w-2.5 h-2.5 rounded bg-costa-coral"></span>
           <span>Pendiente</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-blue-500"></span>
+          <span>Feriado</span>
         </div>
       </div>
 
@@ -215,8 +225,10 @@ export function CalendarioPrecios({
               return <div key={i} className="h-9"></div>
             }
 
+            const dateStr = fecha.toISOString().split('T')[0]
             const dayPrice = getPrecioFecha(fecha)
             const reserva = getReservaFecha(fecha)
+            const feriado = feriadosMes.get(dateStr)
             const inRange = isInRange(fecha)
             const isStart = seleccionInicio && fecha.getTime() === seleccionInicio.getTime()
             const isEnd = seleccionFin && fecha.getTime() === seleccionFin.getTime()
@@ -232,13 +244,18 @@ export function CalendarioPrecios({
 
             // Tooltip con información
             const getTooltip = () => {
+              let tooltip = ''
+              if (feriado) {
+                tooltip = `${feriado.nombre}${feriado.esFinDeSemanaLargo ? ' (FDS largo)' : ''}\n`
+              }
               if (estaReservado) {
-                return `${reserva?.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}: ${reserva?.inquilinos?.nombre || 'Sin nombre'}`
+                tooltip += `${reserva?.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}: ${reserva?.inquilinos?.nombre || 'Sin nombre'}`
+              } else if (dayPrice) {
+                tooltip += `$${dayPrice.price} - ${dayPrice.ruleName}`
+              } else {
+                tooltip += 'Sin precio configurado'
               }
-              if (dayPrice) {
-                return `$${dayPrice.price} - ${dayPrice.ruleName} (prioridad ${dayPrice.priority})`
-              }
-              return 'Sin precio configurado'
+              return tooltip
             }
 
             return (
@@ -249,14 +266,19 @@ export function CalendarioPrecios({
                 onMouseLeave={() => setHoveredDate(null)}
                 title={getTooltip()}
                 className={`
-                  h-9 rounded border text-[8px] transition-all
+                  h-9 rounded border text-[8px] transition-all relative
                   flex flex-col items-center justify-center
                   ${estaReservado ? getColorReserva() : getColorCategoria(dayPrice)}
                   ${inRange ? 'ring-1 ring-costa-navy ring-offset-0' : ''}
                   ${isStart || isEnd ? 'bg-costa-navy text-white border-costa-navy' : ''}
                   ${!estaReservado ? 'hover:border-costa-navy cursor-pointer' : 'cursor-default'}
+                  ${feriado && !estaReservado ? 'ring-1 ring-blue-400' : ''}
                 `}
               >
+                {/* Indicador de feriado */}
+                {feriado && (
+                  <div className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-blue-500 rounded-full" title={feriado.nombre} />
+                )}
                 <span className="font-medium text-[10px]">{fecha.getDate()}</span>
                 {estaReservado ? (
                   <span className="text-[7px] leading-none truncate w-full text-center px-0.5">

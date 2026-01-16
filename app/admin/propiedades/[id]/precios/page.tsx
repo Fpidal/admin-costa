@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { CalendarioPrecios } from '@/components/CalendarioPrecios'
 import { PanelReglasPrecios } from '@/components/PanelReglasPrecios'
+import { PanelFeriados } from '@/components/PanelFeriados'
 import { PriceRule, calculateYearMetrics, findUncoveredDays } from '@/lib/priceRules'
 import { Card, CardContent, Button, Badge } from '@/components/ui'
 import { ArrowLeft, AlertTriangle, CheckCircle } from 'lucide-react'
@@ -214,6 +215,13 @@ export default function PreciosPage() {
           </div>
         </div>
       )}
+
+      {/* Panel de Feriados Argentina */}
+      <Card>
+        <CardContent className="py-3">
+          <PanelFeriados year={anio} />
+        </CardContent>
+      </Card>
 
       {/* Layout principal: Calendario + Panel de reglas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
