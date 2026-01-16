@@ -761,25 +761,34 @@ function PropiedadesContent() {
             placeholder="Descripción corta de ubicación"
           />
 
-          <Input
-            label="Teléfono de contacto (WhatsApp)"
-            value={form.telefono_contacto}
-            onChange={(e) => setForm({ ...form, telefono_contacto: e.target.value })}
-            placeholder="Ej: 541160473922"
-          />
-
-          {/* Capacidad */}
-          <Input
-            label="Capacidad (personas)"
-            type="number"
-            min="0"
-            value={form.capacidad || ''}
-            onChange={(e) => setForm({ ...form, capacidad: Number(e.target.value) || 0 })}
-          />
+          <div className="grid grid-cols-3 gap-3">
+            <Input
+              label="Tel. contacto (WhatsApp)"
+              value={form.telefono_contacto}
+              onChange={(e) => setForm({ ...form, telefono_contacto: e.target.value })}
+              placeholder="541160473922"
+            />
+            <Input
+              label="Capacidad"
+              type="number"
+              min="0"
+              value={form.capacidad || ''}
+              onChange={(e) => setForm({ ...form, capacidad: Number(e.target.value) || 0 })}
+              placeholder="Personas"
+            />
+            {form.tipo === 'lote' && (
+              <Select
+                label="Estado"
+                value={form.estado}
+                onChange={(e) => setForm({ ...form, estado: e.target.value })}
+                options={estadosPropiedad}
+              />
+            )}
+          </div>
 
           {/* Campos numéricos - ocultar si es lote */}
           {form.tipo !== 'lote' && (
-            <div className="grid grid-cols-5 gap-2">
+            <div className="grid grid-cols-6 gap-2">
               <Input
                 label="Habit."
                 type="number"
@@ -815,16 +824,17 @@ function PropiedadesContent() {
                   onChange={(val) => setForm({ ...form, precio_alquiler: val })}
                 />
               </div>
+              <Select
+                label="Estado"
+                value={form.estado}
+                onChange={(e) => setForm({ ...form, estado: e.target.value })}
+                options={estadosPropiedad}
+              />
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
-            <Select
-              label="Estado"
-              value={form.estado}
-              onChange={(e) => setForm({ ...form, estado: e.target.value })}
-              options={estadosPropiedad}
-            />
+          {/* Metros */}
+          <div className={`grid gap-2 ${form.tipo !== 'lote' ? 'grid-cols-3' : 'grid-cols-1'}`}>
             <div>
               <label className="block text-xs font-medium text-costa-navy mb-1">M² lote</label>
               <InputNumber
@@ -832,27 +842,25 @@ function PropiedadesContent() {
                 onChange={(val) => setForm({ ...form, metros_lote: val })}
               />
             </div>
+            {form.tipo !== 'lote' && (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-costa-navy mb-1">M² cubiertos</label>
+                  <InputNumber
+                    value={form.metros_cubiertos}
+                    onChange={(val) => setForm({ ...form, metros_cubiertos: val })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-costa-navy mb-1">M² semicub.</label>
+                  <InputNumber
+                    value={form.metros_semicubiertos}
+                    onChange={(val) => setForm({ ...form, metros_semicubiertos: val })}
+                  />
+                </div>
+              </>
+            )}
           </div>
-
-          {/* Metros cubiertos - ocultar si es lote */}
-          {form.tipo !== 'lote' && (
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-xs font-medium text-costa-navy mb-1">M² cubiertos</label>
-                <InputNumber
-                  value={form.metros_cubiertos}
-                  onChange={(val) => setForm({ ...form, metros_cubiertos: val })}
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-costa-navy mb-1">M² semicub.</label>
-                <InputNumber
-                  value={form.metros_semicubiertos}
-                  onChange={(val) => setForm({ ...form, metros_semicubiertos: val })}
-                />
-              </div>
-            </div>
-          )}
 
           {/* Amenities - ocultar si es lote */}
           {form.tipo !== 'lote' && (
