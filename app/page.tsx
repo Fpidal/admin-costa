@@ -178,7 +178,7 @@ function LandingContent() {
     }
     async function fetchData() {
       const [resPropiedades, resReservas] = await Promise.all([
-        supabase.from('propiedades').select('*').order('nombre'),
+        supabase.from('propiedades').select('*').neq('publicada', false).order('nombre'),
         supabase.from('reservas').select('id, propiedad_id, fecha_inicio, fecha_fin, estado').in('estado', ['confirmada', 'pendiente'])
       ])
       if (resPropiedades.data) setPropiedades(resPropiedades.data)

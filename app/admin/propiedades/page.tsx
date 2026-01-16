@@ -45,6 +45,8 @@ interface Propiedad {
   metros_cubiertos: number
   metros_semicubiertos: number
   metros_lote: number
+  // Publicación
+  publicada: boolean
 }
 
 interface Reserva {
@@ -126,6 +128,8 @@ const initialForm = {
   metros_cubiertos: 0,
   metros_semicubiertos: 0,
   metros_lote: 0,
+  // Publicación
+  publicada: true,
 }
 
 function PropiedadesContent() {
@@ -247,6 +251,7 @@ function PropiedadesContent() {
         metros_cubiertos: propiedad.metros_cubiertos || 0,
         metros_semicubiertos: propiedad.metros_semicubiertos || 0,
         metros_lote: propiedad.metros_lote || 0,
+        publicada: propiedad.publicada !== false,
       })
     } else {
       setEditingId(null)
@@ -340,6 +345,7 @@ function PropiedadesContent() {
       metros_cubiertos: Number(form.metros_cubiertos),
       metros_semicubiertos: Number(form.metros_semicubiertos),
       metros_lote: Number(form.metros_lote),
+      publicada: form.publicada,
     }
 
     if (editingId) {
@@ -378,6 +384,27 @@ function PropiedadesContent() {
       alert('Error al eliminar: ' + error.message)
     } else {
       fetchData()
+    }
+  }
+
+  async function togglePublicada(id: number, currentValue: boolean) {
+    const newValue = !currentValue
+    // Actualizar localmente primero para respuesta inmediata
+    setPropiedades(propiedades.map(p =>
+      p.id === id ? { ...p, publicada: newValue } : p
+    ))
+
+    const { error } = await supabase
+      .from('propiedades')
+      .update({ publicada: newValue })
+      .eq('id', id)
+
+    if (error) {
+      // Revertir si hay error
+      setPropiedades(propiedades.map(p =>
+        p.id === id ? { ...p, publicada: currentValue } : p
+      ))
+      alert('Error al actualizar: ' + error.message)
     }
   }
 
@@ -636,7 +663,21 @@ function PropiedadesContent() {
                     )}
                   </div>
 
-                  <div className="pt-2 border-t border-costa-beige flex items-center justify-end mt-auto">
+                  <div className="pt-2 border-t border-costa-beige flex items-center justify-between mt-auto">
+                    {/* Toggle publicar */}
+                    <button
+                      onClick={() => togglePublicada(propiedad.id, propiedad.publicada !== false)}
+                      className="flex items-center gap-2 group"
+                      title={propiedad.publicada !== false ? 'Quitar de landing' : 'Publicar en landing'}
+                    >
+                      <div className={`relative w-9 h-5 rounded-full transition-colors ${propiedad.publicada !== false ? 'bg-costa-olivo' : 'bg-gray-300'}`}>
+                        <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${propiedad.publicada !== false ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                      </div>
+                      <span className={`text-xs ${propiedad.publicada !== false ? 'text-costa-olivo' : 'text-gray-400'}`}>
+                        {propiedad.publicada !== false ? 'Online' : 'Oculta'}
+                      </span>
+                    </button>
+
                     <div className="flex items-center gap-1">
                       <a
                         href={`https://wa.me/541160473922?text=Hola! Me interesa la propiedad ${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}`}
