@@ -693,6 +693,11 @@ function PropiedadesContent() {
                       <Button variant="ghost" size="sm" onClick={() => compartirWhatsApp(propiedad)} title="Compartir por WhatsApp">
                         <Share2 size={16} className="text-green-600" />
                       </Button>
+                      <Link href={`/admin/propiedades/${propiedad.id}/precios`}>
+                        <Button variant="ghost" size="sm" title="Calendario de precios">
+                          <Calendar size={16} className="text-costa-navy" />
+                        </Button>
+                      </Link>
                       <Button variant="ghost" size="sm" onClick={() => openModal(propiedad)}>
                         <Pencil size={16} />
                       </Button>
