@@ -2,7 +2,14 @@
 
 import { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { PrecioCalendario, TEMPORADAS_PRESETS } from '@/lib/calcularPrecio'
+import {
+  PriceRule,
+  DayPrice,
+  CATEGORY_COLORS,
+  CATEGORY_LABELS,
+  calculatePriceForDate,
+  calculateMonthPrices
+} from '@/lib/priceRules'
 
 interface Reserva {
   id: number
@@ -13,7 +20,7 @@ interface Reserva {
 }
 
 interface CalendarioPreciosProps {
-  precios: PrecioCalendario[]
+  rules: PriceRule[]
   reservas?: Reserva[]
   anio: number
   onSelectRange: (inicio: Date, fin: Date) => void
@@ -28,7 +35,7 @@ const MESES = [
 const DIAS_SEMANA = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 
 export function CalendarioPrecios({
-  precios,
+  rules,
   reservas = [],
   anio,
   onSelectRange,
@@ -39,12 +46,15 @@ export function CalendarioPrecios({
   const [seleccionFin, setSeleccionFin] = useState<Date | null>(null)
   const [hoveredDate, setHoveredDate] = useState<Date | null>(null)
 
+  // Calcular precios del mes actual
+  const preciosMes = useMemo(() => {
+    return calculateMonthPrices(anio, mesActual, rules)
+  }, [anio, mesActual, rules])
+
   // Obtener precio para una fecha
-  const getPrecioFecha = (fecha: Date): PrecioCalendario | null => {
-    const fechaStr = fecha.toISOString().split('T')[0]
-    return precios.find(
-      p => fechaStr >= p.fecha_inicio && fechaStr <= p.fecha_fin
-    ) || null
+  const getPrecioFecha = (fecha: Date): DayPrice | null => {
+    const dateStr = fecha.toISOString().split('T')[0]
+    return preciosMes.get(dateStr) || null
   }
 
   // Verificar si una fecha tiene reserva
@@ -109,19 +119,11 @@ export function CalendarioPrecios({
     return fecha >= inicio && fecha <= final
   }
 
-  // Color de fondo según temporada
-  const getColorTemporada = (temporada: string | null): string => {
-    if (!temporada) return 'bg-gray-100'
-    const config = TEMPORADAS_PRESETS[temporada as keyof typeof TEMPORADAS_PRESETS]
-    if (!config) return 'bg-gray-100'
-
-    switch (temporada) {
-      case 'alta': return 'bg-red-100 border-red-300'
-      case 'media': return 'bg-amber-100 border-amber-300'
-      case 'baja': return 'bg-green-100 border-green-300'
-      case 'especial': return 'bg-violet-100 border-violet-300'
-      default: return 'bg-gray-100'
-    }
+  // Color de fondo según categoría de precio
+  const getColorCategoria = (dayPrice: DayPrice | null): string => {
+    if (!dayPrice) return 'bg-gray-50 border-gray-200'
+    const colors = CATEGORY_COLORS[dayPrice.category]
+    return `${colors.bg} ${colors.border}`
   }
 
   return (
@@ -143,8 +145,28 @@ export function CalendarioPrecios({
         </button>
       </div>
 
-      {/* Leyenda */}
-      <div className="flex flex-wrap gap-2 text-[10px]">
+      {/* Leyenda de categorías */}
+      <div className="flex flex-wrap gap-1.5 text-[9px]">
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-red-100 border border-red-300"></span>
+          <span>Muy Alta</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-orange-100 border border-orange-300"></span>
+          <span>Alta</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-300"></span>
+          <span>Media</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <span className="w-2.5 h-2.5 rounded bg-green-100 border border-green-300"></span>
+          <span>Baja</span>
+        </div>
+      </div>
+
+      {/* Leyenda de reservas */}
+      <div className="flex flex-wrap gap-1.5 text-[9px] pt-1 border-t border-costa-beige">
         <div className="flex items-center gap-0.5">
           <span className="w-2.5 h-2.5 rounded bg-costa-olivo"></span>
           <span>Confirmada</span>
@@ -152,10 +174,6 @@ export function CalendarioPrecios({
         <div className="flex items-center gap-0.5">
           <span className="w-2.5 h-2.5 rounded bg-costa-coral"></span>
           <span>Pendiente</span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <span className="w-2.5 h-2.5 rounded bg-gray-300"></span>
-          <span>Bloqueado</span>
         </div>
       </div>
 
@@ -194,23 +212,33 @@ export function CalendarioPrecios({
         <div className="grid grid-cols-7 gap-0.5">
           {getDiasMes(mesActual).map((fecha, i) => {
             if (!fecha) {
-              return <div key={i} className="h-7"></div>
+              return <div key={i} className="h-9"></div>
             }
 
-            const precio = getPrecioFecha(fecha)
+            const dayPrice = getPrecioFecha(fecha)
             const reserva = getReservaFecha(fecha)
             const inRange = isInRange(fecha)
             const isStart = seleccionInicio && fecha.getTime() === seleccionInicio.getTime()
             const isEnd = seleccionFin && fecha.getTime() === seleccionFin.getTime()
-            const noDisponible = precio && !precio.disponible
             const estaReservado = !!reserva
 
-            // Color según estado de reserva
+            // Color según estado de reserva (tiene prioridad)
             const getColorReserva = () => {
               if (!reserva) return ''
               return reserva.estado === 'confirmada'
                 ? 'bg-costa-olivo text-white border-costa-olivo'
                 : 'bg-costa-coral text-white border-costa-coral'
+            }
+
+            // Tooltip con información
+            const getTooltip = () => {
+              if (estaReservado) {
+                return `${reserva?.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}: ${reserva?.inquilinos?.nombre || 'Sin nombre'}`
+              }
+              if (dayPrice) {
+                return `$${dayPrice.price} - ${dayPrice.ruleName} (prioridad ${dayPrice.priority})`
+              }
+              return 'Sin precio configurado'
             }
 
             return (
@@ -219,26 +247,27 @@ export function CalendarioPrecios({
                 onClick={() => handleClickDia(fecha)}
                 onMouseEnter={() => setHoveredDate(fecha)}
                 onMouseLeave={() => setHoveredDate(null)}
-                title={estaReservado ? `${reserva?.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}: ${reserva?.inquilinos?.nombre || 'Sin nombre'}` : undefined}
+                title={getTooltip()}
                 className={`
-                  h-7 rounded border text-[9px] transition-all
+                  h-9 rounded border text-[8px] transition-all
                   flex flex-col items-center justify-center
-                  ${estaReservado ? getColorReserva() : ''}
-                  ${!estaReservado && noDisponible ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : ''}
-                  ${!estaReservado && !noDisponible ? 'bg-white border-gray-200' : ''}
+                  ${estaReservado ? getColorReserva() : getColorCategoria(dayPrice)}
                   ${inRange ? 'ring-1 ring-costa-navy ring-offset-0' : ''}
-                  ${isStart || isEnd ? 'bg-costa-navy text-white' : ''}
-                  ${!noDisponible && !estaReservado ? 'hover:border-costa-navy cursor-pointer' : ''}
+                  ${isStart || isEnd ? 'bg-costa-navy text-white border-costa-navy' : ''}
+                  ${!estaReservado ? 'hover:border-costa-navy cursor-pointer' : 'cursor-default'}
                 `}
               >
                 <span className="font-medium text-[10px]">{fecha.getDate()}</span>
-                {estaReservado && (
-                  <span className="text-[7px] leading-none">
+                {estaReservado ? (
+                  <span className="text-[7px] leading-none truncate w-full text-center px-0.5">
                     {reserva?.inquilinos?.nombre?.split(' ')[0] || (reserva?.estado === 'confirmada' ? 'Conf.' : 'Pend.')}
                   </span>
-                )}
-                {!estaReservado && noDisponible && (
-                  <span className="text-[7px]">—</span>
+                ) : dayPrice ? (
+                  <span className={`text-[7px] leading-none font-mono ${CATEGORY_COLORS[dayPrice.category].text}`}>
+                    ${dayPrice.price}
+                  </span>
+                ) : (
+                  <span className="text-[7px] text-gray-400">-</span>
                 )}
               </button>
             )
