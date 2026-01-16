@@ -5,25 +5,60 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 ## Funcionalidades
 
 ### Landing Page
-- Visualización de propiedades disponibles
+- Visualización de propiedades disponibles (solo las publicadas)
 - Detalle completo de cada propiedad (amenities, fotos, descripción)
+- Filtro por barrio
 - Formulario de consulta vía WhatsApp
 - Compartir propiedades en redes sociales
 - Modo demo con datos ficticios
 
 ### Panel de Administración
 - **Dashboard**: Resumen de reservas, ingresos y ocupación
-- **Propiedades**: CRUD completo de propiedades con fotos, amenities y precios
+- **Propiedades**: CRUD completo con fotos, amenities, precios y toggle de publicación
 - **Reservas**: Gestión de reservas con generación de PDF de contrato
 - **Inquilinos**: Base de datos de inquilinos
 - **Gastos**: Control de gastos por propiedad
-- **Usuarios**: Administración de usuarios (solo admin)
+- **Usuarios**: Panel de administración de usuarios (solo admin)
+- **Info útil**: Información de servicios y contactos
+
+### Sistema de Usuarios
+
+#### Registro de nuevos usuarios
+El formulario de registro solicita:
+- Nombre completo
+- Barrio (selector con todos los barrios de Costa Esmeralda)
+- Número de lote
+- Teléfono (opcional)
+- Email y contraseña
+
+#### Flujo de autorización
+1. Usuario se registra con sus datos
+2. Recibe email de confirmación de Supabase
+3. Al intentar ingresar, ve pantalla "Autorización Pendiente"
+4. El administrador recibe la solicitud en el panel de Usuarios
+5. Admin puede aprobar o rechazar la solicitud
+6. Usuario aprobado puede acceder al sistema
+
+#### Panel de Usuarios (Admin)
+- Lista de solicitudes pendientes con datos del usuario
+- Botón "Autorizar" para aprobar usuarios
+- Botón para rechazar/desactivar usuarios
+- Lista de usuarios autorizados
+- Gestión de permisos de administrador
+
+### Publicación de Propiedades
+- Toggle en cada tarjeta de propiedad para publicar/ocultar
+- Estado "Online" (verde) u "Oculta" (gris)
+- Las propiedades ocultas no aparecen en la landing page
+- Cambio instantáneo sin recargar la página
 
 ### Seguridad
 - Autenticación multi-usuario con Supabase Auth
 - Row Level Security (RLS) para aislamiento de datos por usuario
 - Recuperación de contraseña con cambio obligatorio
+- Sistema de autorización para nuevos usuarios
 - Panel de administrador para gestión de usuarios
+- Usuario logueado visible en el sidebar
 
 ## Tecnologías
 
@@ -38,7 +73,7 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 
 1. Clonar el repositorio:
 ```bash
-git clone https://github.com/tu-usuario/admin-costa.git
+git clone https://github.com/Fpidal/admin-costa.git
 cd admin-costa
 ```
 
@@ -75,18 +110,32 @@ npm run dev
 ## Base de Datos
 
 ### Tablas principales
-- `propiedades`: Datos de las propiedades
-- `reservas`: Reservas de inquilinos
-- `inquilinos`: Información de inquilinos
-- `gastos`: Gastos asociados a propiedades
-- `cobros`: Registro de cobros
-- `proveedores_servicios`: Proveedores de servicios
-- `profiles`: Perfiles de usuarios (con `is_admin` para superusuarios)
+| Tabla | Descripción |
+|-------|-------------|
+| `propiedades` | Datos de las propiedades (incluye campo `publicada`) |
+| `reservas` | Reservas de inquilinos |
+| `inquilinos` | Información de inquilinos |
+| `gastos` | Gastos asociados a propiedades |
+| `cobros` | Registro de cobros |
+| `proveedores_servicios` | Proveedores de servicios |
+| `profiles` | Perfiles de usuarios |
+
+### Campos de profiles
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `id` | UUID | ID del usuario (referencia a auth.users) |
+| `email` | TEXT | Email del usuario |
+| `nombre` | TEXT | Nombre completo |
+| `barrio` | TEXT | Barrio en Costa Esmeralda |
+| `lote` | TEXT | Número de lote |
+| `telefono` | TEXT | Teléfono de contacto |
+| `is_admin` | BOOLEAN | Si es administrador |
+| `autorizado` | BOOLEAN | Si está autorizado para acceder |
+| `activo` | BOOLEAN | Si la cuenta está activa |
 
 ### Row Level Security (RLS)
-Cada tabla tiene políticas RLS para:
 - Los usuarios solo ven sus propios datos
-- Las propiedades tienen lectura pública (para la landing page)
+- Las propiedades publicadas tienen lectura pública (landing page)
 - Los administradores pueden ver todos los perfiles
 
 ## Deploy
@@ -103,21 +152,43 @@ El proyecto está configurado para deploy automático en Vercel:
 admin-costa/
 ├── app/
 │   ├── admin/
-│   │   ├── layout.tsx      # Layout con autenticación
-│   │   ├── page.tsx        # Dashboard
-│   │   ├── propiedades/    # CRUD propiedades
-│   │   ├── reservas/       # CRUD reservas + PDF
-│   │   ├── inquilinos/     # CRUD inquilinos
-│   │   └── gastos/         # CRUD gastos
-│   ├── page.tsx            # Landing page pública
-│   └── layout.tsx          # Layout principal
-├── components/             # Componentes reutilizables
+│   │   ├── layout.tsx        # Layout con autenticación y autorización
+│   │   ├── page.tsx          # Dashboard
+│   │   ├── propiedades/      # CRUD propiedades + toggle publicación
+│   │   ├── reservas/         # CRUD reservas + PDF contrato
+│   │   ├── inquilinos/       # CRUD inquilinos
+│   │   ├── gastos/           # CRUD gastos
+│   │   ├── usuarios/         # Panel admin de usuarios
+│   │   └── info-util/        # Información de servicios
+│   ├── page.tsx              # Landing page pública
+│   └── layout.tsx            # Layout principal
+├── components/
+│   ├── Sidebar.tsx           # Menú lateral con usuario logueado
+│   ├── PageHeader.tsx        # Header de páginas
+│   └── ui/                   # Componentes UI reutilizables
 ├── hooks/
-│   └── useAuth.ts          # Hook de autenticación
+│   └── useAuth.ts            # Hook de autenticación
 ├── lib/
-│   └── supabase.ts         # Cliente Supabase
-└── public/                 # Assets estáticos
+│   ├── supabase.ts           # Cliente Supabase
+│   └── demoData.ts           # Datos para modo demo
+└── public/                   # Assets estáticos
 ```
+
+## Changelog
+
+### v1.1.0
+- Sistema de autorización de usuarios
+- Formulario de registro con barrio, lote y teléfono
+- Panel de administración de usuarios
+- Toggle para publicar/ocultar propiedades
+- Usuario logueado visible en sidebar
+
+### v1.0.0
+- Lanzamiento inicial
+- CRUD de propiedades, reservas, inquilinos y gastos
+- Generación de PDF de contratos
+- Landing page con filtros
+- Autenticación multi-usuario
 
 ## Licencia
 
