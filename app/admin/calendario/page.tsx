@@ -86,7 +86,16 @@ export default function CalendarioPage() {
     ])
 
     if (resProp.data) setPropiedades(resProp.data)
-    if (resReservas.data) setReservas(resReservas.data as Reserva[])
+    if (resReservas.data) {
+      setReservas(resReservas.data.map((r: any) => ({
+        id: r.id,
+        propiedad_id: r.propiedad_id,
+        fecha_inicio: r.fecha_inicio,
+        fecha_fin: r.fecha_fin,
+        estado: r.estado,
+        inquilinos: r.inquilinos ? { nombre: r.inquilinos.nombre } : undefined
+      })))
+    }
     setLoading(false)
   }
 
