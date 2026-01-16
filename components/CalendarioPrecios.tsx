@@ -8,6 +8,7 @@ interface Reserva {
   id: number
   fecha_inicio: string
   fecha_fin: string
+  estado: string
   inquilinos?: { nombre: string }
 }
 
@@ -145,24 +146,12 @@ export function CalendarioPrecios({
       {/* Leyenda */}
       <div className="flex flex-wrap gap-2 text-[10px]">
         <div className="flex items-center gap-0.5">
-          <span className="w-2.5 h-2.5 rounded bg-red-100 border border-red-300"></span>
-          <span>Alta</span>
+          <span className="w-2.5 h-2.5 rounded bg-costa-olivo"></span>
+          <span>Confirmada</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <span className="w-2.5 h-2.5 rounded bg-amber-100 border border-amber-300"></span>
-          <span>Media</span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <span className="w-2.5 h-2.5 rounded bg-green-100 border border-green-300"></span>
-          <span>Baja</span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <span className="w-2.5 h-2.5 rounded bg-violet-100 border border-violet-300"></span>
-          <span>Especial</span>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <span className="w-2.5 h-2.5 rounded bg-blue-500"></span>
-          <span>Reservado</span>
+          <span className="w-2.5 h-2.5 rounded bg-costa-coral"></span>
+          <span>Pendiente</span>
         </div>
         <div className="flex items-center gap-0.5">
           <span className="w-2.5 h-2.5 rounded bg-gray-300"></span>
@@ -216,20 +205,27 @@ export function CalendarioPrecios({
             const noDisponible = precio && !precio.disponible
             const estaReservado = !!reserva
 
+            // Color según estado de reserva
+            const getColorReserva = () => {
+              if (!reserva) return ''
+              return reserva.estado === 'confirmada'
+                ? 'bg-costa-olivo text-white border-costa-olivo'
+                : 'bg-costa-coral text-white border-costa-coral'
+            }
+
             return (
               <button
                 key={i}
                 onClick={() => handleClickDia(fecha)}
                 onMouseEnter={() => setHoveredDate(fecha)}
                 onMouseLeave={() => setHoveredDate(null)}
-                title={estaReservado ? `Reservado: ${reserva?.inquilinos?.nombre || 'Sin nombre'}` : undefined}
+                title={estaReservado ? `${reserva?.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}: ${reserva?.inquilinos?.nombre || 'Sin nombre'}` : undefined}
                 className={`
                   h-7 rounded border text-[9px] transition-all
                   flex flex-col items-center justify-center
-                  ${estaReservado ? 'bg-blue-500 text-white border-blue-600' : ''}
+                  ${estaReservado ? getColorReserva() : ''}
                   ${!estaReservado && noDisponible ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : ''}
-                  ${!estaReservado && !noDisponible && precio ? getColorTemporada(precio.temporada) : ''}
-                  ${!estaReservado && !noDisponible && !precio ? 'bg-white border-gray-200' : ''}
+                  ${!estaReservado && !noDisponible ? 'bg-white border-gray-200' : ''}
                   ${inRange ? 'ring-1 ring-costa-navy ring-offset-0' : ''}
                   ${isStart || isEnd ? 'bg-costa-navy text-white' : ''}
                   ${!noDisponible && !estaReservado ? 'hover:border-costa-navy cursor-pointer' : ''}
@@ -237,11 +233,8 @@ export function CalendarioPrecios({
               >
                 <span className="font-medium text-[10px]">{fecha.getDate()}</span>
                 {estaReservado && (
-                  <span className="text-[7px] leading-none">Res.</span>
-                )}
-                {!estaReservado && precio && !noDisponible && (
-                  <span className="text-[7px] text-costa-gris truncate w-full text-center leading-none">
-                    ${precio.precio_noche}
+                  <span className="text-[7px] leading-none">
+                    {reserva?.inquilinos?.nombre?.split(' ')[0] || (reserva?.estado === 'confirmada' ? 'Conf.' : 'Pend.')}
                   </span>
                 )}
                 {!estaReservado && noDisponible && (

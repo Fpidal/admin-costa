@@ -20,6 +20,7 @@ interface Reserva {
   id: number
   fecha_inicio: string
   fecha_fin: string
+  estado: string
   inquilinos?: { nombre: string }
 }
 
@@ -70,9 +71,9 @@ export default function PreciosPage() {
         .order('fecha_inicio'),
       supabase
         .from('reservas')
-        .select('id, fecha_inicio, fecha_fin, inquilinos(nombre)')
+        .select('id, fecha_inicio, fecha_fin, estado, inquilinos(nombre)')
         .eq('propiedad_id', propiedadId)
-        .neq('estado', 'cancelada')
+        .in('estado', ['confirmada', 'pendiente'])
         .gte('fecha_fin', `${anio}-01-01`)
         .lte('fecha_inicio', `${anio}-12-31`)
         .order('fecha_inicio'),

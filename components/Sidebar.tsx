@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Building2,
   CalendarDays,
+  CalendarRange,
   Users,
   Receipt,
   Info,
@@ -21,6 +22,7 @@ import { useState } from 'react'
 const navigation = [
   { name: 'Propiedades', href: '/admin/propiedades', icon: Building2 },
   { name: 'Reservas', href: '/admin/reservas', icon: CalendarDays },
+  { name: 'Calendario', href: '/admin/calendario', icon: CalendarRange },
   { name: 'Inquilinos', href: '/admin/inquilinos', icon: Users },
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { name: 'Administración', href: '/admin/gastos', icon: Receipt },
