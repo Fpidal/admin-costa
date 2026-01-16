@@ -788,9 +788,10 @@ function PropiedadesContent() {
 
           {/* BLOQUE 2: CARACTERÍSTICAS - ocultar si es lote */}
           {form.tipo !== 'lote' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Características</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+              {/* Fila 1: Habitaciones | Baños | Camas */}
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Habitaciones</label>
                   <input
@@ -821,6 +822,9 @@ function PropiedadesContent() {
                     className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
                   />
                 </div>
+              </div>
+              {/* Fila 2: Plantas | Capacidad */}
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm text-gray-600 mb-1">Plantas</label>
                   <input
@@ -842,6 +846,7 @@ function PropiedadesContent() {
                     className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
                   />
                 </div>
+                <div></div>
               </div>
             </div>
           )}
@@ -945,9 +950,9 @@ function PropiedadesContent() {
 
           {/* BLOQUE 5: AMENITIES - ocultar si es lote */}
           {form.tipo !== 'lote' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Amenities</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {[
                   { id: 'cochera', label: 'Cochera', key: 'cochera' },
                   { id: 'pileta', label: 'Pileta', key: 'pileta' },
