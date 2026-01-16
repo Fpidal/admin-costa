@@ -950,29 +950,29 @@ function PropiedadesContent() {
 
           {/* BLOQUE 5: AMENITIES - ocultar si es lote */}
           {form.tipo !== 'lote' && (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Amenities</h3>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-x-2 gap-y-1">
                 {[
                   { id: 'cochera', label: 'Cochera', key: 'cochera' },
                   { id: 'pileta', label: 'Pileta', key: 'pileta' },
-                  { id: 'pileta_climatizada', label: 'Pileta climatizada', key: 'pileta_climatizada' },
+                  { id: 'pileta_climatizada', label: 'Pileta clim.', key: 'pileta_climatizada' },
                   { id: 'parrilla', label: 'Parrilla', key: 'parrilla' },
                   { id: 'fogonero', label: 'Fogonero', key: 'fogonero' },
-                  { id: 'grupo_electrogeno', label: 'Grupo electrógeno', key: 'grupo_electrogeno' },
+                  { id: 'grupo_electrogeno', label: 'Generador', key: 'grupo_electrogeno' },
                   { id: 'toilette', label: 'Toilette', key: 'toilette' },
                   { id: 'lavadero', label: 'Lavadero', key: 'lavadero' },
                   { id: 'lavavajillas', label: 'Lavavajillas', key: 'lavavajillas' },
-                  { id: 'aire_acondicionado', label: 'Aire acondicionado', key: 'aire_acondicionado' },
+                  { id: 'aire_acondicionado', label: 'A/C', key: 'aire_acondicionado' },
                   { id: 'calefaccion', label: 'Calefacción', key: 'calefaccion' },
                   { id: 'wifi', label: 'WiFi', key: 'wifi' },
                 ].map((amenity) => (
-                  <label key={amenity.id} className="flex items-center gap-2.5 text-sm text-costa-navy cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                  <label key={amenity.id} className="flex items-center gap-1.5 text-xs text-costa-navy cursor-pointer py-1">
                     <input
                       type="checkbox"
                       checked={form[amenity.key as keyof typeof form] as boolean}
                       onChange={(e) => setForm({ ...form, [amenity.key]: e.target.checked })}
-                      className="w-4 h-4 rounded border-gray-300 text-costa-navy focus:ring-costa-navy focus:ring-offset-0"
+                      className="w-3.5 h-3.5 rounded border-gray-300 text-costa-navy focus:ring-costa-navy focus:ring-offset-0"
                     />
                     {amenity.label}
                   </label>
