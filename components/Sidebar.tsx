@@ -31,9 +31,11 @@ interface SidebarProps {
   onLogout?: () => void
   isDemo?: boolean
   isAdmin?: boolean
+  userName?: string
+  userEmail?: string
 }
 
-export default function Sidebar({ onLogout, isDemo = false, isAdmin = false }: SidebarProps) {
+export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, userName = '', userEmail = '' }: SidebarProps) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -150,6 +152,23 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false }: S
               )
             })}
           </nav>
+
+          {/* Usuario logueado */}
+          {!isDemo && (userName || userEmail) && (
+            <div className="px-3 py-3 border-t border-costa-beige">
+              <div className="flex items-center gap-3 px-3 py-2 bg-costa-white/50 rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-costa-navy text-white flex items-center justify-center text-sm font-medium">
+                  {userName ? userName.charAt(0).toUpperCase() : userEmail.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  {userName && (
+                    <p className="text-sm font-medium text-costa-navy truncate">{userName}</p>
+                  )}
+                  <p className="text-xs text-costa-gris truncate">{userEmail}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
         </div>
       </aside>

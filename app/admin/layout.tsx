@@ -22,6 +22,8 @@ function AdminLayoutContent({
   const [isAdmin, setIsAdmin] = useState(false)
   const [isInactive, setIsInactive] = useState(false)
   const [isPendingAuth, setIsPendingAuth] = useState(false)
+  const [userName, setUserName] = useState('')
+  const [userEmail, setUserEmail] = useState('')
 
   // Form fields
   const [email, setEmail] = useState('')
@@ -51,7 +53,7 @@ function AdminLayoutContent({
     if (session) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('activo, is_admin, autorizado')
+        .select('activo, is_admin, autorizado, nombre, email')
         .eq('id', session.user.id)
         .single()
 
@@ -64,6 +66,8 @@ function AdminLayoutContent({
       } else {
         setIsAuthenticated(true)
         setIsAdmin(profile?.is_admin || false)
+        setUserName(profile?.nombre || '')
+        setUserEmail(profile?.email || session.user.email || '')
       }
     }
     setIsLoading(false)
@@ -114,7 +118,7 @@ function AdminLayoutContent({
       // Obtener perfil directamente
       const { data: profile } = await supabase
         .from('profiles')
-        .select('activo, is_admin, autorizado')
+        .select('activo, is_admin, autorizado, nombre, email')
         .eq('id', data.user.id)
         .single()
 
@@ -131,6 +135,8 @@ function AdminLayoutContent({
       }
 
       setIsAdmin(profile?.is_admin || false)
+      setUserName(profile?.nombre || '')
+      setUserEmail(profile?.email || data.user.email || '')
       setIsAuthenticated(true)
       setSubmitting(false)
       router.push('/admin/propiedades')
@@ -643,7 +649,7 @@ function AdminLayoutContent({
       </div>
 
       <div className="flex min-h-screen max-w-full">
-        <Sidebar onLogout={handleLogout} isDemo={isDemo} isAdmin={isAdmin} />
+        <Sidebar onLogout={handleLogout} isDemo={isDemo} isAdmin={isAdmin} userName={userName} userEmail={userEmail} />
         <main className="flex-1 lg:ml-0 min-w-0">
           <div className="p-4 lg:p-8 pt-16 lg:pt-8 max-w-full">
             {children}
