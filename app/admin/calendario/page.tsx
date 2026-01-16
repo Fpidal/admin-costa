@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
@@ -254,22 +255,39 @@ export default function CalendarioPage() {
                           const hoy = new Date()
                           const esHoy = dia === hoy.getDate() && mesActual === hoy.getMonth() && anioActual === hoy.getFullYear()
 
-                          return (
-                            <div
-                              key={i}
-                              className={`
-                                h-10 rounded border text-xs flex flex-col items-center justify-center
-                                ${esHoy ? 'border-costa-coral border-2' : 'border-gray-200'}
-                                ${reserva ? getColorEstado(reserva.estado) : 'bg-white'}
-                              `}
-                              title={reserva ? `${reserva.inquilinos?.nombre || 'Reserva'} - ${reserva.estado}` : ''}
-                            >
+                          const cellContent = (
+                            <>
                               <span className={`font-medium ${reserva ? '' : 'text-costa-navy'}`}>{dia}</span>
                               {reserva && (
                                 <span className="text-[8px] truncate w-full text-center px-0.5 leading-none">
                                   {reserva.inquilinos?.nombre?.split(' ')[0] || 'Res.'}
                                 </span>
                               )}
+                            </>
+                          )
+
+                          const cellClasses = `
+                            h-10 rounded border text-xs flex flex-col items-center justify-center
+                            ${esHoy ? 'border-costa-coral border-2' : 'border-gray-200'}
+                            ${reserva ? getColorEstado(reserva.estado) : 'bg-white'}
+                            ${reserva ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}
+                          `
+
+                          return reserva ? (
+                            <Link
+                              key={i}
+                              href={`/admin/reservas/${reserva.id}`}
+                              className={cellClasses}
+                              title={`${reserva.inquilinos?.nombre || 'Reserva'} - ${reserva.estado} - Click para ver detalles`}
+                            >
+                              {cellContent}
+                            </Link>
+                          ) : (
+                            <div
+                              key={i}
+                              className={cellClasses}
+                            >
+                              {cellContent}
                             </div>
                           )
                         })}
@@ -291,12 +309,13 @@ export default function CalendarioPage() {
                             return inicio <= finMes && fin >= inicioMes
                           })
                           .map(r => (
-                            <div
+                            <Link
                               key={r.id}
-                              className={`px-2 py-1 rounded text-xs ${getColorEstado(r.estado)}`}
+                              href={`/admin/reservas/${r.id}`}
+                              className={`px-2 py-1 rounded text-xs ${getColorEstado(r.estado)} hover:opacity-80 transition-opacity cursor-pointer`}
                             >
                               {r.inquilinos?.nombre || 'Sin nombre'}: {new Date(r.fecha_inicio).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} - {new Date(r.fecha_fin).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
-                            </div>
+                            </Link>
                           ))
                         }
                       </div>
