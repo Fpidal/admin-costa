@@ -171,7 +171,7 @@ export default function CalendarioPage() {
     <div className="space-y-6">
       <PageHeader
         title="Calendario de Reservas"
-        subtitle="Visualizá las reservas de todas tus propiedades"
+        description="Visualizá las reservas de todas tus propiedades"
       />
 
       {/* Navegación del mes */}
