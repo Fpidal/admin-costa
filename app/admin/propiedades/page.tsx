@@ -714,7 +714,7 @@ function PropiedadesContent() {
         isOpen={modalOpen}
         onClose={closeModal}
         title={editingId ? 'Editar Propiedad' : 'Nueva Propiedad'}
-        size="lg"
+        size="md"
       >
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Botones arriba */}
