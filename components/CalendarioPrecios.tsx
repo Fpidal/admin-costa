@@ -133,7 +133,7 @@ export function CalendarioPrecios({
   }
 
   return (
-    <div className="space-y-2 max-w-xs">
+    <div className="space-y-2 max-w-sm">
       {/* Navegación de año */}
       <div className="flex items-center justify-between">
         <button

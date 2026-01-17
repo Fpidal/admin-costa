@@ -224,9 +224,9 @@ export default function PreciosPage() {
       </Card>
 
       {/* Layout principal: Calendario + Panel de reglas */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendario (1/3) */}
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Calendario (2/5 = 40%) */}
+        <Card className="lg:col-span-2">
           <CardContent className="py-4">
             <CalendarioPrecios
               rules={rules}
@@ -238,8 +238,8 @@ export default function PreciosPage() {
           </CardContent>
         </Card>
 
-        {/* Panel de reglas (2/3) */}
-        <Card className="lg:col-span-2">
+        {/* Panel de reglas (3/5 = 60%) */}
+        <Card className="lg:col-span-3">
           <CardContent className="py-4">
             <PanelReglasPrecios
               rules={rules}
