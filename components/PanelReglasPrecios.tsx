@@ -20,7 +20,8 @@ import {
   Save,
   Sparkles,
   ArrowUpDown,
-  Check
+  Check,
+  Copy
 } from 'lucide-react'
 
 interface PanelReglasPreciosProps {
@@ -29,6 +30,7 @@ interface PanelReglasPreciosProps {
   year: number
   onSave: (rules: PriceRule[]) => Promise<void>
   onDelete: (ruleId: string) => Promise<void>
+  onApplyToAll?: (rules: PriceRule[]) => Promise<void>
   saving: boolean
 }
 
@@ -40,12 +42,15 @@ export function PanelReglasPrecios({
   year,
   onSave,
   onDelete,
+  onApplyToAll,
   saving
 }: PanelReglasPreciosProps) {
   const [localRules, setLocalRules] = useState<PriceRule[]>(rules)
   const [editingRule, setEditingRule] = useState<PriceRule | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPresetModalOpen, setIsPresetModalOpen] = useState(false)
+  const [isApplyAllModalOpen, setIsApplyAllModalOpen] = useState(false)
+  const [applyingToAll, setApplyingToAll] = useState(false)
   const [presetBasePrice, setPresetBasePrice] = useState(300)
   const [hasChanges, setHasChanges] = useState(false)
 
@@ -153,6 +158,18 @@ export function PanelReglasPrecios({
     setIsPresetModalOpen(false)
   }
 
+  async function handleApplyToAll() {
+    if (!onApplyToAll) return
+    setApplyingToAll(true)
+    try {
+      await onApplyToAll(localRules)
+      setIsApplyAllModalOpen(false)
+    } catch (err) {
+      console.error('Error aplicando a todas:', err)
+    }
+    setApplyingToAll(false)
+  }
+
   function toggleDay(day: string) {
     setForm(prev => ({
       ...prev,
@@ -180,18 +197,23 @@ export function PanelReglasPrecios({
       {/* Header con botones */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-semibold text-costa-navy">Reglas de Precios</h3>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" onClick={() => setIsPresetModalOpen(true)}>
             <Sparkles size={14} />
-            Aplicar Preset
+            Preset
           </Button>
+          {onApplyToAll && localRules.length > 0 && (
+            <Button variant="secondary" size="sm" onClick={() => setIsApplyAllModalOpen(true)}>
+              <Copy size={14} />
+              Aplicar a Todas
+            </Button>
+          )}
           <Button variant="secondary" size="sm" onClick={handleSortByPriority}>
             <ArrowUpDown size={14} />
-            Ordenar
           </Button>
           <Button size="sm" onClick={openAddModal}>
             <Plus size={14} />
-            Agregar Regla
+            Agregar
           </Button>
         </div>
       </div>
@@ -482,6 +504,36 @@ export function PanelReglasPrecios({
           <Button variant="ghost" className="w-full" onClick={() => setIsPresetModalOpen(false)}>
             Cancelar
           </Button>
+        </div>
+      </Modal>
+
+      {/* Modal aplicar a todas las propiedades */}
+      <Modal
+        isOpen={isApplyAllModalOpen}
+        onClose={() => setIsApplyAllModalOpen(false)}
+        title="Aplicar a Todas las Propiedades"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
+            <AlertTriangle size={14} className="inline mr-1" />
+            Esto reemplazará las reglas de precios de todas tus propiedades publicadas
+          </div>
+
+          <p className="text-sm text-costa-gris">
+            Se copiarán {localRules.length} regla{localRules.length !== 1 ? 's' : ''} a todas tus propiedades.
+            Luego podés modificar cada una individualmente.
+          </p>
+
+          <div className="flex gap-2 pt-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setIsApplyAllModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button className="flex-1" onClick={handleApplyToAll} disabled={applyingToAll}>
+              <Copy size={14} />
+              {applyingToAll ? 'Aplicando...' : 'Aplicar a Todas'}
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

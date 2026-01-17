@@ -128,6 +128,57 @@ export default function PreciosPage() {
     await fetchData()
   }
 
+  async function handleApplyToAll(rulesToApply: PriceRule[]) {
+    if (!userId) return
+
+    // Obtener todas las propiedades publicadas del usuario
+    const { data: propiedades } = await supabase
+      .from('propiedades')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('publicada', true)
+
+    if (!propiedades || propiedades.length === 0) {
+      alert('No hay propiedades publicadas')
+      return
+    }
+
+    try {
+      // Para cada propiedad, eliminar reglas existentes e insertar las nuevas
+      for (const prop of propiedades) {
+        // Eliminar reglas existentes
+        await supabase
+          .from('price_rules')
+          .delete()
+          .eq('property_id', prop.id)
+
+        // Insertar nuevas reglas
+        const rulesToInsert = rulesToApply.map(rule => ({
+          property_id: prop.id,
+          name: rule.name,
+          category: rule.category,
+          price_per_night: rule.price_per_night,
+          start_date: rule.start_date,
+          end_date: rule.end_date,
+          applies_to_days: rule.applies_to_days || [],
+          min_nights: rule.min_nights,
+          priority: rule.priority,
+          active: rule.active,
+          user_id: userId,
+        }))
+
+        if (rulesToInsert.length > 0) {
+          await supabase.from('price_rules').insert(rulesToInsert)
+        }
+      }
+
+      alert(`Reglas aplicadas a ${propiedades.length} propiedad${propiedades.length !== 1 ? 'es' : ''}`)
+      await fetchData()
+    } catch (err: any) {
+      alert('Error al aplicar: ' + err.message)
+    }
+  }
+
   // Calcular métricas
   const metrics = calculateYearMetrics(anio, rules)
   const uncoveredDays = findUncoveredDays(anio, rules)
@@ -247,6 +298,7 @@ export default function PreciosPage() {
               year={anio}
               onSave={handleSaveRules}
               onDelete={handleDeleteRule}
+              onApplyToAll={handleApplyToAll}
               saving={saving}
             />
           </CardContent>
