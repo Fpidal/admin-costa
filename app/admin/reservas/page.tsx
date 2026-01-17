@@ -10,6 +10,7 @@ import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, Chevr
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
+import { CobrosContent } from '@/components/CobrosContent'
 import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 
 interface Propiedad {
@@ -166,7 +167,8 @@ function ReservasContent() {
   const isDemo = searchParams.get('demo') === 'true'
   const { userId } = useAuth()
 
-  const [activeTab, setActiveTab] = useState<'reservas' | 'cobros'>('reservas')
+  const [activeTab, setActiveTab] = useState<'reservas' | 'cobros' | 'gestion'>('reservas')
+  const [selectedReservaId, setSelectedReservaId] = useState<string | null>(null)
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cobros, setCobros] = useState<Cobro[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
@@ -941,6 +943,17 @@ function ReservasContent() {
         >
           Cobros
         </button>
+        <button
+          onClick={() => setActiveTab('gestion')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'gestion'
+              ? 'bg-white text-costa-navy shadow-sm'
+              : 'text-costa-gris hover:text-costa-navy'
+          }`}
+        >
+          <Wallet size={16} />
+          Gestión de Cobros
+        </button>
       </div>
 
       {activeTab === 'reservas' && (
@@ -1230,6 +1243,69 @@ function ReservasContent() {
             )}
           </CardContent>
         </Card>
+      )}
+
+      {/* Tab Gestión de Cobros */}
+      {activeTab === 'gestion' && (
+        <div className="space-y-4">
+          {!selectedReservaId ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Seleccionar Reserva</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-costa-gris mb-4">Seleccioná una reserva para gestionar sus cobros:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {reservas.filter(r => r.estado !== 'cancelada').map((reserva) => {
+                    const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
+                    const total = noches * (reserva.precio_noche || 0)
+                    const cobradoAlquiler = cobros
+                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler')
+                      .reduce((acc, c) => acc + (c.monto || 0), 0)
+                    const saldo = total - cobradoAlquiler
+
+                    return (
+                      <button
+                        key={reserva.id}
+                        onClick={() => setSelectedReservaId(String(reserva.id))}
+                        className="text-left p-4 border border-costa-beige rounded-lg hover:border-costa-navy hover:bg-costa-beige/30 transition-all"
+                      >
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-medium text-costa-navy">{reserva.inquilinos?.nombre || 'Sin inquilino'}</p>
+                            <p className="text-xs text-costa-gris">{reserva.propiedades?.nombre}</p>
+                          </div>
+                          <Badge variant={estadoVariant[reserva.estado as keyof typeof estadoVariant] || 'default'} className="text-xs">
+                            {reserva.estado}
+                          </Badge>
+                        </div>
+                        <div className="text-xs text-costa-gris mb-2">
+                          {formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)} ({noches}n)
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-costa-gris">Saldo:</span>
+                          <span className={saldo > 0 ? 'font-semibold text-amber-600' : 'text-costa-olivo'}>
+                            {formatMonto(saldo, reserva.moneda)}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div>
+              <button
+                onClick={() => setSelectedReservaId(null)}
+                className="mb-4 text-sm text-costa-gris hover:text-costa-navy flex items-center gap-1"
+              >
+                ← Volver a seleccionar reserva
+              </button>
+              <CobrosContent reservaId={selectedReservaId} showNavigation={false} showHeader={true} />
+            </div>
+          )}
+        </div>
       )}
 
       {/* Modal */}

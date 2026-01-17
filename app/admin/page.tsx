@@ -272,7 +272,7 @@ function DashboardContent() {
   return (
     <div>
       <PageHeader
-        title="Dashboard"
+        title="Resumen"
         description="Resumen general de tu gestión de propiedades"
       />
 

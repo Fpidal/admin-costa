@@ -294,7 +294,7 @@ function LandingContent() {
     setPreciosCalendario({})
   }
 
-  // Check if property is currently reserved
+  // Check if property is currently reserved (today)
   const estaReservada = (propiedadId: number) => {
     const hoy = new Date()
     hoy.setHours(0, 0, 0, 0)
@@ -305,6 +305,28 @@ function LandingContent() {
       return hoy >= inicio && hoy <= fin
     })
   }
+
+  // Check if property is reserved for specific dates (overlapping)
+  const estaReservadaEnFechas = (propiedadId: number, checkIn: string, checkOut: string) => {
+    const busquedaInicio = new Date(checkIn)
+    const busquedaFin = new Date(checkOut)
+
+    return reservas.some(r => {
+      if (r.propiedad_id !== propiedadId) return false
+      if (r.estado !== 'confirmada' && r.estado !== 'pendiente') return false
+
+      const reservaInicio = new Date(r.fecha_inicio)
+      const reservaFin = new Date(r.fecha_fin)
+
+      // Check for overlap: reservation overlaps if it starts before search ends AND ends after search starts
+      return reservaInicio <= busquedaFin && reservaFin >= busquedaInicio
+    })
+  }
+
+  // Filter properties by availability for selected dates
+  const propiedadesDisponibles = fechasBusqueda
+    ? propiedadesFiltradas.filter(p => !estaReservadaEnFechas(p.id, fechasBusqueda.checkIn, fechasBusqueda.checkOut))
+    : propiedadesFiltradas
 
   return (
     <div className="min-h-screen">
@@ -569,19 +591,47 @@ function LandingContent() {
             </div>
           </div>
 
+          {/* Mensaje de disponibilidad */}
+          {fechasBusqueda && !loadingPrecios && (
+            <div className="text-center mb-6">
+              <p className="text-costa-navy font-medium">
+                {propiedadesDisponibles.length > 0 ? (
+                  <>
+                    <span className="text-costa-olivo">{propiedadesDisponibles.length}</span> propiedad{propiedadesDisponibles.length !== 1 ? 'es' : ''} disponible{propiedadesDisponibles.length !== 1 ? 's' : ''} del{' '}
+                    <span className="font-semibold">{new Date(fechasBusqueda.checkIn + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span> al{' '}
+                    <span className="font-semibold">{new Date(fechasBusqueda.checkOut + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+                  </>
+                ) : (
+                  <span className="text-costa-coral">No hay propiedades disponibles para las fechas seleccionadas</span>
+                )}
+              </p>
+            </div>
+          )}
+
           {loading ? (
             <div className="text-center text-costa-gris py-12">Cargando propiedades...</div>
-          ) : propiedadesFiltradas.length === 0 ? (
+          ) : propiedadesDisponibles.length === 0 && fechasBusqueda ? (
+            <div className="text-center py-12">
+              <Calendar size={48} className="mx-auto text-costa-gris mb-4" />
+              <p className="text-costa-gris mb-2">No hay propiedades disponibles para estas fechas</p>
+              <button
+                onClick={handleLimpiarFechas}
+                className="text-costa-navy underline hover:text-costa-coral transition-colors"
+              >
+                Ver todas las propiedades
+              </button>
+            </div>
+          ) : propiedadesDisponibles.length === 0 ? (
             <div className="text-center text-costa-gris py-12">No hay propiedades en este barrio</div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {propiedadesFiltradas.map((propiedad) => {
+              {propiedadesDisponibles.map((propiedad) => {
                 const reservada = estaReservada(propiedad.id)
                 const images = propiedad.imagenes?.length > 0 ? propiedad.imagenes : (propiedad.imagen_url ? [propiedad.imagen_url] : [])
                 const currentIndex = imageIndexes[propiedad.id] || 0
 
                 return (
-                  <div key={propiedad.id} className="bg-white rounded-2xl shadow-lg overflow-hidden">
+                  <div key={propiedad.id} className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col">
                     {/* Image Carousel */}
                     <div
                       className="relative h-56 bg-costa-beige group"
@@ -655,7 +705,7 @@ function LandingContent() {
                       </div>
 
                     {/* Content */}
-                    <div className="p-5">
+                    <div className="p-5 flex flex-col flex-1">
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="text-xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
                           {propiedad.nombre}{propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}
@@ -757,25 +807,25 @@ function LandingContent() {
                         </div>
                       )}
 
-                      {/* Buttons */}
-                      <div className="flex gap-2">
+                      {/* Buttons - todos en una fila, siempre al final */}
+                      <div className="grid grid-cols-3 gap-2 mt-auto">
                         <button
                           onClick={() => {
                             setPropiedadModal(propiedad)
                             setModalImageIndex(0)
                           }}
-                          className="flex items-center justify-center gap-1.5 px-3 py-3 bg-costa-beige hover:bg-costa-beige/80 text-costa-navy rounded-lg text-sm transition-colors"
+                          className="flex items-center justify-center gap-1 py-2.5 bg-costa-beige hover:bg-costa-beige/80 text-costa-navy rounded-lg text-xs sm:text-sm font-medium transition-colors"
                         >
-                          <Eye size={16} />
-                          Ver más
+                          <Eye size={14} />
+                          Ver
                         </button>
                         <a
                           href={`https://wa.me/${formatWhatsApp(propiedad.telefono_contacto)}?text=Hola! Me interesa la propiedad ${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 flex-1 py-3 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg font-medium transition-colors"
+                          className="flex items-center justify-center gap-1 py-2.5 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                           </svg>
                           Consultar
@@ -786,14 +836,15 @@ function LandingContent() {
                             const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
                             window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
                           }}
-                          className="flex items-center justify-center p-3 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg transition-colors"
+                          className="flex items-center justify-center gap-1 py-2.5 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors"
                           title="Compartir por WhatsApp"
                         >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
                             <polyline points="16 6 12 2 8 6"/>
                             <line x1="12" y1="2" x2="12" y2="15"/>
                           </svg>
+                          Compartir
                         </button>
                       </div>
                     </div>

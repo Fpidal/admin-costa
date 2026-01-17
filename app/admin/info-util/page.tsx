@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select } from '@/components/ui'
 import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink, Users } from 'lucide-react'
@@ -50,14 +51,35 @@ const initialForm = {
   descripcion: '',
 }
 
+const rubrosProveedor = [
+  { value: 'plomero', label: 'Plomero' },
+  { value: 'electricista', label: 'Electricista' },
+  { value: 'pintor', label: 'Pintor' },
+  { value: 'jardinero', label: 'Jardinero' },
+  { value: 'piletero', label: 'Piletero' },
+  { value: 'arreglos_varios', label: 'Arreglos Varios' },
+  { value: 'constructor', label: 'Constructor' },
+]
+
+const rubroConfig: Record<string, { color: string; bg: string }> = {
+  plomero: { color: 'text-blue-600', bg: 'bg-blue-100' },
+  electricista: { color: 'text-amber-600', bg: 'bg-amber-100' },
+  pintor: { color: 'text-costa-coral', bg: 'bg-costa-coral/20' },
+  jardinero: { color: 'text-costa-olivo', bg: 'bg-costa-olivo/20' },
+  piletero: { color: 'text-cyan-600', bg: 'bg-cyan-100' },
+  arreglos_varios: { color: 'text-costa-gris', bg: 'bg-costa-beige' },
+  constructor: { color: 'text-costa-navy', bg: 'bg-costa-navy/20' },
+}
+
 const initialProveedorForm = {
   nombre: '',
   apellido: '',
-  rubro: '',
+  rubro: 'arreglos_varios',
   telefono: '',
 }
 
 export default function InfoUtilPage() {
+  const { userId } = useAuth()
   const [contactos, setContactos] = useState<Contacto[]>([])
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,7 +152,7 @@ export default function InfoUtilPage() {
       const { error } = await supabase.from('contactos').update(data).eq('id', editingId)
       if (error) alert('Error al actualizar: ' + error.message)
     } else {
-      const { error } = await supabase.from('contactos').insert([data])
+      const { error } = await supabase.from('contactos').insert([{ ...data, user_id: userId }])
       if (error) alert('Error al crear: ' + error.message)
     }
 
@@ -150,10 +172,12 @@ export default function InfoUtilPage() {
   function openProveedorModal(proveedor?: Proveedor) {
     if (proveedor) {
       setEditingProveedorId(proveedor.id)
+      // Verificar si el rubro existe en la lista, sino usar 'arreglos_varios'
+      const rubroValido = rubrosProveedor.some(r => r.value === proveedor.rubro)
       setProveedorForm({
         nombre: proveedor.nombre || '',
         apellido: proveedor.apellido || '',
-        rubro: proveedor.rubro || '',
+        rubro: rubroValido ? (proveedor.rubro || 'arreglos_varios') : 'arreglos_varios',
         telefono: proveedor.telefono || '',
       })
     } else {
@@ -184,7 +208,7 @@ export default function InfoUtilPage() {
       const { error } = await supabase.from('proveedores_servicios').update(data).eq('id', editingProveedorId)
       if (error) alert('Error al actualizar: ' + error.message)
     } else {
-      const { error } = await supabase.from('proveedores_servicios').insert([data])
+      const { error } = await supabase.from('proveedores_servicios').insert([{ ...data, user_id: userId }])
       if (error) alert('Error al crear: ' + error.message)
     }
 
@@ -207,6 +231,25 @@ export default function InfoUtilPage() {
     acc[cat].push(c)
     return acc
   }, {} as Record<string, Contacto[]>)
+
+  // Normalizar rubro (convertir a minúsculas, quitar acentos, reemplazar espacios)
+  const normalizarRubro = (rubro: string | null): string => {
+    if (!rubro) return 'arreglos_varios'
+    const normalizado = rubro.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quitar acentos
+      .replace(/\s+/g, '_') // espacios a guiones bajos
+    // Verificar si existe en la lista de rubros válidos
+    const rubroValido = rubrosProveedor.find(r => r.value === normalizado)
+    return rubroValido ? normalizado : 'arreglos_varios'
+  }
+
+  // Agrupar proveedores por rubro
+  const proveedoresPorRubro = proveedores.reduce((acc, p) => {
+    const rubro = normalizarRubro(p.rubro)
+    if (!acc[rubro]) acc[rubro] = []
+    acc[rubro].push(p)
+    return acc
+  }, {} as Record<string, Proveedor[]>)
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>
@@ -272,64 +315,69 @@ export default function InfoUtilPage() {
       </div>
 
       {/* Proveedores de Servicios */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-green-100">
-                <Users className="w-5 h-5 text-green-600" />
-              </div>
-              Proveedores de Servicios
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-costa-navy flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-green-100">
+              <Users className="w-5 h-5 text-green-600" />
             </div>
-            <Button size="sm" onClick={() => openProveedorModal()}>
-              <Plus size={16} />
-              Agregar
-            </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {proveedores.length === 0 ? (
-            <p className="text-sm text-gray-500">No hay proveedores registrados</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-costa-beige/50 border-b border-costa-beige">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Nombre</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Rubro</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Teléfono</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-costa-beige">
-                  {proveedores.map((prov) => (
-                    <tr key={prov.id} className="hover:bg-costa-beige/30">
-                      <td className="px-4 py-3 font-medium text-costa-navy">
-                        {prov.apellido ? `${prov.nombre} ${prov.apellido}` : prov.nombre}
-                      </td>
-                      <td className="px-4 py-3 text-costa-gris">{prov.rubro || '-'}</td>
-                      <td className="px-4 py-3">
-                        {prov.telefono ? (
-                          <a href={`tel:${prov.telefono}`} className="flex items-center gap-1 text-blue-600 hover:text-blue-700">
-                            <Phone size={14} />
-                            {prov.telefono}
-                          </a>
-                        ) : '-'}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="sm" onClick={() => openProveedorModal(prov)}><Pencil size={14} /></Button>
-                          <Button variant="ghost" size="sm" onClick={() => handleProveedorDelete(prov.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
+            Proveedores de Servicios
+          </h2>
+          <Button onClick={() => openProveedorModal()}>
+            <Plus size={16} />
+            Agregar
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {rubrosProveedor.map(({ value, label }) => {
+            const config = rubroConfig[value] || { color: 'text-gray-600', bg: 'bg-gray-100' }
+            const listaProveedores = Array.isArray(proveedoresPorRubro[value]) ? proveedoresPorRubro[value] : []
+
+            return (
+              <Card key={value} className="overflow-hidden">
+                <div className={`px-4 py-3 ${config.bg} border-b`}>
+                  <h3 className={`font-semibold ${config.color}`}>{label}</h3>
+                </div>
+                <CardContent className="p-3">
+                  {listaProveedores.length === 0 ? (
+                    <p className="text-sm text-gray-400 italic">Sin proveedores</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {listaProveedores.map((prov) => (
+                        <div key={prov.id} className="flex items-start justify-between group">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-costa-navy text-sm truncate">
+                              {prov.apellido ? `${prov.nombre} ${prov.apellido}` : prov.nombre}
+                            </p>
+                            {prov.telefono && (
+                              <a
+                                href={`tel:${prov.telefono}`}
+                                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 mt-0.5"
+                              >
+                                <Phone size={12} />
+                                {prov.telefono}
+                              </a>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openProveedorModal(prov)}>
+                              <Pencil size={12} />
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => handleProveedorDelete(prov.id)}>
+                              <Trash2 size={12} className="text-costa-gris" />
+                            </Button>
+                          </div>
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      </div>
 
       {/* Links útiles */}
       <Card>
@@ -391,11 +439,11 @@ export default function InfoUtilPage() {
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input
+            <Select
               label="Rubro"
               value={proveedorForm.rubro}
               onChange={(e) => setProveedorForm({ ...proveedorForm, rubro: e.target.value })}
-              placeholder="Ej: Electricista, Plomero..."
+              options={rubrosProveedor}
             />
             <Input
               label="Teléfono"

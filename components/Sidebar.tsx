@@ -24,7 +24,7 @@ const navigation = [
   { name: 'Reservas', href: '/admin/reservas', icon: CalendarDays },
   { name: 'Calendario', href: '/admin/calendario', icon: CalendarRange },
   { name: 'Inquilinos', href: '/admin/inquilinos', icon: Users },
-  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Resumen', href: '/admin', icon: LayoutDashboard },
   { name: 'Administración', href: '/admin/gastos', icon: Receipt },
   { name: 'Info útil', href: '/admin/info-util', icon: Info },
 ]
