@@ -254,13 +254,10 @@ export function PanelReglasPrecios({
                     </td>
                     <td className="py-2 px-2 font-medium">{rule.name}</td>
                     <td className="py-2 px-2">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`w-3 h-3 rounded-full ${colors.solid}`}
-                          title={CATEGORY_LABELS[rule.category]}
-                        />
-                        <span className="text-xs text-costa-gris">{CATEGORY_LABELS[rule.category]}</span>
-                      </div>
+                      <span
+                        className={`w-3 h-3 rounded-full inline-block ${colors.solid}`}
+                        title={CATEGORY_LABELS[rule.category]}
+                      />
                     </td>
                     <td className="py-2 px-2 text-right font-mono">${rule.price_per_night}</td>
                     <td className="py-2 px-2 text-xs">
