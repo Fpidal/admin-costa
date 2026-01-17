@@ -15,11 +15,27 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 ### Panel de Administración
 - **Dashboard**: Resumen de reservas, ingresos y ocupación
 - **Propiedades**: CRUD completo con fotos, amenities, precios y toggle de publicación
+- **Calendario de Precios**: Sistema de reglas de precio por temporada con prioridades
 - **Reservas**: Gestión de reservas con generación de PDF de contrato
+- **Calendario de Reservas**: Vista mensual con indicadores de feriados
 - **Inquilinos**: Base de datos de inquilinos
 - **Gastos**: Control de gastos por propiedad
 - **Usuarios**: Panel de administración de usuarios (solo admin)
 - **Info útil**: Información de servicios y contactos
+
+### Sistema de Precios
+- **Reglas de precio**: Configuración por temporada, fechas especiales y días de la semana
+- **Categorías**: Muy alta, alta, media y baja temporada con colores distintivos
+- **Prioridades**: Sistema de prioridad para resolver conflictos entre reglas
+- **Presets**: Configuración rápida "Verano Costa Esmeralda" con temporadas predefinidas
+- **Cobertura**: Métricas de cobertura y días sin precio configurado
+
+### Calendario Argentina
+- **Feriados oficiales**: Cálculo automático de feriados inamovibles y trasladables
+- **Feriados móviles**: Carnaval, Semana Santa calculados con algoritmo de Computus
+- **Fines de semana largos**: Detección automática de puentes de 3+ días
+- **Feriados personalizados**: CRUD para agregar/editar feriados que se corren
+- **Integración visual**: Indicadores de feriados en calendarios de precios y reservas
 
 ### Sistema de Usuarios
 
@@ -119,6 +135,8 @@ npm run dev
 | `cobros` | Registro de cobros |
 | `proveedores_servicios` | Proveedores de servicios |
 | `profiles` | Perfiles de usuarios |
+| `price_rules` | Reglas de precios por propiedad |
+| `feriados_custom` | Feriados personalizados por usuario |
 
 ### Campos de profiles
 | Campo | Tipo | Descripción |
@@ -175,6 +193,21 @@ admin-costa/
 ```
 
 ## Changelog
+
+### v1.3.0
+- Calendario de feriados Argentina con cálculo automático
+- Feriados personalizados editables (CRUD completo)
+- Detección de fines de semana largos
+- Indicadores de feriados en calendario de reservas
+- Integración de feriados en calendario de precios
+
+### v1.2.0
+- Sistema de reglas de precios por propiedad
+- Categorías de temporada (muy alta, alta, media, baja)
+- Presets de configuración rápida
+- Calendario de precios visual con colores
+- Métricas de cobertura y precio promedio
+- Vista detalle de reserva clickeable desde calendario
 
 ### v1.1.0
 - Sistema de autorización de usuarios
