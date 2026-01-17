@@ -16,13 +16,11 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Copy,
   AlertTriangle,
   Save,
   Sparkles,
   ArrowUpDown,
-  Check,
-  X
+  Check
 } from 'lucide-react'
 
 interface PanelReglasPreciosProps {
@@ -63,7 +61,7 @@ export function PanelReglasPrecios({
     end_date: '',
     applies_to_days: [],
     min_nights: null,
-    priority: 50,
+    priority: 2,
     active: true,
   })
 
@@ -76,7 +74,7 @@ export function PanelReglasPrecios({
       end_date: `${year}-12-31`,
       applies_to_days: [],
       min_nights: null,
-      priority: 50,
+      priority: 2,
       active: true,
     })
     setEditingRule(null)
@@ -119,16 +117,6 @@ export function PanelReglasPrecios({
 
     setHasChanges(true)
     setIsModalOpen(false)
-  }
-
-  function handleDuplicateRule(rule: PriceRule) {
-    const duplicated: PriceRule = {
-      ...rule,
-      id: `temp-${Date.now()}`,
-      name: `${rule.name} (copia)`,
-    }
-    setLocalRules(prev => [...prev, duplicated])
-    setHasChanges(true)
   }
 
   function handleDeleteRule(ruleId: string) {
@@ -266,9 +254,13 @@ export function PanelReglasPrecios({
                     </td>
                     <td className="py-2 px-2 font-medium">{rule.name}</td>
                     <td className="py-2 px-2">
-                      <span className={`px-2 py-0.5 rounded text-xs ${colors.bg} ${colors.text}`}>
-                        {CATEGORY_LABELS[rule.category]}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`w-3 h-3 rounded-full ${colors.solid}`}
+                          title={CATEGORY_LABELS[rule.category]}
+                        />
+                        <span className="text-xs text-costa-gris">{CATEGORY_LABELS[rule.category]}</span>
+                      </div>
                     </td>
                     <td className="py-2 px-2 text-right font-mono">${rule.price_per_night}</td>
                     <td className="py-2 px-2 text-xs">
@@ -285,13 +277,6 @@ export function PanelReglasPrecios({
                           title="Editar"
                         >
                           <Pencil size={14} className="text-costa-gris" />
-                        </button>
-                        <button
-                          onClick={() => handleDuplicateRule(rule)}
-                          className="p-1 hover:bg-costa-beige rounded transition-colors"
-                          title="Duplicar"
-                        >
-                          <Copy size={14} className="text-costa-gris" />
                         </button>
                         <button
                           onClick={() => handleDeleteRule(rule.id!)}
@@ -410,17 +395,17 @@ export function PanelReglasPrecios({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Prioridad</label>
+              <label className="block text-sm text-gray-600 mb-1">Prioridad (1-5)</label>
               <input
                 type="number"
                 value={form.priority}
-                onChange={(e) => setForm({ ...form, priority: Number(e.target.value) })}
+                onChange={(e) => setForm({ ...form, priority: Math.min(5, Math.max(1, Number(e.target.value))) })}
                 className="w-full h-10 px-3 text-sm border border-gray-200 rounded-lg"
                 min="1"
-                max="100"
+                max="5"
               />
               <p className="text-xs text-costa-gris mt-1">
-                100=máx, 90=fiestas, 80=fds largo, 50=temporada, 40=base
+                5=máxima, 4=especiales, 3=fds, 2=temporada, 1=base
               </p>
             </div>
             <div>

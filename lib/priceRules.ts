@@ -12,7 +12,7 @@ export interface PriceRule {
   end_date: string // YYYY-MM-DD
   applies_to_days: string[] // [] = todos, ['vie','sab','dom'] = solo esos
   min_nights: number | null
-  priority: number // 100=excepciones, 90=fiestas, 80=fds largos, 50=temporadas
+  priority: number // 1-5: 5=máxima, 4=fiestas/especiales, 3=fds largos, 2=temporadas, 1=base
   active: boolean
   user_id?: string
   created_at?: string
@@ -35,12 +35,12 @@ export interface ConflictWarning {
 }
 
 // Colores por categoría
-export const CATEGORY_COLORS: Record<PriceCategory, { bg: string; text: string; border: string }> = {
-  muy_alta: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' },
-  alta: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
-  media: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300' },
-  baja: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300' },
-  excepcion: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300' },
+export const CATEGORY_COLORS: Record<PriceCategory, { bg: string; text: string; border: string; solid: string }> = {
+  muy_alta: { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300', solid: 'bg-red-500' },
+  alta: { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300', solid: 'bg-orange-500' },
+  media: { bg: 'bg-amber-100', text: 'text-amber-700', border: 'border-amber-300', solid: 'bg-amber-500' },
+  baja: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-300', solid: 'bg-green-500' },
+  excepcion: { bg: 'bg-purple-100', text: 'text-purple-700', border: 'border-purple-300', solid: 'bg-purple-500' },
 }
 
 export const CATEGORY_LABELS: Record<PriceCategory, string> = {
@@ -321,7 +321,7 @@ export function generateCostaEsmeraldaPreset(year: number, basePrice: number): P
         end_date: `${year + 1}-01-02`,
         applies_to_days: [],
         min_nights: 7,
-        priority: 90,
+        priority: 5,
         active: true,
       },
       // Enero completo
@@ -333,7 +333,7 @@ export function generateCostaEsmeraldaPreset(year: number, basePrice: number): P
         end_date: `${year}-01-31`,
         applies_to_days: [],
         min_nights: 3,
-        priority: 50,
+        priority: 2,
         active: true,
       },
       // Feb 1-15
@@ -345,7 +345,7 @@ export function generateCostaEsmeraldaPreset(year: number, basePrice: number): P
         end_date: `${year}-02-15`,
         applies_to_days: [],
         min_nights: 2,
-        priority: 50,
+        priority: 2,
         active: true,
       },
       // Feb 16-28
@@ -357,7 +357,7 @@ export function generateCostaEsmeraldaPreset(year: number, basePrice: number): P
         end_date: `${year}-02-28`,
         applies_to_days: [],
         min_nights: 2,
-        priority: 50,
+        priority: 2,
         active: true,
       },
       // Semana Santa
@@ -369,7 +369,7 @@ export function generateCostaEsmeraldaPreset(year: number, basePrice: number): P
         end_date: formatDate(holyWeek.end),
         applies_to_days: [],
         min_nights: 3,
-        priority: 80,
+        priority: 4,
         active: true,
       },
       // Carnaval
@@ -381,7 +381,7 @@ export function generateCostaEsmeraldaPreset(year: number, basePrice: number): P
         end_date: formatDate(carnival.end),
         applies_to_days: [],
         min_nights: 2,
-        priority: 80,
+        priority: 4,
         active: true,
       },
       // Fines de semana fuera de temporada (alta prioridad para fds)
@@ -393,7 +393,7 @@ export function generateCostaEsmeraldaPreset(year: number, basePrice: number): P
         end_date: `${year}-12-22`,
         applies_to_days: ['vie', 'sab', 'dom'],
         min_nights: 2,
-        priority: 70,
+        priority: 3,
         active: true,
       },
       // Base resto del año
@@ -405,7 +405,7 @@ export function generateCostaEsmeraldaPreset(year: number, basePrice: number): P
         end_date: `${year}-12-22`,
         applies_to_days: [],
         min_nights: 1,
-        priority: 40,
+        priority: 1,
         active: true,
       },
     ],
