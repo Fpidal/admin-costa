@@ -218,7 +218,7 @@ export function PanelReglasPrecios({
             <tr className="border-b border-costa-beige">
               <th className="text-left py-2 px-2 font-medium text-costa-gris">Activa</th>
               <th className="text-left py-2 px-2 font-medium text-costa-gris">Nombre</th>
-              <th className="text-left py-2 px-2 font-medium text-costa-gris">Categoría</th>
+              <th className="text-center py-2 px-2 font-medium text-costa-gris">Cat.</th>
               <th className="text-right py-2 px-2 font-medium text-costa-gris">USD/noche</th>
               <th className="text-left py-2 px-2 font-medium text-costa-gris">Fechas</th>
               <th className="text-left py-2 px-2 font-medium text-costa-gris">Días</th>
@@ -253,7 +253,7 @@ export function PanelReglasPrecios({
                       </button>
                     </td>
                     <td className="py-2 px-2 font-medium">{rule.name}</td>
-                    <td className="py-2 px-2">
+                    <td className="py-2 px-2 text-center">
                       <span
                         className={`w-3 h-3 rounded-full inline-block ${colors.solid}`}
                         title={CATEGORY_LABELS[rule.category]}
