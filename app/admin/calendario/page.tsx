@@ -10,7 +10,6 @@ import { Card, CardContent } from '@/components/ui'
 import { ChevronLeft, ChevronRight, Home, Flag } from 'lucide-react'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { obtenerInfoMesConCustom, FeriadoCustom, Feriado } from '@/lib/calendarioArgentina'
-import { PanelFeriados } from '@/components/PanelFeriados'
 
 interface Propiedad {
   id: string
@@ -255,26 +254,16 @@ export default function CalendarioPage() {
         </CardContent>
       </Card>
 
-      {/* Layout: Feriados a la izquierda + Calendarios a la derecha */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Panel de Feriados (1/4) */}
+      {propiedades.length === 0 ? (
         <Card>
-          <CardContent className="py-4">
-            <PanelFeriados year={anioActual} />
+          <CardContent className="py-12 text-center">
+            <Home size={48} className="mx-auto text-costa-gris mb-4" />
+            <p className="text-costa-gris">No tenés propiedades cargadas.</p>
           </CardContent>
         </Card>
-
-        {/* Calendarios de propiedades (3/4) */}
-        <div className="lg:col-span-3 space-y-6">
-          {propiedades.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Home size={48} className="mx-auto text-costa-gris mb-4" />
-                <p className="text-costa-gris">No tenés propiedades cargadas.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            propiedades.map((propiedad) => {
+      ) : (
+        <div className="space-y-6">
+          {propiedades.map((propiedad) => {
             const reservasPropiedad = reservas.filter(r => r.propiedad_id === propiedad.id)
 
             return (
@@ -365,9 +354,10 @@ export default function CalendarioPage() {
                     </div>
                   </div>
 
-                  {/* Lista de reservas del mes */}
-                  {reservasPropiedad.length > 0 && (
-                    <div className="mt-4 pt-4 border-t border-costa-beige">
+                  {/* Lista de reservas y feriados del mes */}
+                  <div className="mt-4 pt-4 border-t border-costa-beige grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Reservas */}
+                    <div>
                       <p className="text-xs font-medium text-costa-gris mb-2">Reservas:</p>
                       <div className="flex flex-wrap gap-2">
                         {reservasPropiedad
@@ -388,16 +378,46 @@ export default function CalendarioPage() {
                             </Link>
                           ))
                         }
+                        {reservasPropiedad.filter(r => {
+                          const inicio = new Date(r.fecha_inicio)
+                          const fin = new Date(r.fecha_fin)
+                          const inicioMes = new Date(anioActual, mesActual, 1)
+                          const finMes = new Date(anioActual, mesActual + 1, 0)
+                          return inicio <= finMes && fin >= inicioMes
+                        }).length === 0 && (
+                          <span className="text-xs text-costa-gris">Sin reservas este mes</span>
+                        )}
                       </div>
                     </div>
-                  )}
+
+                    {/* Feriados del mes */}
+                    <div>
+                      <p className="text-xs font-medium text-costa-gris mb-2 flex items-center gap-1">
+                        <Flag size={12} /> Feriados:
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {Array.from(feriadosMes.values()).map((f, i) => (
+                          <span
+                            key={i}
+                            className={`px-2 py-1 rounded text-xs ${f.esCustom ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}
+                            title={f.esFinDeSemanaLargo ? 'Fin de semana largo' : ''}
+                          >
+                            {new Date(f.fecha + 'T00:00:00').getDate()}: {f.nombre}
+                            {f.esFinDeSemanaLargo && ' (FDS)'}
+                          </span>
+                        ))}
+                        {feriadosMes.size === 0 && (
+                          <span className="text-xs text-costa-gris">Sin feriados este mes</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             )
-          })
-          )}
+          })}
         </div>
-      </div>
+      )}
     </div>
   )
 }
