@@ -10,6 +10,7 @@ import { Card, CardContent } from '@/components/ui'
 import { ChevronLeft, ChevronRight, Home, Flag } from 'lucide-react'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { obtenerInfoMesConCustom, FeriadoCustom, Feriado } from '@/lib/calendarioArgentina'
+import { PanelFeriados } from '@/components/PanelFeriados'
 
 interface Propiedad {
   id: string
@@ -254,16 +255,26 @@ export default function CalendarioPage() {
         </CardContent>
       </Card>
 
-      {propiedades.length === 0 ? (
+      {/* Layout: Feriados a la izquierda + Calendarios a la derecha */}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+        {/* Panel de Feriados (1/4) */}
         <Card>
-          <CardContent className="py-12 text-center">
-            <Home size={48} className="mx-auto text-costa-gris mb-4" />
-            <p className="text-costa-gris">No tenés propiedades cargadas.</p>
+          <CardContent className="py-4">
+            <PanelFeriados year={anioActual} />
           </CardContent>
         </Card>
-      ) : (
-        <div className="space-y-6">
-          {propiedades.map((propiedad) => {
+
+        {/* Calendarios de propiedades (3/4) */}
+        <div className="lg:col-span-3 space-y-6">
+          {propiedades.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Home size={48} className="mx-auto text-costa-gris mb-4" />
+                <p className="text-costa-gris">No tenés propiedades cargadas.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            propiedades.map((propiedad) => {
             const reservasPropiedad = reservas.filter(r => r.propiedad_id === propiedad.id)
 
             return (
@@ -383,9 +394,10 @@ export default function CalendarioPage() {
                 </CardContent>
               </Card>
             )
-          })}
+          })
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
