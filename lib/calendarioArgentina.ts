@@ -1,10 +1,21 @@
 // Calendario de Argentina: Feriados, Fines de Semana Largos y Fechas Especiales
 
 export interface Feriado {
+  id?: string
   fecha: string // YYYY-MM-DD
   nombre: string
-  tipo: 'inamovible' | 'trasladable' | 'puente' | 'no_laborable'
+  tipo: 'inamovible' | 'trasladable' | 'puente' | 'no_laborable' | 'custom'
   esFinDeSemanaLargo: boolean
+  esCustom?: boolean
+}
+
+export interface FeriadoCustom {
+  id?: string
+  fecha: string
+  nombre: string
+  tipo: 'inamovible' | 'trasladable' | 'puente' | 'no_laborable' | 'custom'
+  user_id?: string
+  created_at?: string
 }
 
 export interface FeriadoInfo {
@@ -348,4 +359,64 @@ export function resumenFeriadosAnio(year: number): string {
   })
 
   return resumen
+}
+
+/**
+ * Combina feriados oficiales con feriados personalizados
+ * Los feriados personalizados pueden reemplazar o agregar a los oficiales
+ */
+export function combinarFeriados(
+  year: number,
+  feriadosCustom: FeriadoCustom[]
+): Feriado[] {
+  const feriadosOficiales = generarFeriadosAnio(year)
+
+  // Crear mapa de feriados por fecha
+  const feriadosMap = new Map<string, Feriado>()
+
+  // Primero agregar los oficiales
+  feriadosOficiales.forEach(f => {
+    feriadosMap.set(f.fecha, f)
+  })
+
+  // Luego agregar/reemplazar con los personalizados
+  feriadosCustom.forEach(fc => {
+    if (fc.fecha.startsWith(String(year))) {
+      feriadosMap.set(fc.fecha, {
+        id: fc.id,
+        fecha: fc.fecha,
+        nombre: fc.nombre,
+        tipo: fc.tipo,
+        esFinDeSemanaLargo: false, // Se recalculará
+        esCustom: true
+      })
+    }
+  })
+
+  // Convertir a array y ordenar
+  const resultado = Array.from(feriadosMap.values())
+  resultado.sort((a, b) => a.fecha.localeCompare(b.fecha))
+
+  return resultado
+}
+
+/**
+ * Obtiene info del mes combinando feriados oficiales y personalizados
+ */
+export function obtenerInfoMesConCustom(
+  year: number,
+  month: number,
+  feriadosCustom: FeriadoCustom[]
+): Map<string, Feriado> {
+  const feriados = combinarFeriados(year, feriadosCustom)
+  const mesStr = String(month + 1).padStart(2, '0')
+  const feriadosMes = new Map<string, Feriado>()
+
+  feriados.forEach(f => {
+    if (f.fecha.startsWith(`${year}-${mesStr}`)) {
+      feriadosMes.set(f.fecha, f)
+    }
+  })
+
+  return feriadosMes
 }

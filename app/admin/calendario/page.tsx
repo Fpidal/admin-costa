@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent } from '@/components/ui'
-import { ChevronLeft, ChevronRight, Home } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Home, Flag } from 'lucide-react'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
+import { obtenerInfoMesConCustom, FeriadoCustom, Feriado } from '@/lib/calendarioArgentina'
 
 interface Propiedad {
   id: string
@@ -40,6 +41,7 @@ export default function CalendarioPage() {
 
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
+  const [feriadosCustom, setFeriadosCustom] = useState<FeriadoCustom[]>([])
   const [loading, setLoading] = useState(true)
   const [mesActual, setMesActual] = useState(new Date().getMonth())
   const [anioActual, setAnioActual] = useState(new Date().getFullYear())
@@ -68,8 +70,35 @@ export default function CalendarioPage() {
 
     if (userId) {
       fetchData()
+      loadFeriadosCustom()
     }
   }, [userId, isDemo])
+
+  // Recargar feriados cuando cambia el año
+  useEffect(() => {
+    if (userId && !isDemo) {
+      loadFeriadosCustom()
+    }
+  }, [anioActual])
+
+  async function loadFeriadosCustom() {
+    const { data } = await supabase
+      .from('feriados_custom')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('fecha', `${anioActual}-01-01`)
+      .lte('fecha', `${anioActual}-12-31`)
+      .order('fecha')
+
+    if (data) {
+      setFeriadosCustom(data)
+    }
+  }
+
+  // Obtener feriados del mes actual
+  const feriadosMes = useMemo(() => {
+    return obtenerInfoMesConCustom(anioActual, mesActual, feriadosCustom)
+  }, [anioActual, mesActual, feriadosCustom])
 
   async function fetchData() {
     const [resProp, resReservas] = await Promise.all([
@@ -127,6 +156,13 @@ export default function CalendarioPage() {
       fechaStr >= r.fecha_inicio &&
       fechaStr <= r.fecha_fin
     ) || null
+  }
+
+  // Obtener feriado para una fecha
+  const getFeriadoFecha = (dia: number): Feriado | null => {
+    const fecha = new Date(anioActual, mesActual, dia)
+    const fechaStr = fecha.toISOString().split('T')[0]
+    return feriadosMes.get(fechaStr) || null
   }
 
   // Navegar mes anterior
@@ -206,6 +242,14 @@ export default function CalendarioPage() {
               <span className="w-3 h-3 rounded bg-costa-coral"></span>
               <span>Pendiente</span>
             </div>
+            <div className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded bg-blue-500"></span>
+              <span>Feriado</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded bg-purple-500"></span>
+              <span>Feriado personalizado</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -252,11 +296,19 @@ export default function CalendarioPage() {
                           }
 
                           const reserva = getReservaFecha(propiedad.id, dia)
+                          const feriado = getFeriadoFecha(dia)
                           const hoy = new Date()
                           const esHoy = dia === hoy.getDate() && mesActual === hoy.getMonth() && anioActual === hoy.getFullYear()
 
                           const cellContent = (
                             <>
+                              {/* Indicador de feriado */}
+                              {feriado && (
+                                <div
+                                  className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ${feriado.esCustom ? 'bg-purple-500' : 'bg-blue-500'}`}
+                                  title={`${feriado.nombre}${feriado.esFinDeSemanaLargo ? ' (FDS largo)' : ''}`}
+                                />
+                              )}
                               <span className={`font-medium ${reserva ? '' : 'text-costa-navy'}`}>{dia}</span>
                               {reserva && (
                                 <span className="text-[8px] truncate w-full text-center px-0.5 leading-none">
@@ -267,18 +319,24 @@ export default function CalendarioPage() {
                           )
 
                           const cellClasses = `
-                            h-10 rounded border text-xs flex flex-col items-center justify-center
-                            ${esHoy ? 'border-costa-coral border-2' : 'border-gray-200'}
-                            ${reserva ? getColorEstado(reserva.estado) : 'bg-white'}
+                            h-10 rounded border text-xs flex flex-col items-center justify-center relative
+                            ${esHoy ? 'border-costa-coral border-2' : feriado && !reserva ? 'border-blue-300' : 'border-gray-200'}
+                            ${reserva ? getColorEstado(reserva.estado) : feriado ? 'bg-blue-50' : 'bg-white'}
                             ${reserva ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}
                           `
+
+                          const tooltip = feriado
+                            ? `${feriado.nombre}${feriado.esFinDeSemanaLargo ? ' (FDS largo)' : ''}${reserva ? ` | ${reserva.inquilinos?.nombre || 'Reserva'} - ${reserva.estado}` : ''}`
+                            : reserva
+                              ? `${reserva.inquilinos?.nombre || 'Reserva'} - ${reserva.estado} - Click para ver detalles`
+                              : undefined
 
                           return reserva ? (
                             <Link
                               key={i}
                               href={`/admin/reservas/${reserva.id}`}
                               className={cellClasses}
-                              title={`${reserva.inquilinos?.nombre || 'Reserva'} - ${reserva.estado} - Click para ver detalles`}
+                              title={tooltip}
                             >
                               {cellContent}
                             </Link>
@@ -286,6 +344,7 @@ export default function CalendarioPage() {
                             <div
                               key={i}
                               className={cellClasses}
+                              title={tooltip}
                             >
                               {cellContent}
                             </div>
