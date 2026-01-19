@@ -27,8 +27,10 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Reglas de precio**: Configuración por temporada, fechas especiales y días de la semana
 - **Categorías**: Muy alta, alta, media y baja temporada con colores distintivos
 - **Prioridades**: Sistema de prioridad para resolver conflictos entre reglas
-- **Presets**: Configuración rápida "Verano Costa Esmeralda" con temporadas predefinidas
+- **Presets personalizables**: Configuración "Verano Costa Esmeralda" con multiplicadores editables
+- **Multiplicadores**: Ajustables por temporada (Fiestas x1.8, Enero x1.5, Feb x1.3, etc.)
 - **Cobertura**: Métricas de cobertura y días sin precio configurado
+- **Acceso integrado**: Solapa de precios dentro de la página de propiedades
 
 ### Calendario Argentina
 - **Feriados oficiales**: Cálculo automático de feriados inamovibles y trasladables
@@ -193,6 +195,16 @@ admin-costa/
 ```
 
 ## Changelog
+
+### v1.4.0
+- Solapa "Calendario de Precios" integrada en página de Propiedades
+- Acceso directo al calendario desde botón $ en cada tarjeta
+- Preset con multiplicadores personalizables por temporada
+- Vista en tiempo real del precio calculado al editar multiplicadores
+- Proveedores de servicios organizados por rubro con colores
+- Filtro de disponibilidad en landing page (oculta propiedades reservadas)
+- Botones Crear/Cancelar fijos en modal de propiedades
+- Botones de tarjetas siempre alineados al final
 
 ### v1.3.0
 - Calendario de feriados Argentina con cálculo automático

@@ -7,8 +7,12 @@ import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, Share2 } from 'lucide-react'
+import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, Share2, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
+import { CalendarioPrecios } from '@/components/CalendarioPrecios'
+import { PanelReglasPrecios } from '@/components/PanelReglasPrecios'
+import { PanelFeriados } from '@/components/PanelFeriados'
+import { PriceRule, calculateYearMetrics, findUncoveredDays } from '@/lib/priceRules'
 
 interface Propiedad {
   id: number
@@ -148,6 +152,15 @@ function PropiedadesContent() {
   const [imageIndexes, setImageIndexes] = useState<Record<number | string, number>>({})
   const [fechaBusqueda, setFechaBusqueda] = useState({ inicio: '', fin: '' })
   const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
+
+  // Estados para tabs y calendario de precios
+  const [activeTab, setActiveTab] = useState<'propiedades' | 'precios'>('propiedades')
+  const [selectedPropiedadId, setSelectedPropiedadId] = useState<string | null>(null)
+  const [priceRules, setPriceRules] = useState<PriceRule[]>([])
+  const [reservasPropiedad, setReservasPropiedad] = useState<Reserva[]>([])
+  const [loadingPrecios, setLoadingPrecios] = useState(false)
+  const [savingPrecios, setSavingPrecios] = useState(false)
+  const [anioPrecios, setAnioPrecios] = useState(new Date().getFullYear())
 
   useEffect(() => {
     if (isDemo) {
@@ -408,6 +421,161 @@ function PropiedadesContent() {
     }
   }
 
+  // Funciones para calendario de precios
+  async function fetchPriceData(propiedadId: string) {
+    setLoadingPrecios(true)
+
+    try {
+      const [resRules, resReservas] = await Promise.all([
+        supabase
+          .from('price_rules')
+          .select('*')
+          .eq('property_id', propiedadId)
+          .order('priority', { ascending: false }),
+        supabase
+          .from('reservas')
+          .select('id, fecha_inicio, fecha_fin, estado, inquilinos(nombre)')
+          .eq('propiedad_id', propiedadId)
+          .in('estado', ['confirmada', 'pendiente'])
+          .gte('fecha_fin', `${anioPrecios}-01-01`)
+          .lte('fecha_inicio', `${anioPrecios}-12-31`)
+          .order('fecha_inicio'),
+      ])
+
+      if (resRules.data) {
+        setPriceRules(resRules.data.map((r: any) => ({
+          ...r,
+          applies_to_days: r.applies_to_days || [],
+        })))
+      } else {
+        setPriceRules([])
+      }
+
+      if (resReservas.data) {
+        setReservasPropiedad(resReservas.data.map((r: any) => ({
+          id: r.id,
+          propiedad_id: Number(propiedadId) || r.propiedad_id,
+          fecha_inicio: r.fecha_inicio,
+          fecha_fin: r.fecha_fin,
+          estado: r.estado,
+          inquilinos: r.inquilinos ? { nombre: r.inquilinos.nombre } : undefined
+        })))
+      } else {
+        setReservasPropiedad([])
+      }
+    } catch (err) {
+      console.error('Error fetching price data:', err)
+      setPriceRules([])
+      setReservasPropiedad([])
+    }
+
+    setLoadingPrecios(false)
+  }
+
+  // Efecto para cargar precios cuando cambia la propiedad seleccionada o el año
+  useEffect(() => {
+    if (selectedPropiedadId && activeTab === 'precios') {
+      fetchPriceData(selectedPropiedadId)
+    }
+  }, [selectedPropiedadId, anioPrecios, activeTab])
+
+  async function handleSavePriceRules(newRules: PriceRule[]) {
+    if (!userId || !selectedPropiedadId) return
+    setSavingPrecios(true)
+
+    try {
+      await supabase
+        .from('price_rules')
+        .delete()
+        .eq('property_id', selectedPropiedadId)
+
+      const rulesToInsert = newRules.map(rule => ({
+        property_id: selectedPropiedadId,
+        name: rule.name,
+        category: rule.category,
+        price_per_night: rule.price_per_night,
+        start_date: rule.start_date,
+        end_date: rule.end_date,
+        applies_to_days: rule.applies_to_days || [],
+        min_nights: rule.min_nights,
+        priority: rule.priority,
+        active: rule.active,
+        user_id: userId,
+      }))
+
+      if (rulesToInsert.length > 0) {
+        const { error } = await supabase.from('price_rules').insert(rulesToInsert)
+        if (error) throw error
+      }
+
+      await fetchPriceData(selectedPropiedadId)
+    } catch (err: any) {
+      alert('Error al guardar: ' + err.message)
+    }
+
+    setSavingPrecios(false)
+  }
+
+  async function handleDeletePriceRule(ruleId: string) {
+    if (!ruleId.startsWith('temp-') && selectedPropiedadId) {
+      await supabase.from('price_rules').delete().eq('id', ruleId)
+      await fetchPriceData(selectedPropiedadId)
+    }
+  }
+
+  async function handleApplyPricesToAll(rulesToApply: PriceRule[]) {
+    if (!userId) return
+
+    const { data: props } = await supabase
+      .from('propiedades')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('publicada', true)
+
+    if (!props || props.length === 0) {
+      alert('No hay propiedades publicadas')
+      return
+    }
+
+    try {
+      for (const prop of props) {
+        await supabase.from('price_rules').delete().eq('property_id', prop.id)
+
+        const rulesToInsert = rulesToApply.map(rule => ({
+          property_id: prop.id,
+          name: rule.name,
+          category: rule.category,
+          price_per_night: rule.price_per_night,
+          start_date: rule.start_date,
+          end_date: rule.end_date,
+          applies_to_days: rule.applies_to_days || [],
+          min_nights: rule.min_nights,
+          priority: rule.priority,
+          active: rule.active,
+          user_id: userId,
+        }))
+
+        if (rulesToInsert.length > 0) {
+          await supabase.from('price_rules').insert(rulesToInsert)
+        }
+      }
+
+      alert(`Reglas aplicadas a ${props.length} propiedad${props.length !== 1 ? 'es' : ''}`)
+      if (selectedPropiedadId) await fetchPriceData(selectedPropiedadId)
+    } catch (err: any) {
+      alert('Error al aplicar: ' + err.message)
+    }
+  }
+
+  function handleSelectRange(inicio: Date, fin: Date) {
+    console.log('Rango seleccionado:', inicio, fin)
+  }
+
+  // Métricas del calendario de precios
+  const priceMetrics = selectedPropiedadId ? calculateYearMetrics(anioPrecios, priceRules) : null
+  const uncoveredDays = selectedPropiedadId ? findUncoveredDays(anioPrecios, priceRules) : []
+  const selectedPropiedad = propiedades.find(p => String(p.id) === selectedPropiedadId)
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -422,12 +590,42 @@ function PropiedadesContent() {
         title="Propiedades"
         description="Gestión directa de propiedades por sus propietarios o representantes"
       >
-        <Button onClick={() => openModal()}>
-          <Plus size={18} />
-          Nueva Propiedad
-        </Button>
+        {activeTab === 'propiedades' && (
+          <Button onClick={() => openModal()}>
+            <Plus size={18} />
+            Nueva Propiedad
+          </Button>
+        )}
       </PageHeader>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-costa-beige">
+        <button
+          onClick={() => setActiveTab('propiedades')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'propiedades'
+              ? 'border-costa-navy text-costa-navy'
+              : 'border-transparent text-costa-gris hover:text-costa-navy'
+          }`}
+        >
+          Propiedades
+        </button>
+        <button
+          onClick={() => setActiveTab('precios')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+            activeTab === 'precios'
+              ? 'border-costa-navy text-costa-navy'
+              : 'border-transparent text-costa-gris hover:text-costa-navy'
+          }`}
+        >
+          <DollarSign size={16} />
+          Calendario de Precios
+        </button>
+      </div>
+
+      {/* TAB: PROPIEDADES */}
+      {activeTab === 'propiedades' && (
+        <>
       {/* Buscador de disponibilidad */}
       <Card className="mb-4">
         <CardContent className="py-3">
@@ -698,11 +896,17 @@ function PropiedadesContent() {
                       <Button variant="ghost" size="sm" onClick={() => compartirWhatsApp(propiedad)} title="Compartir por WhatsApp">
                         <Share2 size={16} className="text-costa-olivo" />
                       </Button>
-                      <Link href={`/admin/propiedades/${propiedad.id}/precios`}>
-                        <Button variant="ghost" size="sm" title="Calendario de precios">
-                          <Calendar size={16} className="text-costa-navy" />
-                        </Button>
-                      </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Calendario de precios"
+                        onClick={() => {
+                          setSelectedPropiedadId(String(propiedad.id))
+                          setActiveTab('precios')
+                        }}
+                      >
+                        <DollarSign size={16} className="text-costa-navy" />
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => openModal(propiedad)} title="Editar">
                         <Pencil size={16} />
                       </Button>
@@ -718,6 +922,133 @@ function PropiedadesContent() {
           })}
         </div>
       )}
+        </>
+      )}
+
+      {/* TAB: CALENDARIO DE PRECIOS */}
+      {activeTab === 'precios' && (
+        <div className="space-y-6">
+          {/* Selector de propiedad */}
+          <Card>
+            <CardContent className="py-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="text-sm font-medium text-costa-navy">Seleccionar propiedad:</label>
+                <select
+                  value={selectedPropiedadId || ''}
+                  onChange={(e) => setSelectedPropiedadId(e.target.value || null)}
+                  className="flex-1 max-w-md h-10 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-costa-navy focus:border-costa-navy"
+                >
+                  <option value="">Seleccionar...</option>
+                  {propiedades.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.nombre}{p.lote ? ` - Lote ${p.lote}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {selectedPropiedadId && !loadingPrecios && (
+            <>
+              {/* Métricas */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <Card>
+                  <CardContent className="py-3 text-center">
+                    <p className="text-2xl font-bold text-costa-navy">{priceMetrics?.activeRules || 0}</p>
+                    <p className="text-xs text-costa-gris">Reglas activas</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="py-3 text-center">
+                    <p className="text-2xl font-bold text-costa-navy">{priceMetrics?.highSeasonDays || 0}</p>
+                    <p className="text-xs text-costa-gris">Días temp. alta</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="py-3 text-center">
+                    <p className="text-2xl font-bold text-costa-navy">${priceMetrics?.averagePrice || 0}</p>
+                    <p className="text-xs text-costa-gris">Precio promedio</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="py-3 text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      {(priceMetrics?.coveragePercent || 0) === 100 ? (
+                        <CheckCircle size={16} className="text-costa-olivo" />
+                      ) : (
+                        <AlertTriangle size={16} className="text-amber-500" />
+                      )}
+                      <p className="text-2xl font-bold text-costa-navy">{priceMetrics?.coveragePercent || 0}%</p>
+                    </div>
+                    <p className="text-xs text-costa-gris">Cobertura año</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Alerta de días sin precio */}
+              {uncoveredDays.length > 0 && uncoveredDays.length <= 30 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-amber-700 text-sm">
+                    <AlertTriangle size={16} />
+                    <span>{uncoveredDays.length} días sin precio configurado en {anioPrecios}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Panel de Feriados */}
+              <Card>
+                <CardContent className="py-3">
+                  <PanelFeriados year={anioPrecios} />
+                </CardContent>
+              </Card>
+
+              {/* Calendario y Panel de Reglas */}
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <Card className="lg:col-span-2">
+                  <CardContent className="py-4">
+                    <CalendarioPrecios
+                      rules={priceRules}
+                      reservas={reservasPropiedad}
+                      anio={anioPrecios}
+                      onSelectRange={handleSelectRange}
+                      onChangeAnio={setAnioPrecios}
+                    />
+                  </CardContent>
+                </Card>
+                <Card className="lg:col-span-3">
+                  <CardContent className="py-4">
+                    <PanelReglasPrecios
+                      rules={priceRules}
+                      propertyId={String(selectedPropiedadId)}
+                      year={anioPrecios}
+                      onSave={handleSavePriceRules}
+                      onDelete={handleDeletePriceRule}
+                      onApplyToAll={handleApplyPricesToAll}
+                      saving={savingPrecios}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            </>
+          )}
+
+          {loadingPrecios && (
+            <div className="flex items-center justify-center h-64">
+              <div className="text-costa-gris">Cargando precios...</div>
+            </div>
+          )}
+
+          {!selectedPropiedadId && (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <DollarSign size={48} className="mx-auto text-costa-gris mb-4" />
+                <p className="text-costa-gris">Seleccioná una propiedad para ver y editar su calendario de precios</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Modal Formulario */}
       <Modal
@@ -726,17 +1057,9 @@ function PropiedadesContent() {
         title={editingId ? 'Editar Propiedad' : 'Nueva Propiedad'}
         size="lg"
       >
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Botones arriba */}
-          <div className="flex justify-end gap-2 pb-3 border-b border-costa-beige">
-            <Button type="button" variant="ghost" size="sm" onClick={closeModal}>
-              Cancelar
-            </Button>
-            <Button type="submit" size="sm" disabled={saving}>
-              {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}
-            </Button>
-          </div>
-
+        <form onSubmit={handleSubmit} className="flex flex-col h-full max-h-[calc(100vh-200px)]">
+          {/* Contenido scrolleable */}
+          <div className="flex-1 overflow-y-auto space-y-6 pr-2">
           {/* BLOQUE 1: UBICACIÓN */}
           <div className="space-y-4">
             <h3 className="text-base font-semibold text-costa-navy border-b border-costa-beige pb-2">Ubicación</h3>
@@ -1056,6 +1379,17 @@ function PropiedadesContent() {
                 />
               </label>
             )}
+          </div>
+          </div>
+
+          {/* Botones fijos al final */}
+          <div className="flex justify-end gap-2 pt-4 mt-4 border-t border-costa-beige bg-white sticky bottom-0">
+            <Button type="button" variant="ghost" size="sm" onClick={closeModal}>
+              Cancelar
+            </Button>
+            <Button type="submit" size="sm" disabled={saving}>
+              {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}
+            </Button>
           </div>
         </form>
       </Modal>

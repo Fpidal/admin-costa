@@ -54,6 +54,18 @@ export function PanelReglasPrecios({
   const [presetBasePrice, setPresetBasePrice] = useState(300)
   const [hasChanges, setHasChanges] = useState(false)
 
+  // Multiplicadores personalizables del preset
+  const [presetMultipliers, setPresetMultipliers] = useState({
+    fiestas: 1.8,
+    enero: 1.5,
+    feb1: 1.3,
+    feb2: 1.1,
+    semanaSanta: 1.3,
+    carnaval: 1.3,
+    fds: 1.0,
+    baja: 0.8,
+  })
+
   // Detectar conflictos
   const conflicts = detectConflicts(localRules)
 
@@ -147,12 +159,144 @@ export function PanelReglasPrecios({
   }
 
   function handleApplyPreset() {
-    const preset = generateCostaEsmeraldaPreset(year, presetBasePrice)
-    const newRules = preset.rules.map((r, i) => ({
-      ...r,
-      id: `preset-${Date.now()}-${i}`,
-      property_id: propertyId,
-    }))
+    // Calcular fechas móviles
+    const getEasterDate = (y: number) => {
+      const a = y % 19
+      const b = Math.floor(y / 100)
+      const c = y % 100
+      const d = Math.floor(b / 4)
+      const e = b % 4
+      const f = Math.floor((b + 8) / 25)
+      const g = Math.floor((b - f + 1) / 3)
+      const h = (19 * a + b - d - g + 15) % 30
+      const i = Math.floor(c / 4)
+      const k = c % 4
+      const l = (32 + 2 * e + 2 * i - h - k) % 7
+      const m = Math.floor((a + 11 * h + 22 * l) / 451)
+      const month = Math.floor((h + l - 7 * m + 114) / 31)
+      const day = ((h + l - 7 * m + 114) % 31) + 1
+      return new Date(y, month - 1, day)
+    }
+
+    const easter = getEasterDate(year)
+    const holyWeekStart = new Date(easter)
+    holyWeekStart.setDate(easter.getDate() - 7)
+    const holyWeekEnd = new Date(easter)
+    holyWeekEnd.setDate(easter.getDate() + 1)
+    const carnivalStart = new Date(easter)
+    carnivalStart.setDate(easter.getDate() - 49)
+    const carnivalEnd = new Date(easter)
+    carnivalEnd.setDate(easter.getDate() - 46)
+
+    const formatDate = (d: Date) => d.toISOString().split('T')[0]
+
+    const newRules: PriceRule[] = [
+      {
+        id: `preset-${Date.now()}-0`,
+        property_id: propertyId,
+        name: 'Fiestas',
+        category: 'muy_alta',
+        price_per_night: Math.round(presetBasePrice * presetMultipliers.fiestas),
+        start_date: `${year}-12-23`,
+        end_date: `${year + 1}-01-02`,
+        applies_to_days: [],
+        min_nights: 7,
+        priority: 5,
+        active: true,
+      },
+      {
+        id: `preset-${Date.now()}-1`,
+        property_id: propertyId,
+        name: 'Enero - Temporada Alta',
+        category: 'alta',
+        price_per_night: Math.round(presetBasePrice * presetMultipliers.enero),
+        start_date: `${year}-01-03`,
+        end_date: `${year}-01-31`,
+        applies_to_days: [],
+        min_nights: 3,
+        priority: 2,
+        active: true,
+      },
+      {
+        id: `preset-${Date.now()}-2`,
+        property_id: propertyId,
+        name: 'Febrero 1ra quincena',
+        category: 'alta',
+        price_per_night: Math.round(presetBasePrice * presetMultipliers.feb1),
+        start_date: `${year}-02-01`,
+        end_date: `${year}-02-15`,
+        applies_to_days: [],
+        min_nights: 2,
+        priority: 2,
+        active: true,
+      },
+      {
+        id: `preset-${Date.now()}-3`,
+        property_id: propertyId,
+        name: 'Febrero 2da quincena',
+        category: 'media',
+        price_per_night: Math.round(presetBasePrice * presetMultipliers.feb2),
+        start_date: `${year}-02-16`,
+        end_date: `${year}-02-28`,
+        applies_to_days: [],
+        min_nights: 2,
+        priority: 2,
+        active: true,
+      },
+      {
+        id: `preset-${Date.now()}-4`,
+        property_id: propertyId,
+        name: 'Semana Santa',
+        category: 'alta',
+        price_per_night: Math.round(presetBasePrice * presetMultipliers.semanaSanta),
+        start_date: formatDate(holyWeekStart),
+        end_date: formatDate(holyWeekEnd),
+        applies_to_days: [],
+        min_nights: 3,
+        priority: 4,
+        active: true,
+      },
+      {
+        id: `preset-${Date.now()}-5`,
+        property_id: propertyId,
+        name: 'Carnaval',
+        category: 'alta',
+        price_per_night: Math.round(presetBasePrice * presetMultipliers.carnaval),
+        start_date: formatDate(carnivalStart),
+        end_date: formatDate(carnivalEnd),
+        applies_to_days: [],
+        min_nights: 2,
+        priority: 4,
+        active: true,
+      },
+      {
+        id: `preset-${Date.now()}-6`,
+        property_id: propertyId,
+        name: 'Fds fuera temporada',
+        category: 'media',
+        price_per_night: Math.round(presetBasePrice * presetMultipliers.fds),
+        start_date: `${year}-03-01`,
+        end_date: `${year}-12-22`,
+        applies_to_days: ['vie', 'sab', 'dom'],
+        min_nights: 2,
+        priority: 3,
+        active: true,
+      },
+      {
+        id: `preset-${Date.now()}-7`,
+        property_id: propertyId,
+        name: 'Temporada Baja',
+        category: 'baja',
+        price_per_night: Math.round(presetBasePrice * presetMultipliers.baja),
+        start_date: `${year}-03-01`,
+        end_date: `${year}-12-22`,
+        applies_to_days: [],
+        min_nights: 1,
+        priority: 1,
+        active: true,
+      },
+    ]
+
     setLocalRules(newRules)
     setHasChanges(true)
     setIsPresetModalOpen(false)
@@ -466,8 +610,8 @@ export function PanelReglasPrecios({
       <Modal
         isOpen={isPresetModalOpen}
         onClose={() => setIsPresetModalOpen(false)}
-        title="Aplicar Preset"
-        size="sm"
+        title="Aplicar Preset - Costa Esmeralda"
+        size="md"
       >
         <div className="space-y-4">
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-700">
@@ -476,7 +620,7 @@ export function PanelReglasPrecios({
           </div>
 
           <div>
-            <label className="block text-sm text-gray-600 mb-1">Precio base (USD)</label>
+            <label className="block text-sm font-medium text-costa-navy mb-1">Precio base (USD)</label>
             <input
               type="number"
               value={presetBasePrice}
@@ -485,25 +629,57 @@ export function PanelReglasPrecios({
               min="100"
             />
             <p className="text-xs text-costa-gris mt-1">
-              Los precios se calcularán como múltiplos de este valor
+              Precio de referencia para un fin de semana fuera de temporada
             </p>
           </div>
 
-          <div className="space-y-2">
-            <button
-              onClick={handleApplyPreset}
-              className="w-full p-3 border border-gray-200 rounded-lg hover:border-costa-navy transition-colors text-left"
-            >
-              <div className="font-medium text-costa-navy">Verano Costa Esmeralda - Standard</div>
-              <p className="text-xs text-costa-gris mt-1">
-                Incluye: Fiestas, Enero Alta, Febrero, Semana Santa, Carnaval, Fds, Temporada Baja
-              </p>
-            </button>
+          <div>
+            <label className="block text-sm font-medium text-costa-navy mb-2">Multiplicadores por temporada</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { key: 'fiestas', label: 'Fiestas (23/12-02/01)', color: 'text-red-600' },
+                { key: 'enero', label: 'Enero', color: 'text-orange-600' },
+                { key: 'feb1', label: 'Feb 1ra quincena', color: 'text-orange-500' },
+                { key: 'feb2', label: 'Feb 2da quincena', color: 'text-yellow-600' },
+                { key: 'semanaSanta', label: 'Semana Santa', color: 'text-orange-600' },
+                { key: 'carnaval', label: 'Carnaval', color: 'text-orange-600' },
+                { key: 'fds', label: 'Fds fuera temp.', color: 'text-blue-600' },
+                { key: 'baja', label: 'Temporada Baja', color: 'text-green-600' },
+              ].map(({ key, label, color }) => (
+                <div key={key} className="flex items-center justify-between gap-2 p-2 bg-gray-50 rounded">
+                  <span className={`text-xs ${color}`}>{label}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs text-costa-gris">x</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      max="5"
+                      value={presetMultipliers[key as keyof typeof presetMultipliers]}
+                      onChange={(e) => setPresetMultipliers({
+                        ...presetMultipliers,
+                        [key]: Number(e.target.value)
+                      })}
+                      className="w-14 h-7 px-2 text-xs text-center border border-gray-200 rounded"
+                    />
+                    <span className="text-xs text-costa-gris w-12 text-right">
+                      ${Math.round(presetBasePrice * presetMultipliers[key as keyof typeof presetMultipliers])}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <Button variant="ghost" className="w-full" onClick={() => setIsPresetModalOpen(false)}>
-            Cancelar
-          </Button>
+          <div className="flex gap-2 pt-2">
+            <Button variant="ghost" className="flex-1" onClick={() => setIsPresetModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button className="flex-1" onClick={handleApplyPreset}>
+              <Sparkles size={14} />
+              Aplicar Preset
+            </Button>
+          </div>
         </div>
       </Modal>
 
