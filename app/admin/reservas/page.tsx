@@ -155,6 +155,7 @@ const initialForm = {
   ropa_blanca: false,
   limpieza_final: 0,
   monto_lavadero: 0,
+  cobrar_luz: false,
   kw_inicial: 0,
   estado: 'pendiente',
   notas: '',
@@ -284,6 +285,7 @@ function ReservasContent() {
         ropa_blanca: reserva.ropa_blanca || false,
         limpieza_final: reserva.limpieza_final || 0,
         monto_lavadero: reserva.monto_lavadero || 0,
+        cobrar_luz: (reserva.kw_inicial || 0) > 0,
         kw_inicial: reserva.kw_inicial || 0,
         estado: reserva.estado || 'pendiente',
         notas: reserva.notas || '',
@@ -1349,8 +1351,8 @@ function ReservasContent() {
           </div>
 
           {/* Estado con radio buttons */}
-          <div className="flex items-center gap-6 pt-2">
-            <span className="text-sm font-medium text-gray-700">Estado:</span>
+          <div className="flex items-center gap-6 pt-2 px-4 py-3 rounded-lg bg-costa-coral/20 border border-costa-coral/30">
+            <span className="text-sm font-medium text-costa-navy">Estado:</span>
             {estadosReserva.map((estado) => (
               <label key={estado.value} className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -1359,9 +1361,9 @@ function ReservasContent() {
                   value={estado.value}
                   checked={form.estado === estado.value}
                   onChange={(e) => setForm({ ...form, estado: e.target.value })}
-                  className="w-4 h-4 text-costa-navy border-gray-300 focus:ring-costa-navy"
+                  className="w-4 h-4 text-costa-coral border-costa-coral focus:ring-costa-coral"
                 />
-                <span className={`text-sm ${form.estado === estado.value ? 'font-medium text-costa-navy' : 'text-gray-600'}`}>
+                <span className={`text-sm ${form.estado === estado.value ? 'font-bold text-costa-navy' : 'text-gray-700'}`}>
                   {estado.label}
                 </span>
               </label>
@@ -1582,16 +1584,27 @@ function ReservasContent() {
 
           {/* Control de electricidad - Solo KW Inicial */}
           <div className="border rounded-lg p-4 bg-yellow-50/50">
-            <p className="text-sm font-medium text-gray-700 flex items-center gap-2 mb-3">
+            <div className="flex items-center gap-3 mb-3">
               <Zap size={16} className="text-yellow-600" />
-              Control de Luz
-            </p>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Input label="KW Inicial (medidor)" type="number" min="0" value={form.kw_inicial || ''} onChange={(e) => setForm({ ...form, kw_inicial: Number(e.target.value) })} />
-              <div className="col-span-3 flex items-end">
-                <p className="text-xs text-gray-500">El KW final, costo y cálculo de excedente se registran en la liquidación al finalizar la estadía.</p>
-              </div>
+              <span className="text-sm font-medium text-gray-700">Control de Luz</span>
+              <label className="flex items-center gap-2 cursor-pointer ml-2">
+                <input
+                  type="checkbox"
+                  checked={form.cobrar_luz}
+                  onChange={(e) => setForm({ ...form, cobrar_luz: e.target.checked, kw_inicial: e.target.checked ? form.kw_inicial : 0 })}
+                  className="w-4 h-4 rounded border-yellow-400 text-yellow-600 focus:ring-yellow-500"
+                />
+                <span className="text-sm text-gray-600">Se cobra</span>
+              </label>
             </div>
+            {form.cobrar_luz && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Input label="KW Inicial (medidor)" type="number" min="0" value={form.kw_inicial || ''} onChange={(e) => setForm({ ...form, kw_inicial: Number(e.target.value) })} />
+                <div className="col-span-3 flex items-end">
+                  <p className="text-xs text-gray-500">El KW final, costo y cálculo de excedente se registran en la liquidación al finalizar la estadía.</p>
+                </div>
+              </div>
+            )}
           </div>
 
           <Textarea label="Notas" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Observaciones de la reserva..." />
