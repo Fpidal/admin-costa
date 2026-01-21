@@ -35,9 +35,18 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', closeOnOv
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 hidden sm:block" onClick={closeOnOverlayClick ? onClose : undefined} />
+      {/* Overlay - visible en todas las pantallas, pero solo cierra en desktop si closeOnOverlayClick=true */}
+      <div
+        className="fixed inset-0 bg-black/50"
+        onClick={closeOnOverlayClick ? onClose : undefined}
+        onTouchEnd={(e) => e.stopPropagation()}
+      />
       <div className="flex min-h-full items-center justify-center sm:p-6">
-        <div className={`relative w-full h-full sm:h-auto ${sizeClasses[size]} bg-costa-white sm:rounded-xl shadow-2xl`}>
+        <div
+          className={`relative w-full h-full sm:h-auto ${sizeClasses[size]} bg-costa-white sm:rounded-xl shadow-2xl`}
+          onClick={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
           {/* Header fijo en móvil */}
           <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-costa-beige bg-costa-white sm:rounded-t-xl">
             <h2 className="text-lg font-semibold text-costa-navy">{title}</h2>
