@@ -9,9 +9,10 @@ interface ModalProps {
   title: string
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
+  closeOnOverlayClick?: boolean
 }
 
-export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'md', closeOnOverlayClick = false }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -34,7 +35,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="fixed inset-0 bg-black/50 hidden sm:block" onClick={onClose} />
+      <div className="fixed inset-0 bg-black/50 hidden sm:block" onClick={closeOnOverlayClick ? onClose : undefined} />
       <div className="flex min-h-full items-center justify-center sm:p-6">
         <div className={`relative w-full h-full sm:h-auto ${sizeClasses[size]} bg-costa-white sm:rounded-xl shadow-2xl`}>
           {/* Header fijo en móvil */}
