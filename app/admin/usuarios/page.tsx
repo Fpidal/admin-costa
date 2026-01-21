@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, Button, Badge } from '@/components/ui'
-import { Users, Shield, ShieldOff, UserCheck, UserX, Mail, Calendar, MapPin, Home, Clock, CheckCircle } from 'lucide-react'
+import { Users, Shield, ShieldOff, UserCheck, UserX, Mail, Calendar, MapPin, Home, Clock, CheckCircle, Trash2 } from 'lucide-react'
 
 interface Profile {
   id: string
@@ -70,10 +70,27 @@ export default function UsuariosPage() {
       .update({ activo: !activo })
       .eq('id', userId)
 
-    if (!error) {
+    if (error) {
+      alert('Error al cambiar estado: ' + error.message)
+    } else {
       setUsuarios(usuarios.map(u =>
         u.id === userId ? { ...u, activo: !activo } : u
       ))
+    }
+  }
+
+  async function rechazarUsuario(userId: string, nombre: string) {
+    if (!confirm(`¿Estás seguro de rechazar y eliminar a "${nombre}"?\n\nEsto eliminará su solicitud permanentemente.`)) return
+
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId)
+
+    if (error) {
+      alert('Error al eliminar: ' + error.message)
+    } else {
+      setUsuarios(usuarios.filter(u => u.id !== userId))
     }
   }
 
@@ -223,12 +240,13 @@ export default function UsuariosPage() {
                         Autorizar
                       </Button>
                       <Button
-                        variant="ghost"
+                        variant="danger"
                         size="sm"
-                        onClick={() => toggleActivo(usuario.id, true)}
-                        title="Rechazar (desactivar)"
+                        onClick={() => rechazarUsuario(usuario.id, usuario.nombre || usuario.email)}
+                        title="Rechazar y eliminar solicitud"
                       >
-                        <UserX size={16} className="text-costa-coral" />
+                        <UserX size={16} />
+                        Rechazar
                       </Button>
                     </div>
                   </div>
@@ -329,6 +347,17 @@ export default function UsuariosPage() {
                           <Shield size={16} className="text-costa-navy" />
                         )}
                       </Button>
+                      {!usuario.activo && (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => rechazarUsuario(usuario.id, usuario.nombre || usuario.email)}
+                          title="Eliminar usuario"
+                        >
+                          <Trash2 size={16} />
+                          Eliminar
+                        </Button>
+                      )}
                     </div>
                   )}
                 </div>

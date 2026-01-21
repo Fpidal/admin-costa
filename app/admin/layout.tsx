@@ -57,17 +57,21 @@ function AdminLayoutContent({
         .eq('id', session.user.id)
         .single()
 
-      if (profile?.activo === false) {
+      if (!profile) {
+        // Usuario eliminado - cerrar sesión
+        await supabase.auth.signOut()
+        setIsAuthenticated(false)
+      } else if (profile.activo === false) {
         setIsInactive(true)
         setIsAuthenticated(false)
-      } else if (profile?.autorizado === false) {
+      } else if (profile.autorizado === false) {
         setIsPendingAuth(true)
         setIsAuthenticated(false)
       } else {
         setIsAuthenticated(true)
-        setIsAdmin(profile?.is_admin || false)
-        setUserName(profile?.nombre || '')
-        setUserEmail(profile?.email || session.user.email || '')
+        setIsAdmin(profile.is_admin || false)
+        setUserName(profile.nombre || '')
+        setUserEmail(profile.email || session.user.email || '')
       }
     }
     setIsLoading(false)
@@ -122,21 +126,29 @@ function AdminLayoutContent({
         .eq('id', data.user.id)
         .single()
 
-      if (profile?.activo === false) {
+      if (!profile) {
+        // Usuario eliminado
+        await supabase.auth.signOut()
+        setError('Tu cuenta ha sido eliminada. Contactá al administrador.')
+        setSubmitting(false)
+        return
+      }
+
+      if (profile.activo === false) {
         setIsInactive(true)
         setSubmitting(false)
         return
       }
 
-      if (profile?.autorizado === false) {
+      if (profile.autorizado === false) {
         setIsPendingAuth(true)
         setSubmitting(false)
         return
       }
 
-      setIsAdmin(profile?.is_admin || false)
-      setUserName(profile?.nombre || '')
-      setUserEmail(profile?.email || data.user.email || '')
+      setIsAdmin(profile.is_admin || false)
+      setUserName(profile.nombre || '')
+      setUserEmail(profile.email || data.user.email || '')
       setIsAuthenticated(true)
       setSubmitting(false)
       router.push('/admin/propiedades')

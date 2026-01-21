@@ -249,6 +249,10 @@ function ReservasContent() {
               total: resultado.total,
               noches: resultado.noches
             })
+            // Auto-llenar el precio si está vacío (nueva reserva)
+            if (form.precio_noche === 0) {
+              setForm(prev => ({ ...prev, precio_noche: resultado.precioPromedio }))
+            }
           } else {
             setPrecioSugerido(null)
           }
@@ -1417,13 +1421,20 @@ function ReservasContent() {
           <div className="grid grid-cols-3 gap-4">
             <Select label="Moneda" value={form.moneda} onChange={(e) => setForm({ ...form, moneda: e.target.value })} options={monedas} />
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Precio por noche</label>
-              <InputNumber value={form.precio_noche} onChange={(val) => setForm({ ...form, precio_noche: val })} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Precio por noche
+                {precioSugerido && form.precio_noche === precioSugerido.precio && (
+                  <span className="text-xs text-gray-400 ml-2">(sugerido)</span>
+                )}
+              </label>
+              <div className={precioSugerido && form.precio_noche === precioSugerido.precio ? 'opacity-60' : ''}>
+                <InputNumber value={form.precio_noche} onChange={(val) => setForm({ ...form, precio_noche: val })} />
+              </div>
               {/* Precio sugerido del calendario */}
               {cargandoPrecio && (
                 <p className="text-xs text-gray-400 mt-1">Buscando precio...</p>
               )}
-              {precioSugerido && !cargandoPrecio && (
+              {precioSugerido && !cargandoPrecio && form.precio_noche !== precioSugerido.precio && (
                 <button
                   type="button"
                   onClick={() => setForm({ ...form, precio_noche: precioSugerido.precio })}
@@ -1590,18 +1601,18 @@ function ReservasContent() {
                   id="incluye_limpieza"
                   checked={form.limpieza_final > 0}
                   onChange={(e) => {
-                    if (!e.target.checked) {
-                      setForm({ ...form, limpieza_final: 0 })
-                    }
+                    setForm({ ...form, limpieza_final: e.target.checked ? (form.limpieza_final || 15000) : 0 })
                   }}
                   className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <label htmlFor="incluye_limpieza" className="text-sm text-gray-700">Limpieza final</label>
               </div>
-              <div className="mt-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Monto ($)</label>
-                <InputNumber value={form.limpieza_final} onChange={(val) => setForm({ ...form, limpieza_final: val })} />
-              </div>
+              {form.limpieza_final > 0 && (
+                <div className="mt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Monto ($)</label>
+                  <InputNumber value={form.limpieza_final} onChange={(val) => setForm({ ...form, limpieza_final: val })} />
+                </div>
+              )}
             </div>
             <div className="p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-2">
@@ -1610,18 +1621,18 @@ function ReservasContent() {
                   id="incluye_lavadero"
                   checked={form.monto_lavadero > 0}
                   onChange={(e) => {
-                    if (!e.target.checked) {
-                      setForm({ ...form, monto_lavadero: 0 })
-                    }
+                    setForm({ ...form, monto_lavadero: e.target.checked ? (form.monto_lavadero || 5000) : 0 })
                   }}
                   className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
                 <label htmlFor="incluye_lavadero" className="text-sm text-gray-700">Lavadero</label>
               </div>
-              <div className="mt-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Monto ($)</label>
-                <InputNumber value={form.monto_lavadero} onChange={(val) => setForm({ ...form, monto_lavadero: val })} />
-              </div>
+              {form.monto_lavadero > 0 && (
+                <div className="mt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Monto ($)</label>
+                  <InputNumber value={form.monto_lavadero} onChange={(val) => setForm({ ...form, monto_lavadero: val })} />
+                </div>
+              )}
             </div>
           </div>
 
