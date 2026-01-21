@@ -182,8 +182,8 @@ function PropiedadesContent() {
     if (!userId) return
 
     const [resPropiedades, resReservas] = await Promise.all([
-      supabase.from('propiedades').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-      supabase.from('reservas').select('id, propiedad_id, fecha_inicio, fecha_fin, estado').eq('user_id', userId).in('estado', ['confirmada', 'pendiente'])
+      supabase.from('propiedades').select('*').eq('user_id', userId).is('eliminado_at', null).order('created_at', { ascending: false }),
+      supabase.from('reservas').select('id, propiedad_id, fecha_inicio, fecha_fin, estado').eq('user_id', userId).is('eliminado_at', null).in('estado', ['confirmada', 'pendiente'])
     ])
 
     if (resPropiedades.data) setPropiedades(resPropiedades.data)
@@ -386,11 +386,26 @@ function PropiedadesContent() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('¿Estás seguro de eliminar esta propiedad?')) return
+    // Verificar si tiene reservas activas
+    const { data: reservasActivas } = await supabase
+      .from('reservas')
+      .select('id, inquilinos(nombre)')
+      .eq('propiedad_id', id)
+      .is('eliminado_at', null)
+      .in('estado', ['confirmada', 'pendiente'])
+      .limit(1)
+
+    if (reservasActivas && reservasActivas.length > 0) {
+      const inquilino = (reservasActivas[0] as any).inquilinos?.nombre || 'un inquilino'
+      alert(`No se puede eliminar esta propiedad porque tiene reservas activas.\n\nReserva de: ${inquilino}\n\nDebés eliminar o cancelar las reservas primero.`)
+      return
+    }
+
+    if (!confirm('¿Estás seguro de eliminar esta propiedad?\n\nLa propiedad irá a la Papelera.')) return
 
     const { error } = await supabase
       .from('propiedades')
-      .delete()
+      .update({ eliminado_at: new Date().toISOString() })
       .eq('id', id)
 
     if (error) {

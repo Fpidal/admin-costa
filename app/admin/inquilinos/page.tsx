@@ -132,11 +132,12 @@ function InquilinosContent() {
   async function fetchData() {
     if (!userId) return
 
-    // Primero traemos los inquilinos
+    // Primero traemos los inquilinos (excluyendo eliminados)
     const { data: inquilinosData, error: inquilinosError } = await supabase
       .from('inquilinos')
       .select('*')
       .eq('user_id', userId)
+      .is('eliminado_at', null)
       .order('nombre')
 
     if (inquilinosError) {
@@ -274,10 +275,16 @@ function InquilinosContent() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('¿Estás seguro de eliminar este huésped?')) return
-    const { error } = await supabase.from('inquilinos').delete().eq('id', id)
-    if (error) alert('Error al eliminar: ' + error.message)
-    else fetchData()
+    if (!confirm('¿Estás seguro de eliminar este huésped?\n\nEl inquilino irá a la Papelera.')) return
+    const { error } = await supabase
+      .from('inquilinos')
+      .update({ eliminado_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) {
+      alert('Error al eliminar: ' + error.message)
+    } else {
+      fetchData()
+    }
   }
 
   if (loading) {

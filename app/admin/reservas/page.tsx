@@ -203,9 +203,9 @@ function ReservasContent() {
     if (!userId) return
 
     const [resReservas, resPropiedades, resInquilinos, resCobros] = await Promise.all([
-      supabase.from('reservas').select('*, propiedades(id, nombre, lote, direccion), inquilinos(id, nombre, documento, telefono, email, acompanantes)').eq('user_id', userId).order('fecha_inicio', { ascending: false }),
-      supabase.from('propiedades').select('id, nombre, direccion, lote').eq('user_id', userId).order('nombre'),
-      supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').eq('user_id', userId).order('nombre'),
+      supabase.from('reservas').select('*, propiedades(id, nombre, lote, direccion), inquilinos(id, nombre, documento, telefono, email, acompanantes)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio', { ascending: false }),
+      supabase.from('propiedades').select('id, nombre, direccion, lote').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
+      supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
       supabase.from('cobros').select('*, reservas(id, fecha_inicio, fecha_fin, propiedades(nombre), inquilinos(nombre))').eq('user_id', userId).order('fecha', { ascending: false })
     ])
 
@@ -365,6 +365,46 @@ function ReservasContent() {
       return
     }
 
+    // Validar superposición de fechas con reservas confirmadas
+    const reservasConfirmadas = reservas.filter(r => {
+      if (r.propiedad_id !== form.propiedad_id || r.estado !== 'confirmada') return false
+      if (editingId && r.id === editingId) return false
+      const inicioExistente = new Date(r.fecha_inicio)
+      const finExistente = new Date(r.fecha_fin)
+      const inicioNuevo = new Date(form.check_in)
+      const finNuevo = new Date(form.check_out)
+      return inicioNuevo <= finExistente && finNuevo >= inicioExistente
+    })
+
+    if (reservasConfirmadas.length > 0) {
+      const reservaConflicto = reservasConfirmadas[0]
+      const nombreInquilino = reservaConflicto.inquilinos?.nombre || 'otro inquilino'
+      const fechaInicio = new Date(reservaConflicto.fecha_inicio).toLocaleDateString('es-AR')
+      const fechaFin = new Date(reservaConflicto.fecha_fin).toLocaleDateString('es-AR')
+      alert(`Esta fecha ya está reservada por ${nombreInquilino} (${fechaInicio} al ${fechaFin}). Debés elegir otras fechas.`)
+      return
+    }
+
+    // Advertencia para reservas pendientes (no bloquea, solo avisa)
+    const reservasPendientes = reservas.filter(r => {
+      if (r.propiedad_id !== form.propiedad_id || r.estado !== 'pendiente') return false
+      if (editingId && r.id === editingId) return false
+      const inicioExistente = new Date(r.fecha_inicio)
+      const finExistente = new Date(r.fecha_fin)
+      const inicioNuevo = new Date(form.check_in)
+      const finNuevo = new Date(form.check_out)
+      return inicioNuevo <= finExistente && finNuevo >= inicioExistente
+    })
+
+    if (reservasPendientes.length > 0) {
+      const reservaPendiente = reservasPendientes[0]
+      const nombreInquilino = reservaPendiente.inquilinos?.nombre || 'otro inquilino'
+      const fechaInicio = new Date(reservaPendiente.fecha_inicio).toLocaleDateString('es-AR')
+      const fechaFin = new Date(reservaPendiente.fecha_fin).toLocaleDateString('es-AR')
+      const continuar = confirm(`⚠️ ADVERTENCIA: Esta fecha tiene una reserva PENDIENTE de ${nombreInquilino} (${fechaInicio} al ${fechaFin}).\n\n¿Querés continuar de todas formas?`)
+      if (!continuar) return
+    }
+
     setSaving(true)
 
     const noches = calcularNoches(form.check_in, form.check_out)
@@ -423,8 +463,11 @@ function ReservasContent() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('¿Estás seguro de eliminar esta reserva?')) return
-    const { error } = await supabase.from('reservas').delete().eq('id', id)
+    if (!confirm('¿Estás seguro de eliminar esta reserva?\n\nLa reserva irá a la Papelera.')) return
+    const { error } = await supabase
+      .from('reservas')
+      .update({ eliminado_at: new Date().toISOString() })
+      .eq('id', id)
     if (error) alert('Error al eliminar: ' + error.message)
     else fetchData()
   }

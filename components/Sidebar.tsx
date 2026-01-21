@@ -15,7 +15,8 @@ import {
   LogOut,
   Globe,
   Eye,
-  Shield
+  Shield,
+  Trash2
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Resumen', href: '/admin', icon: LayoutDashboard },
   { name: 'Administración', href: '/admin/gastos', icon: Receipt },
   { name: 'Info útil', href: '/admin/info-util', icon: Info },
+  { name: 'Papelera', href: '/admin/papelera', icon: Trash2 },
 ]
 
 interface SidebarProps {

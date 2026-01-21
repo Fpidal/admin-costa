@@ -106,11 +106,13 @@ export default function CalendarioPage() {
         .from('propiedades')
         .select('id, nombre, lote, direccion')
         .eq('user_id', userId)
+        .is('eliminado_at', null)
         .order('nombre'),
       supabase
         .from('reservas')
         .select('id, propiedad_id, fecha_inicio, fecha_fin, estado, inquilinos(nombre)')
         .eq('user_id', userId)
+        .is('eliminado_at', null)
         .in('estado', ['confirmada', 'pendiente'])
         .order('fecha_inicio')
     ])
