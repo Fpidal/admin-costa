@@ -1601,7 +1601,7 @@ function ReservasContent() {
                   id="incluye_limpieza"
                   checked={form.limpieza_final > 0}
                   onChange={(e) => {
-                    setForm({ ...form, limpieza_final: e.target.checked ? (form.limpieza_final || 15000) : 0 })
+                    setForm({ ...form, limpieza_final: e.target.checked ? 150000 : 0 })
                   }}
                   className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
@@ -1609,8 +1609,15 @@ function ReservasContent() {
               </div>
               {form.limpieza_final > 0 && (
                 <div className="mt-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Monto ($)</label>
-                  <InputNumber value={form.limpieza_final} onChange={(val) => setForm({ ...form, limpieza_final: val })} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Monto ($)
+                    {form.limpieza_final === 150000 && (
+                      <span className="text-xs text-gray-400 ml-2">(sugerido)</span>
+                    )}
+                  </label>
+                  <div className={form.limpieza_final === 150000 ? 'opacity-50' : ''}>
+                    <InputNumber value={form.limpieza_final} onChange={(val) => setForm({ ...form, limpieza_final: val })} />
+                  </div>
                 </div>
               )}
             </div>
@@ -1621,7 +1628,7 @@ function ReservasContent() {
                   id="incluye_lavadero"
                   checked={form.monto_lavadero > 0}
                   onChange={(e) => {
-                    setForm({ ...form, monto_lavadero: e.target.checked ? (form.monto_lavadero || 5000) : 0 })
+                    setForm({ ...form, monto_lavadero: e.target.checked ? 100000 : 0 })
                   }}
                   className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 />
@@ -1629,8 +1636,15 @@ function ReservasContent() {
               </div>
               {form.monto_lavadero > 0 && (
                 <div className="mt-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Monto ($)</label>
-                  <InputNumber value={form.monto_lavadero} onChange={(val) => setForm({ ...form, monto_lavadero: val })} />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Monto ($)
+                    {form.monto_lavadero === 100000 && (
+                      <span className="text-xs text-gray-400 ml-2">(sugerido)</span>
+                    )}
+                  </label>
+                  <div className={form.monto_lavadero === 100000 ? 'opacity-50' : ''}>
+                    <InputNumber value={form.monto_lavadero} onChange={(val) => setForm({ ...form, monto_lavadero: val })} />
+                  </div>
                 </div>
               )}
             </div>
