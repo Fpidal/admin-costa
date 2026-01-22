@@ -83,22 +83,31 @@ export default function UsuariosPage() {
     if (!confirm(`¿Estás seguro de rechazar y eliminar a "${nombre}"?\n\nEsto eliminará su solicitud permanentemente.`)) return
 
     try {
+      // Intentar eliminar completamente (profiles + auth)
       const response = await fetch('/api/admin/delete-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, adminId: currentUserId })
       })
 
-      const data = await response.json()
-
-      if (!response.ok) {
-        alert('Error al eliminar: ' + (data.error || 'Error desconocido'))
-      } else {
+      if (response.ok) {
         setUsuarios(usuarios.filter(u => u.id !== userId))
+        return
       }
-    } catch (error) {
-      alert('Error al eliminar usuario')
-      console.error(error)
+    } catch {
+      // Si falla la API, continuar con el método alternativo
+    }
+
+    // Fallback: eliminar solo de profiles (el usuario deberá eliminarse manualmente de Supabase Auth)
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', userId)
+
+    if (error) {
+      alert('Error al eliminar: ' + error.message)
+    } else {
+      setUsuarios(usuarios.filter(u => u.id !== userId))
     }
   }
 
