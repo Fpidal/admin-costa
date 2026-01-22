@@ -82,15 +82,23 @@ export default function UsuariosPage() {
   async function rechazarUsuario(userId: string, nombre: string) {
     if (!confirm(`¿Estás seguro de rechazar y eliminar a "${nombre}"?\n\nEsto eliminará su solicitud permanentemente.`)) return
 
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId)
+    try {
+      const response = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, adminId: currentUserId })
+      })
 
-    if (error) {
-      alert('Error al eliminar: ' + error.message)
-    } else {
-      setUsuarios(usuarios.filter(u => u.id !== userId))
+      const data = await response.json()
+
+      if (!response.ok) {
+        alert('Error al eliminar: ' + (data.error || 'Error desconocido'))
+      } else {
+        setUsuarios(usuarios.filter(u => u.id !== userId))
+      }
+    } catch (error) {
+      alert('Error al eliminar usuario')
+      console.error(error)
     }
   }
 
