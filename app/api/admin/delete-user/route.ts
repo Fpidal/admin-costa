@@ -1,17 +1,23 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 
-// Cliente admin de Supabase (solo para uso en servidor)
-const supabaseAdmin = createClient(
-  'https://dpghrdgippisgzvlahwi.supabase.co',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
+// Función para crear el cliente admin (solo cuando se necesita)
+function getSupabaseAdmin() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY no está configurada')
   }
-)
+  return createClient(
+    'https://dpghrdgippisgzvlahwi.supabase.co',
+    serviceRoleKey,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  )
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +26,8 @@ export async function POST(request: NextRequest) {
     if (!userId || !adminId) {
       return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
     }
+
+    const supabaseAdmin = getSupabaseAdmin()
 
     // Verificar que quien hace la solicitud es admin
     const { data: adminProfile, error: adminError } = await supabaseAdmin
