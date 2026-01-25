@@ -511,70 +511,74 @@ export default function InfoUtilPage() {
           </div>
         </div>
 
-        <Card>
-          <CardContent className="p-0">
-            {listaNegraFiltrada.length === 0 ? (
-              <div className="py-8 text-center text-gray-500">
-                {listaNegra.length === 0 ? 'No hay registros en la lista negra' : 'No se encontraron coincidencias'}
-              </div>
-            ) : (
-              <>
-                <div className="divide-y divide-gray-100">
-                  {(listaNegraExpandida ? listaNegraFiltrada : listaNegraFiltrada.slice(0, 4)).map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-4 hover:bg-red-50/30">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <span className="font-bold text-costa-navy">{item.nombre}</span>
-                          <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                            DNI: {item.documento}
-                          </span>
-                        </div>
-                        <p className="text-sm text-red-600 font-medium mt-1">
-                          <AlertTriangle size={14} className="inline mr-1" />
-                          {item.motivo}
-                        </p>
-                        {item.notas && (
-                          <p className="text-xs text-gray-500 mt-1">{item.notas}</p>
-                        )}
-                        <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
-                          {item.telefono && <span>Tel: {item.telefono}</span>}
-                          {item.email && <span>{item.email}</span>}
-                          <span>Agregado: {new Date(item.fecha).toLocaleDateString('es-AR')}</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => openListaNegraModal(item)}>
-                          <Pencil size={14} />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => handleListaNegraDelete(item.id)}>
-                          <Trash2 size={14} className="text-costa-gris" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+        {listaNegraFiltrada.length === 0 ? (
+          <Card>
+            <CardContent className="py-8 text-center text-gray-500">
+              {listaNegra.length === 0 ? 'No hay registros en la lista negra' : 'No se encontraron coincidencias'}
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(listaNegraExpandida ? listaNegraFiltrada : listaNegraFiltrada.slice(0, 6)).map((item) => (
+                <div
+                  key={item.id}
+                  className="relative bg-white border border-gray-200 rounded-lg p-4 hover:border-red-300 hover:shadow-md transition-all"
+                >
+                  {/* Botones editar/eliminar */}
+                  <div className="absolute top-2 right-2 flex items-center gap-1">
+                    <button
+                      onClick={() => openListaNegraModal(item)}
+                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleListaNegraDelete(item.id)}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+
+                  {/* Contenido */}
+                  <h4 className="font-bold text-costa-navy pr-16 truncate">{item.nombre}</h4>
+                  <p className="text-sm text-gray-500 mt-1">DNI: {item.documento}</p>
+
+                  <div className="mt-3 p-2 bg-red-50 rounded-md">
+                    <p className="text-sm text-red-600 flex items-start gap-1.5">
+                      <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{item.motivo}</span>
+                    </p>
+                  </div>
+
+                  <p className="text-xs text-gray-400 mt-3">
+                    Agregado: {new Date(item.fecha).toLocaleDateString('es-AR')}
+                  </p>
                 </div>
-                {listaNegraFiltrada.length > 4 && (
-                  <button
-                    onClick={() => setListaNegraExpandida(!listaNegraExpandida)}
-                    className="w-full py-3 text-sm font-medium text-costa-coral hover:bg-red-50 flex items-center justify-center gap-2 border-t"
-                  >
-                    {listaNegraExpandida ? (
-                      <>
-                        <ChevronUp size={16} />
-                        Mostrar menos
-                      </>
-                    ) : (
-                      <>
-                        <ChevronDown size={16} />
-                        Ver {listaNegraFiltrada.length - 4} más
-                      </>
-                    )}
-                  </button>
+              ))}
+            </div>
+
+            {listaNegraFiltrada.length > 6 && (
+              <button
+                onClick={() => setListaNegraExpandida(!listaNegraExpandida)}
+                className="w-full mt-4 py-3 text-sm font-medium text-costa-coral hover:bg-red-50 rounded-lg border border-red-200 flex items-center justify-center gap-2 transition-colors"
+              >
+                {listaNegraExpandida ? (
+                  <>
+                    <ChevronUp size={16} />
+                    Mostrar menos
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown size={16} />
+                    Ver {listaNegraFiltrada.length - 6} registros más
+                  </>
                 )}
-              </>
+              </button>
             )}
-          </CardContent>
-        </Card>
+          </>
+        )}
       </div>
 
       {/* Links útiles */}
