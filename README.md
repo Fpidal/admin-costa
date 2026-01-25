@@ -18,10 +18,11 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Calendario de Precios**: Sistema de reglas de precio por temporada con prioridades
 - **Reservas**: Gestión de reservas con generación de PDF de contrato
 - **Calendario de Reservas**: Vista mensual con indicadores de feriados
-- **Inquilinos**: Base de datos de inquilinos
+- **Inquilinos**: Base de datos de inquilinos con validación contra lista negra
 - **Gastos**: Control de gastos por propiedad
 - **Usuarios**: Panel de administración de usuarios (solo admin)
-- **Info útil**: Información de servicios y contactos
+- **Info útil**: Información de servicios, contactos y lista negra
+- **Papelera**: Recuperación de elementos eliminados (soft delete)
 
 ### Sistema de Precios
 - **Reglas de precio**: Configuración por temporada, fechas especiales y días de la semana
@@ -70,6 +71,19 @@ El formulario de registro solicita:
 - Las propiedades ocultas no aparecen en la landing page
 - Cambio instantáneo sin recargar la página
 
+### Lista Negra de Inquilinos
+- **Gestión completa**: Agregar, editar y eliminar registros
+- **Búsqueda**: Por documento, nombre o motivo
+- **Diseño grid**: Tarjetas responsive (3 cols desktop, 2 tablet, 1 mobile)
+- **Validación automática**: Alerta visual al cargar inquilino en lista negra
+- **Importación masiva**: Soporte para importar desde Excel vía SQL
+
+### Papelera (Soft Delete)
+- **Recuperación**: Restaurar propiedades, reservas e inquilinos eliminados
+- **Eliminación permanente**: Opción de borrar definitivamente
+- **Organización por tabs**: Separación por tipo de elemento
+- **Protección**: No se pueden eliminar propiedades con reservas activas
+
 ### Seguridad
 - Autenticación multi-usuario con Supabase Auth
 - Row Level Security (RLS) para aislamiento de datos por usuario
@@ -77,6 +91,7 @@ El formulario de registro solicita:
 - Sistema de autorización para nuevos usuarios
 - Panel de administrador para gestión de usuarios
 - Usuario logueado visible en el sidebar
+- Validación de inquilinos contra lista negra
 
 ## Tecnologías
 
@@ -130,15 +145,16 @@ npm run dev
 ### Tablas principales
 | Tabla | Descripción |
 |-------|-------------|
-| `propiedades` | Datos de las propiedades (incluye campo `publicada`) |
-| `reservas` | Reservas de inquilinos |
-| `inquilinos` | Información de inquilinos |
+| `propiedades` | Datos de las propiedades (incluye campo `publicada` y `eliminado_at`) |
+| `reservas` | Reservas de inquilinos (incluye `eliminado_at` para soft delete) |
+| `inquilinos` | Información de inquilinos (incluye `eliminado_at` para soft delete) |
 | `gastos` | Gastos asociados a propiedades |
 | `cobros` | Registro de cobros |
 | `proveedores_servicios` | Proveedores de servicios |
 | `profiles` | Perfiles de usuarios |
 | `price_rules` | Reglas de precios por propiedad |
 | `feriados_custom` | Feriados personalizados por usuario |
+| `lista_negra` | Inquilinos en lista negra con documento, nombre y motivo |
 
 ### Campos de profiles
 | Campo | Tipo | Descripción |
@@ -179,7 +195,8 @@ admin-costa/
 │   │   ├── inquilinos/       # CRUD inquilinos
 │   │   ├── gastos/           # CRUD gastos
 │   │   ├── usuarios/         # Panel admin de usuarios
-│   │   └── info-util/        # Información de servicios
+│   │   ├── info-util/        # Información de servicios y lista negra
+│   │   └── papelera/         # Elementos eliminados (soft delete)
 │   ├── page.tsx              # Landing page pública
 │   └── layout.tsx            # Layout principal
 ├── components/
@@ -195,6 +212,17 @@ admin-costa/
 ```
 
 ## Changelog
+
+### v1.5.0
+- Lista Negra de inquilinos con grid de tarjetas responsive
+- Validación automática de DNI contra lista negra al cargar inquilino
+- Papelera con soft delete para propiedades, reservas e inquilinos
+- Restauración de elementos eliminados
+- Modal mejorado: no se cierra al tocar fuera del formulario
+- Precios por defecto: Limpieza final $150.000, Lavadero $100.000
+- Precios sugeridos en gris (editables)
+- Validación de fechas superpuestas en reservas
+- Trigger automático para crear perfiles de nuevos usuarios
 
 ### v1.4.0
 - Solapa "Calendario de Precios" integrada en página de Propiedades
