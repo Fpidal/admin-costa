@@ -124,14 +124,16 @@ export default function InfoUtilPage() {
   const [busquedaListaNegra, setBusquedaListaNegra] = useState('')
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (userId) {
+      fetchData()
+    }
+  }, [userId])
 
   async function fetchData() {
     const [resContactos, resProveedores, resListaNegra] = await Promise.all([
       supabase.from('contactos').select('*').order('categoria, nombre'),
       supabase.from('proveedores_servicios').select('*').order('nombre'),
-      supabase.from('lista_negra').select('*').eq('user_id', userId).order('fecha', { ascending: false })
+      supabase.from('lista_negra').select('*').order('fecha', { ascending: false })
     ])
     if (resContactos.data) setContactos(resContactos.data)
     if (resProveedores.data) setProveedores(resProveedores.data)
