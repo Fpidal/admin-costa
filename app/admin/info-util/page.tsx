@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select } from '@/components/ui'
-import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink, Users, AlertTriangle, Search } from 'lucide-react'
+import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink, Users, AlertTriangle, Search, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Contacto {
   id: number
@@ -122,6 +122,7 @@ export default function InfoUtilPage() {
   const [listaNegraForm, setListaNegraForm] = useState(initialListaNegraForm)
   const [savingListaNegra, setSavingListaNegra] = useState(false)
   const [busquedaListaNegra, setBusquedaListaNegra] = useState('')
+  const [listaNegraExpandida, setListaNegraExpandida] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -517,40 +518,60 @@ export default function InfoUtilPage() {
                 {listaNegra.length === 0 ? 'No hay registros en la lista negra' : 'No se encontraron coincidencias'}
               </div>
             ) : (
-              <div className="divide-y divide-gray-100">
-                {listaNegraFiltrada.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 hover:bg-red-50/30">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3">
-                        <span className="font-bold text-costa-navy">{item.nombre}</span>
-                        <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-                          DNI: {item.documento}
-                        </span>
+              <>
+                <div className="divide-y divide-gray-100">
+                  {(listaNegraExpandida ? listaNegraFiltrada : listaNegraFiltrada.slice(0, 4)).map((item) => (
+                    <div key={item.id} className="flex items-center justify-between p-4 hover:bg-red-50/30">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <span className="font-bold text-costa-navy">{item.nombre}</span>
+                          <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                            DNI: {item.documento}
+                          </span>
+                        </div>
+                        <p className="text-sm text-red-600 font-medium mt-1">
+                          <AlertTriangle size={14} className="inline mr-1" />
+                          {item.motivo}
+                        </p>
+                        {item.notas && (
+                          <p className="text-xs text-gray-500 mt-1">{item.notas}</p>
+                        )}
+                        <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                          {item.telefono && <span>Tel: {item.telefono}</span>}
+                          {item.email && <span>{item.email}</span>}
+                          <span>Agregado: {new Date(item.fecha).toLocaleDateString('es-AR')}</span>
+                        </div>
                       </div>
-                      <p className="text-sm text-red-600 font-medium mt-1">
-                        <AlertTriangle size={14} className="inline mr-1" />
-                        {item.motivo}
-                      </p>
-                      {item.notas && (
-                        <p className="text-xs text-gray-500 mt-1">{item.notas}</p>
-                      )}
-                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
-                        {item.telefono && <span>Tel: {item.telefono}</span>}
-                        {item.email && <span>{item.email}</span>}
-                        <span>Agregado: {new Date(item.fecha).toLocaleDateString('es-AR')}</span>
+                      <div className="flex items-center gap-1">
+                        <Button variant="ghost" size="sm" onClick={() => openListaNegraModal(item)}>
+                          <Pencil size={14} />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleListaNegraDelete(item.id)}>
+                          <Trash2 size={14} className="text-costa-gris" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => openListaNegraModal(item)}>
-                        <Pencil size={14} />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleListaNegraDelete(item.id)}>
-                        <Trash2 size={14} className="text-costa-gris" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                {listaNegraFiltrada.length > 4 && (
+                  <button
+                    onClick={() => setListaNegraExpandida(!listaNegraExpandida)}
+                    className="w-full py-3 text-sm font-medium text-costa-coral hover:bg-red-50 flex items-center justify-center gap-2 border-t"
+                  >
+                    {listaNegraExpandida ? (
+                      <>
+                        <ChevronUp size={16} />
+                        Mostrar menos
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown size={16} />
+                        Ver {listaNegraFiltrada.length - 4} más
+                      </>
+                    )}
+                  </button>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
