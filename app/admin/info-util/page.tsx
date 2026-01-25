@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select } from '@/components/ui'
-import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink, Users } from 'lucide-react'
+import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink, Users, AlertTriangle, Search } from 'lucide-react'
 
 interface Contacto {
   id: number
@@ -22,6 +22,17 @@ interface Proveedor {
   apellido: string | null
   rubro: string | null
   telefono: string | null
+}
+
+interface ListaNegra {
+  id: number
+  documento: string
+  nombre: string
+  telefono: string | null
+  email: string | null
+  motivo: string
+  fecha: string
+  notas: string | null
 }
 
 const categoriasContacto = [
@@ -78,6 +89,16 @@ const initialProveedorForm = {
   telefono: '',
 }
 
+const initialListaNegraForm = {
+  documento: '',
+  nombre: '',
+  telefono: '',
+  email: '',
+  motivo: '',
+  fecha: new Date().toISOString().split('T')[0],
+  notas: '',
+}
+
 export default function InfoUtilPage() {
   const { userId } = useAuth()
   const [contactos, setContactos] = useState<Contacto[]>([])
@@ -94,17 +115,27 @@ export default function InfoUtilPage() {
   const [proveedorForm, setProveedorForm] = useState(initialProveedorForm)
   const [savingProveedor, setSavingProveedor] = useState(false)
 
+  // Estado para lista negra
+  const [listaNegra, setListaNegra] = useState<ListaNegra[]>([])
+  const [listaNegraModalOpen, setListaNegraModalOpen] = useState(false)
+  const [editingListaNegraId, setEditingListaNegraId] = useState<number | null>(null)
+  const [listaNegraForm, setListaNegraForm] = useState(initialListaNegraForm)
+  const [savingListaNegra, setSavingListaNegra] = useState(false)
+  const [busquedaListaNegra, setBusquedaListaNegra] = useState('')
+
   useEffect(() => {
     fetchData()
   }, [])
 
   async function fetchData() {
-    const [resContactos, resProveedores] = await Promise.all([
+    const [resContactos, resProveedores, resListaNegra] = await Promise.all([
       supabase.from('contactos').select('*').order('categoria, nombre'),
-      supabase.from('proveedores_servicios').select('*').order('nombre')
+      supabase.from('proveedores_servicios').select('*').order('nombre'),
+      supabase.from('lista_negra').select('*').eq('user_id', userId).order('fecha', { ascending: false })
     ])
     if (resContactos.data) setContactos(resContactos.data)
     if (resProveedores.data) setProveedores(resProveedores.data)
+    if (resListaNegra.data) setListaNegra(resListaNegra.data)
     setLoading(false)
   }
 
@@ -223,6 +254,76 @@ export default function InfoUtilPage() {
     if (error) alert('Error al eliminar: ' + error.message)
     else fetchData()
   }
+
+  // Funciones para lista negra
+  function openListaNegraModal(item?: ListaNegra) {
+    if (item) {
+      setEditingListaNegraId(item.id)
+      setListaNegraForm({
+        documento: item.documento || '',
+        nombre: item.nombre || '',
+        telefono: item.telefono || '',
+        email: item.email || '',
+        motivo: item.motivo || '',
+        fecha: item.fecha || new Date().toISOString().split('T')[0],
+        notas: item.notas || '',
+      })
+    } else {
+      setEditingListaNegraId(null)
+      setListaNegraForm(initialListaNegraForm)
+    }
+    setListaNegraModalOpen(true)
+  }
+
+  function closeListaNegraModal() {
+    setListaNegraModalOpen(false)
+    setEditingListaNegraId(null)
+    setListaNegraForm(initialListaNegraForm)
+  }
+
+  async function handleListaNegraSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSavingListaNegra(true)
+
+    const data = {
+      documento: listaNegraForm.documento,
+      nombre: listaNegraForm.nombre,
+      telefono: listaNegraForm.telefono || null,
+      email: listaNegraForm.email || null,
+      motivo: listaNegraForm.motivo,
+      fecha: listaNegraForm.fecha,
+      notas: listaNegraForm.notas || null,
+    }
+
+    if (editingListaNegraId) {
+      const { error } = await supabase.from('lista_negra').update(data).eq('id', editingListaNegraId)
+      if (error) alert('Error al actualizar: ' + error.message)
+    } else {
+      const { error } = await supabase.from('lista_negra').insert([{ ...data, user_id: userId }])
+      if (error) alert('Error al crear: ' + error.message)
+    }
+
+    setSavingListaNegra(false)
+    closeListaNegraModal()
+    fetchData()
+  }
+
+  async function handleListaNegraDelete(id: number) {
+    if (!confirm('¿Estás seguro de eliminar este registro de la lista negra?')) return
+    const { error } = await supabase.from('lista_negra').delete().eq('id', id)
+    if (error) alert('Error al eliminar: ' + error.message)
+    else fetchData()
+  }
+
+  // Filtrar lista negra por búsqueda
+  const listaNegraFiltrada = listaNegra.filter(item => {
+    const busqueda = busquedaListaNegra.toLowerCase()
+    return (
+      item.documento.toLowerCase().includes(busqueda) ||
+      item.nombre.toLowerCase().includes(busqueda) ||
+      item.motivo.toLowerCase().includes(busqueda)
+    )
+  })
 
   // Agrupar contactos por categoría
   const contactosPorCategoria = contactos.reduce((acc, c) => {
@@ -379,6 +480,81 @@ export default function InfoUtilPage() {
         </div>
       </div>
 
+      {/* Lista Negra */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold text-costa-coral flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-red-100">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+            </div>
+            Lista Negra de Inquilinos
+          </h2>
+          <Button onClick={() => openListaNegraModal()} className="bg-costa-coral hover:bg-costa-coral/90">
+            <Plus size={16} />
+            Agregar
+          </Button>
+        </div>
+
+        {/* Buscador */}
+        <div className="mb-4">
+          <div className="relative max-w-md">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por documento, nombre o motivo..."
+              value={busquedaListaNegra}
+              onChange={(e) => setBusquedaListaNegra(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-costa-coral/50"
+            />
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="p-0">
+            {listaNegraFiltrada.length === 0 ? (
+              <div className="py-8 text-center text-gray-500">
+                {listaNegra.length === 0 ? 'No hay registros en la lista negra' : 'No se encontraron coincidencias'}
+              </div>
+            ) : (
+              <div className="divide-y divide-gray-100">
+                {listaNegraFiltrada.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-4 hover:bg-red-50/30">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <span className="font-bold text-costa-navy">{item.nombre}</span>
+                        <span className="text-sm text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                          DNI: {item.documento}
+                        </span>
+                      </div>
+                      <p className="text-sm text-red-600 font-medium mt-1">
+                        <AlertTriangle size={14} className="inline mr-1" />
+                        {item.motivo}
+                      </p>
+                      {item.notas && (
+                        <p className="text-xs text-gray-500 mt-1">{item.notas}</p>
+                      )}
+                      <div className="flex items-center gap-4 mt-1 text-xs text-gray-400">
+                        {item.telefono && <span>Tel: {item.telefono}</span>}
+                        {item.email && <span>{item.email}</span>}
+                        <span>Agregado: {new Date(item.fecha).toLocaleDateString('es-AR')}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="sm" onClick={() => openListaNegraModal(item)}>
+                        <Pencil size={14} />
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleListaNegraDelete(item.id)}>
+                        <Trash2 size={14} className="text-costa-gris" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Links útiles */}
       <Card>
         <CardHeader>
@@ -455,6 +631,70 @@ export default function InfoUtilPage() {
             <Button type="button" variant="secondary" onClick={closeProveedorModal}>Cancelar</Button>
             <Button type="submit" disabled={savingProveedor}>
               {savingProveedor ? 'Guardando...' : editingProveedorId ? 'Actualizar' : 'Crear'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal Lista Negra */}
+      <Modal isOpen={listaNegraModalOpen} onClose={closeListaNegraModal} title={editingListaNegraId ? 'Editar Registro' : 'Agregar a Lista Negra'}>
+        <form onSubmit={handleListaNegraSubmit} className="space-y-4">
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-sm text-red-700 flex items-center gap-2">
+              <AlertTriangle size={16} />
+              Los inquilinos en esta lista serán alertados al cargar una reserva.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Documento (DNI/Pasaporte)"
+              value={listaNegraForm.documento}
+              onChange={(e) => setListaNegraForm({ ...listaNegraForm, documento: e.target.value })}
+              required
+            />
+            <Input
+              label="Nombre completo"
+              value={listaNegraForm.nombre}
+              onChange={(e) => setListaNegraForm({ ...listaNegraForm, nombre: e.target.value })}
+              required
+            />
+          </div>
+          <Input
+            label="Motivo"
+            value={listaNegraForm.motivo}
+            onChange={(e) => setListaNegraForm({ ...listaNegraForm, motivo: e.target.value })}
+            placeholder="Ej: Daños a la propiedad, impago, mal comportamiento..."
+            required
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Teléfono"
+              value={listaNegraForm.telefono}
+              onChange={(e) => setListaNegraForm({ ...listaNegraForm, telefono: e.target.value })}
+            />
+            <Input
+              label="Email"
+              type="email"
+              value={listaNegraForm.email}
+              onChange={(e) => setListaNegraForm({ ...listaNegraForm, email: e.target.value })}
+            />
+          </div>
+          <Input
+            label="Fecha del incidente"
+            type="date"
+            value={listaNegraForm.fecha}
+            onChange={(e) => setListaNegraForm({ ...listaNegraForm, fecha: e.target.value })}
+          />
+          <Input
+            label="Notas adicionales"
+            value={listaNegraForm.notas}
+            onChange={(e) => setListaNegraForm({ ...listaNegraForm, notas: e.target.value })}
+            placeholder="Detalles adicionales..."
+          />
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button type="button" variant="secondary" onClick={closeListaNegraModal}>Cancelar</Button>
+            <Button type="submit" disabled={savingListaNegra} className="bg-costa-coral hover:bg-costa-coral/90">
+              {savingListaNegra ? 'Guardando...' : editingListaNegraId ? 'Actualizar' : 'Agregar'}
             </Button>
           </div>
         </form>

@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
-import { Plus, User, Phone, Mail, Users, Calendar, Pencil, Trash2, History, FileText, ChevronDown, ChevronUp, Check } from 'lucide-react'
+import { Plus, User, Phone, Mail, Users, Calendar, Pencil, Trash2, History, FileText, ChevronDown, ChevronUp, Check, AlertTriangle } from 'lucide-react'
 import { demoInquilinos } from '@/lib/demoData'
 
 interface Reserva {
@@ -43,6 +43,14 @@ interface Inquilino {
   observaciones: string
   acompanantes: Acompanante[]
   reservas?: Reserva[]
+}
+
+interface ListaNegraItem {
+  id: number
+  documento: string
+  nombre: string
+  motivo: string
+  fecha: string
 }
 
 const origenes = [
@@ -120,6 +128,10 @@ function InquilinosContent() {
   const [editingAcompIdx, setEditingAcompIdx] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
 
+  // Estado para alerta de lista negra
+  const [listaNegraAlert, setListaNegraAlert] = useState<ListaNegraItem | null>(null)
+  const [checkingListaNegra, setCheckingListaNegra] = useState(false)
+
   useEffect(() => {
     if (isDemo) {
       setInquilinos(demoInquilinos as unknown as Inquilino[])
@@ -128,6 +140,34 @@ function InquilinosContent() {
     }
     fetchData()
   }, [isDemo, userId])
+
+  // Verificar documento contra lista negra
+  useEffect(() => {
+    async function checkListaNegra() {
+      if (!form.documento || form.documento.length < 5 || !userId || isDemo) {
+        setListaNegraAlert(null)
+        return
+      }
+
+      setCheckingListaNegra(true)
+      const { data, error } = await supabase
+        .from('lista_negra')
+        .select('id, documento, nombre, motivo, fecha')
+        .eq('user_id', userId)
+        .ilike('documento', `%${form.documento}%`)
+        .limit(1)
+
+      if (!error && data && data.length > 0) {
+        setListaNegraAlert(data[0])
+      } else {
+        setListaNegraAlert(null)
+      }
+      setCheckingListaNegra(false)
+    }
+
+    const timeoutId = setTimeout(checkListaNegra, 500) // Debounce de 500ms
+    return () => clearTimeout(timeoutId)
+  }, [form.documento, userId, isDemo])
 
   async function fetchData() {
     if (!userId) return
@@ -198,6 +238,7 @@ function InquilinosContent() {
     setAcompanantesExpanded(false)
     setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
     setEditingAcompIdx(null)
+    setListaNegraAlert(null)
   }
 
   function confirmarAcompanante() {
@@ -449,8 +490,36 @@ function InquilinosContent() {
           <p className="text-sm font-medium text-gray-700 border-b pb-2">Datos personales</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Nombre y apellido completo" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
-            <Input label="DNI / Pasaporte" value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
+            <div>
+              <Input label="DNI / Pasaporte" value={form.documento} onChange={(e) => setForm({ ...form, documento: e.target.value })} />
+              {checkingListaNegra && (
+                <p className="text-xs text-gray-400 mt-1">Verificando...</p>
+              )}
+            </div>
           </div>
+
+          {/* Alerta de Lista Negra */}
+          {listaNegraAlert && (
+            <div className="p-4 bg-red-50 border-2 border-red-400 rounded-lg animate-pulse">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <AlertTriangle size={24} className="text-red-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-bold text-red-700 text-lg">⚠️ ATENCIÓN: Persona en Lista Negra</h4>
+                  <p className="text-red-600 font-medium mt-1">
+                    {listaNegraAlert.nombre} - DNI: {listaNegraAlert.documento}
+                  </p>
+                  <p className="text-red-700 mt-2">
+                    <strong>Motivo:</strong> {listaNegraAlert.motivo}
+                  </p>
+                  <p className="text-red-500 text-sm mt-1">
+                    Registrado el: {new Date(listaNegraAlert.fecha).toLocaleDateString('es-AR')}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Input label="Fecha de nacimiento" type="date" value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} />
             <Select label="Nacionalidad" value={form.nacionalidad} onChange={(e) => setForm({ ...form, nacionalidad: e.target.value })} options={nacionalidades} />
