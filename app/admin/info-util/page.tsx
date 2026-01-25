@@ -124,10 +124,9 @@ export default function InfoUtilPage() {
   const [busquedaListaNegra, setBusquedaListaNegra] = useState('')
 
   useEffect(() => {
-    if (userId) {
-      fetchData()
-    }
-  }, [userId])
+    fetchData()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function fetchData() {
     const [resContactos, resProveedores, resListaNegra] = await Promise.all([
