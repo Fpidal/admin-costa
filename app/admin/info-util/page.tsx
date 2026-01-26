@@ -5,7 +5,8 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select } from '@/components/ui'
-import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink, Users, AlertTriangle, Search, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Phone, Pencil, Trash2, Shield, Zap, Wrench, ExternalLink, Users, AlertTriangle, Search, ChevronDown, ChevronUp, FileText } from 'lucide-react'
+import { jsPDF } from 'jspdf'
 
 interface Contacto {
   id: number
@@ -317,6 +318,101 @@ export default function InfoUtilPage() {
     else fetchData()
   }
 
+  function generarPDFListaNegra() {
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 20
+    const contentWidth = pageWidth - margin * 2
+    let y = margin
+
+    // Encabezado
+    doc.setFillColor(26, 42, 58) // costa-navy
+    doc.rect(0, 0, pageWidth, 45, 'F')
+
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(22)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Inquilinos No Recomendados', pageWidth / 2, 22, { align: 'center' })
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Costa Esmeralda  |  ${listaNegra.length} registros  |  Generado: ${new Date().toLocaleDateString('es-AR')}`, pageWidth / 2, 35, { align: 'center' })
+
+    y = 55
+
+    // Encabezado de tabla
+    doc.setFillColor(239, 68, 68) // rojo
+    doc.rect(margin, y, contentWidth, 10, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(9)
+    doc.setFont('helvetica', 'bold')
+    doc.text('N°', margin + 3, y + 7)
+    doc.text('Nombre', margin + 14, y + 7)
+    doc.text('Documento', margin + 70, y + 7)
+    doc.text('Motivo', margin + 105, y + 7)
+    y += 12
+
+    // Filas
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+
+    listaNegra.forEach((item, index) => {
+      // Verificar si hay espacio para la fila
+      if (y > pageHeight - 30) {
+        doc.addPage()
+        y = margin
+
+        // Repetir encabezado de tabla
+        doc.setFillColor(239, 68, 68)
+        doc.rect(margin, y, contentWidth, 10, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(9)
+        doc.setFont('helvetica', 'bold')
+        doc.text('N°', margin + 3, y + 7)
+        doc.text('Nombre', margin + 14, y + 7)
+        doc.text('Documento', margin + 70, y + 7)
+        doc.text('Motivo', margin + 105, y + 7)
+        y += 12
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(8)
+      }
+
+      // Fondo alternado
+      if (index % 2 === 0) {
+        doc.setFillColor(254, 242, 242) // rojo muy claro
+        doc.rect(margin, y - 3, contentWidth, 8, 'F')
+      }
+
+      doc.setTextColor(50, 50, 50)
+      doc.text(String(index + 1), margin + 3, y + 3)
+
+      doc.setFont('helvetica', 'bold')
+      doc.text(item.nombre.substring(0, 25), margin + 14, y + 3)
+
+      doc.setFont('helvetica', 'normal')
+      doc.text(item.documento || '-', margin + 70, y + 3)
+
+      // Motivo truncado
+      const motivoCorto = item.motivo.length > 45 ? item.motivo.substring(0, 42) + '...' : item.motivo
+      doc.setTextColor(200, 50, 50)
+      doc.text(motivoCorto, margin + 105, y + 3)
+
+      y += 8
+    })
+
+    // Pie de página
+    const totalPages = doc.getNumberOfPages()
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      doc.setFontSize(7)
+      doc.setTextColor(150, 150, 150)
+      doc.text(`Página ${i} de ${totalPages}  |  Documento confidencial  |  Admin Costa Esmeralda`, pageWidth / 2, pageHeight - 10, { align: 'center' })
+    }
+
+    doc.save('inquilinos-no-recomendados.pdf')
+  }
+
   // Filtrar lista negra por búsqueda
   const listaNegraFiltrada = listaNegra.filter(item => {
     const busqueda = busquedaListaNegra.toLowerCase()
@@ -491,10 +587,18 @@ export default function InfoUtilPage() {
             </div>
             Lista Negra de Inquilinos
           </h2>
-          <Button onClick={() => openListaNegraModal()} className="bg-costa-coral hover:bg-costa-coral/90">
-            <Plus size={16} />
-            Agregar
-          </Button>
+          <div className="flex items-center gap-2">
+            {listaNegra.length > 0 && (
+              <Button variant="secondary" onClick={generarPDFListaNegra}>
+                <FileText size={16} />
+                PDF
+              </Button>
+            )}
+            <Button onClick={() => openListaNegraModal()} className="bg-costa-coral hover:bg-costa-coral/90">
+              <Plus size={16} />
+              Agregar
+            </Button>
+          </div>
         </div>
 
         {/* Buscador */}
