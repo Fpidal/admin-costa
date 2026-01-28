@@ -348,9 +348,9 @@ export default function InfoUtilPage() {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'bold')
     doc.text('N°', margin + 3, y + 7)
-    doc.text('Nombre', margin + 14, y + 7)
-    doc.text('Documento', margin + 70, y + 7)
-    doc.text('Motivo', margin + 105, y + 7)
+    doc.text('Nombre', margin + 12, y + 7)
+    doc.text('DNI', margin + 52, y + 7)
+    doc.text('Motivo', margin + 75, y + 7)
     y += 12
 
     // Filas
@@ -370,9 +370,9 @@ export default function InfoUtilPage() {
         doc.setFontSize(9)
         doc.setFont('helvetica', 'bold')
         doc.text('N°', margin + 3, y + 7)
-        doc.text('Nombre', margin + 14, y + 7)
-        doc.text('Documento', margin + 70, y + 7)
-        doc.text('Motivo', margin + 105, y + 7)
+        doc.text('Nombre', margin + 12, y + 7)
+        doc.text('DNI', margin + 52, y + 7)
+        doc.text('Motivo', margin + 75, y + 7)
         y += 12
         doc.setFont('helvetica', 'normal')
         doc.setFontSize(8)
@@ -388,15 +388,15 @@ export default function InfoUtilPage() {
       doc.text(String(index + 1), margin + 3, y + 3)
 
       doc.setFont('helvetica', 'bold')
-      doc.text(item.nombre.substring(0, 25), margin + 14, y + 3)
+      doc.text(item.nombre.substring(0, 18), margin + 12, y + 3)
 
       doc.setFont('helvetica', 'normal')
-      doc.text(item.documento || '-', margin + 70, y + 3)
+      doc.text(item.documento || '-', margin + 52, y + 3)
 
-      // Motivo truncado
-      const motivoCorto = item.motivo.length > 45 ? item.motivo.substring(0, 42) + '...' : item.motivo
-      doc.setTextColor(200, 50, 50)
-      doc.text(motivoCorto, margin + 105, y + 3)
+      // Motivo más ancho y en negro
+      const motivoCorto = item.motivo.length > 65 ? item.motivo.substring(0, 62) + '...' : item.motivo
+      doc.setTextColor(50, 50, 50)
+      doc.text(motivoCorto, margin + 75, y + 3)
 
       y += 8
     })
