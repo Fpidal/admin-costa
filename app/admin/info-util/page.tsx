@@ -581,9 +581,9 @@ export default function InfoUtilPage() {
       {/* Lista Negra */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold text-costa-coral flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-red-100">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
+          <h2 className="text-xl font-semibold text-costa-navy flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-gray-100">
+              <AlertTriangle className="w-5 h-5 text-gray-600" />
             </div>
             Lista Negra de Inquilinos
           </h2>
@@ -594,7 +594,7 @@ export default function InfoUtilPage() {
                 PDF
               </Button>
             )}
-            <Button onClick={() => openListaNegraModal()} className="bg-costa-coral hover:bg-costa-coral/90">
+            <Button onClick={() => openListaNegraModal()}>
               <Plus size={16} />
               Agregar
             </Button>
@@ -627,7 +627,7 @@ export default function InfoUtilPage() {
               {(listaNegraExpandida ? listaNegraFiltrada : listaNegraFiltrada.slice(0, 6)).map((item) => (
                 <div
                   key={item.id}
-                  className="relative bg-white border border-gray-200 rounded-lg p-4 hover:border-red-300 hover:shadow-md transition-all"
+                  className="relative bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-md transition-all"
                 >
                   {/* Botones editar/eliminar */}
                   <div className="absolute top-2 right-2 flex items-center gap-1">
@@ -649,9 +649,9 @@ export default function InfoUtilPage() {
                   <h4 className="font-bold text-costa-navy pr-16 truncate">{item.nombre}</h4>
                   <p className="text-sm text-gray-500 mt-1">DNI: {item.documento}</p>
 
-                  <div className="mt-3 p-2 bg-red-50 rounded-md">
-                    <p className="text-sm text-red-600 flex items-start gap-1.5">
-                      <AlertTriangle size={14} className="flex-shrink-0 mt-0.5" />
+                  <div className="mt-3 p-2 bg-gray-50 rounded-md">
+                    <p className="text-sm text-gray-700 flex items-start gap-1.5">
+                      <AlertTriangle size={14} className="flex-shrink-0 mt-0.5 text-gray-500" />
                       <span className="line-clamp-2">{item.motivo}</span>
                     </p>
                   </div>
@@ -666,7 +666,7 @@ export default function InfoUtilPage() {
             {listaNegraFiltrada.length > 6 && (
               <button
                 onClick={() => setListaNegraExpandida(!listaNegraExpandida)}
-                className="w-full mt-4 py-3 text-sm font-medium text-costa-coral hover:bg-red-50 rounded-lg border border-red-200 flex items-center justify-center gap-2 transition-colors"
+                className="w-full mt-4 py-3 text-sm font-medium text-costa-navy hover:bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center gap-2 transition-colors"
               >
                 {listaNegraExpandida ? (
                   <>
@@ -769,8 +769,8 @@ export default function InfoUtilPage() {
       {/* Modal Lista Negra */}
       <Modal isOpen={listaNegraModalOpen} onClose={closeListaNegraModal} title={editingListaNegraId ? 'Editar Registro' : 'Agregar a Lista Negra'}>
         <form onSubmit={handleListaNegraSubmit} className="space-y-4">
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-700 flex items-center gap-2">
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-700 flex items-center gap-2">
               <AlertTriangle size={16} />
               Los inquilinos en esta lista serán alertados al cargar una reserva.
             </p>
@@ -823,7 +823,7 @@ export default function InfoUtilPage() {
           />
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="secondary" onClick={closeListaNegraModal}>Cancelar</Button>
-            <Button type="submit" disabled={savingListaNegra} className="bg-costa-coral hover:bg-costa-coral/90">
+            <Button type="submit" disabled={savingListaNegra}>
               {savingListaNegra ? 'Guardando...' : editingListaNegraId ? 'Actualizar' : 'Agregar'}
             </Button>
           </div>
