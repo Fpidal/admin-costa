@@ -1485,11 +1485,15 @@ function ReservasContent() {
                               </div>
                             </div>
 
-                            {/* Fila 2: Limpieza, Electricidad, Cotización */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm pt-3 border-t border-costa-beige">
+                            {/* Fila 2: Limpieza, Lavadero, Electricidad, Cotización, Depósito */}
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm pt-3 border-t border-costa-beige">
                               <div>
-                                <p className="text-xs text-costa-gris">Limpieza</p>
-                                <p className="text-costa-navy font-medium">{formatMonto(cobradoLimpieza + cobradoLavadero, 'ARS')}</p>
+                                <p className="text-xs text-costa-gris">Limpieza final</p>
+                                <p className="text-costa-navy font-medium">{formatMonto(cobradoLimpieza, 'ARS')}</p>
+                              </div>
+                              <div>
+                                <p className="text-xs text-costa-gris">Lavadero</p>
+                                <p className="text-costa-navy font-medium">{formatMonto(cobradoLavadero, 'ARS')}</p>
                               </div>
                               <div>
                                 <p className="text-xs text-costa-gris">Electricidad</p>
