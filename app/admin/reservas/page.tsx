@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
@@ -107,6 +107,7 @@ const estadoVariant = {
   'confirmada': 'success',
   'pendiente': 'warning',
   'cancelada': 'danger',
+  'cerrada': 'info',
 } as const
 
 const formatMonto = (monto: number, moneda: string = 'ARS') => {
@@ -168,7 +169,7 @@ function ReservasContent() {
   const isDemo = searchParams.get('demo') === 'true'
   const { userId } = useAuth()
 
-  const [activeTab, setActiveTab] = useState<'reservas' | 'cobros' | 'gestion'>('reservas')
+  const [activeTab, setActiveTab] = useState<'reservas' | 'cobros' | 'gestion' | 'pasados'>('reservas')
   const [selectedReservaId, setSelectedReservaId] = useState<string | null>(null)
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cobros, setCobros] = useState<Cobro[]>([])
@@ -1003,6 +1004,17 @@ function ReservasContent() {
           <Wallet size={16} />
           Gestión de Cobros
         </button>
+        <button
+          onClick={() => setActiveTab('pasados')}
+          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
+            activeTab === 'pasados'
+              ? 'bg-white text-costa-navy shadow-sm'
+              : 'text-costa-gris hover:text-costa-navy'
+          }`}
+        >
+          <Archive size={16} />
+          Pasados
+        </button>
       </div>
 
       {activeTab === 'reservas' && (
@@ -1042,7 +1054,7 @@ function ReservasContent() {
             <CardContent className="py-12 text-center text-gray-500">No hay reservas registradas</CardContent>
           </Card>
         ) : (
-          reservas.map((reserva) => {
+          reservas.filter(r => r.estado !== 'cerrada').map((reserva) => {
             const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
             const total = noches * (reserva.precio_noche || 0)
             const cobradoAlquiler = cobros
@@ -1134,7 +1146,7 @@ function ReservasContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-costa-beige">
-                  {reservas.map((reserva) => {
+                  {reservas.filter(r => r.estado !== 'cerrada').map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const total = noches * (reserva.precio_noche || 0)
                     const cobradoAlquiler = cobros
@@ -1305,7 +1317,7 @@ function ReservasContent() {
               <CardContent>
                 <p className="text-sm text-costa-gris mb-4">Seleccioná una reserva para gestionar sus cobros:</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {reservas.filter(r => r.estado !== 'cancelada').map((reserva) => {
+                  {reservas.filter(r => r.estado !== 'cancelada' && r.estado !== 'cerrada').map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const total = noches * (reserva.precio_noche || 0)
                     const cobradoAlquiler = cobros
@@ -1354,6 +1366,70 @@ function ReservasContent() {
               <CobrosContent reservaId={selectedReservaId} showNavigation={false} showHeader={true} />
             </div>
           )}
+        </div>
+      )}
+
+      {/* Tab Pasados */}
+      {activeTab === 'pasados' && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Archive size={20} />
+                Alquileres Cerrados
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {reservas.filter(r => r.estado === 'cerrada').length === 0 ? (
+                <p className="text-center text-costa-gris py-8">No hay alquileres cerrados</p>
+              ) : (
+                <div className="space-y-3">
+                  {reservas.filter(r => r.estado === 'cerrada').map((reserva) => {
+                    const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
+                    const total = noches * (reserva.precio_noche || 0)
+                    const cobradoAlquiler = cobros
+                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
+                      .reduce((acc, c) => acc + (c.monto || 0), 0)
+                    const moneda = reserva.moneda || 'ARS'
+
+                    return (
+                      <div key={reserva.id} className="p-4 border border-costa-beige rounded-lg bg-gray-50/50">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <p className="font-medium text-costa-navy">{reserva.propiedades?.nombre || '-'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}</p>
+                            <p className="text-sm text-costa-gris">{reserva.inquilinos?.nombre || '-'}</p>
+                          </div>
+                          <Badge variant="info" className="flex items-center gap-1">
+                            <Lock size={12} />
+                            Cerrada
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <p className="text-xs text-costa-gris">Período</p>
+                            <p className="text-costa-navy">{formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}</p>
+                            <p className="text-xs text-costa-gris">{noches} noches</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-costa-gris">Personas</p>
+                            <p className="text-costa-navy">{reserva.cantidad_personas || 1}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-costa-gris">Total Alquiler</p>
+                            <p className="font-medium text-costa-navy">{formatMonto(total, moneda)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-costa-gris">Cobrado</p>
+                            <p className="font-medium text-costa-olivo">{formatMonto(cobradoAlquiler, moneda)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 

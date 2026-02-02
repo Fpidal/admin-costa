@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { getDemoReservaById, getDemoCobrosByReservaId, getDemoLiquidacionByReservaId, demoReservas } from '@/lib/demoData'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, FileText, Receipt, Calculator, Trash2, DollarSign, Calendar, User, Home, Pencil, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, FileText, Receipt, Calculator, Trash2, DollarSign, Calendar, User, Home, Pencil, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 
@@ -306,6 +306,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
 
   const noches = reserva ? calcularNoches(reserva.fecha_inicio, reserva.fecha_fin) : 0
   const monedaAlquiler = reserva?.moneda || 'USD'
+  const isCerrada = reserva?.estado === 'cerrada'
 
   const pactadoAlquiler = reserva ? noches * (reserva.precio_noche || 0) : 0
   const pactadoLimpieza = reserva?.limpieza_final || 0
@@ -475,6 +476,21 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     setSaving(false)
   }
 
+  async function handleCerrarAlquiler() {
+    if (!confirm('¿Estás seguro de cerrar este alquiler? Una vez cerrado no se podrá modificar.')) return
+
+    const { error } = await supabase
+      .from('reservas')
+      .update({ estado: 'cerrada' })
+      .eq('id', reservaId)
+
+    if (error) {
+      alert('Error al cerrar alquiler: ' + error.message)
+    } else {
+      fetchData()
+    }
+  }
+
   function generarReciboPDF(cobro: Cobro) {
     if (!reserva) return
 
@@ -619,13 +635,15 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                   <span>Depósito: {formatMonto(pactadoDeposito, 'ARS')}</span>
                 </div>
               </div>
-              <button
-                onClick={openEditReservaModal}
-                className="flex items-center gap-1 px-3 py-1.5 text-xs text-costa-navy hover:bg-costa-beige rounded transition-colors"
-              >
-                <Pencil size={14} />
-                Editar
-              </button>
+              {!isCerrada && (
+                <button
+                  onClick={openEditReservaModal}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs text-costa-navy hover:bg-costa-beige rounded transition-colors"
+                >
+                  <Pencil size={14} />
+                  Editar
+                </button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -772,9 +790,11 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                 <Receipt size={16} />
                 Liquidación Final
               </span>
-              <Button size="sm" variant="secondary" onClick={() => setLiquidacionModalOpen(true)} className="text-xs py-1 px-2">
-                {liquidacion ? 'Editar' : 'Cargar'}
-              </Button>
+              {!isCerrada && (
+                <Button size="sm" variant="secondary" onClick={() => setLiquidacionModalOpen(true)} className="text-xs py-1 px-2">
+                  {liquidacion ? 'Editar' : 'Cargar'}
+                </Button>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="py-2 px-4">
@@ -873,10 +893,12 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
         <CardHeader className="py-2 px-4">
           <CardTitle className="flex items-center justify-between text-sm">
             <span>Pagos Registrados</span>
-            <Button onClick={() => openCobroModal()} size="sm" className="text-xs">
-              <Plus size={14} className="mr-1" />
-              Registrar
-            </Button>
+            {!isCerrada && (
+              <Button onClick={() => openCobroModal()} size="sm" className="text-xs">
+                <Plus size={14} className="mr-1" />
+                Registrar
+              </Button>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="py-2 px-4">
@@ -929,20 +951,24 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                           >
                             <FileText size={15} />
                           </button>
-                          <button
-                            onClick={() => openCobroModal(cobro)}
-                            className="p-1 text-costa-olivo hover:bg-costa-olivo/10 rounded transition-colors"
-                            title="Editar"
-                          >
-                            <Pencil size={15} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteCobro(cobro.id)}
-                            className="p-1 text-costa-coral hover:bg-costa-coral/10 rounded transition-colors"
-                            title="Eliminar"
-                          >
-                            <Trash2 size={15} />
-                          </button>
+                          {!isCerrada && (
+                            <>
+                              <button
+                                onClick={() => openCobroModal(cobro)}
+                                className="p-1 text-costa-olivo hover:bg-costa-olivo/10 rounded transition-colors"
+                                title="Editar"
+                              >
+                                <Pencil size={15} />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCobro(cobro.id)}
+                                className="p-1 text-costa-coral hover:bg-costa-coral/10 rounded transition-colors"
+                                title="Eliminar"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -974,6 +1000,38 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
           )}
         </CardContent>
       </Card>
+
+      {/* Botón Cerrar Alquiler */}
+      {reserva?.estado !== 'cerrada' && liquidacion && saldoAlquiler <= 0 && (
+        <Card className="mt-4 border-costa-olivo/30 bg-costa-olivo/5">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-costa-navy">¿Alquiler completado?</p>
+                <p className="text-sm text-costa-gris">Cuando el inquilino se fue, se cobró todo y se devolvió el depósito, podés cerrar este alquiler.</p>
+              </div>
+              <Button onClick={handleCerrarAlquiler} variant="primary" className="flex items-center gap-2">
+                <Lock size={16} />
+                Cerrar Alquiler
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {reserva?.estado === 'cerrada' && (
+        <Card className="mt-4 border-gray-300 bg-gray-50">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3 text-costa-gris">
+              <Lock size={20} />
+              <div>
+                <p className="font-medium">Alquiler Cerrado</p>
+                <p className="text-sm">Este alquiler está cerrado y no se puede modificar.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Modal nuevo cobro */}
       <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditingCobroId(null); setCobroForm(initialCobroForm); }} title={editingCobroId ? "Editar Pago" : "Registrar Pago"}>
