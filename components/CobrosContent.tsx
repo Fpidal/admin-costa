@@ -487,7 +487,9 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     if (error) {
       alert('Error al cerrar alquiler: ' + error.message)
     } else {
-      fetchData()
+      alert('Alquiler cerrado correctamente. Lo encontrarás en la solapa "Pasados".')
+      router.push('/admin/reservas')
+      router.refresh()
     }
   }
 
