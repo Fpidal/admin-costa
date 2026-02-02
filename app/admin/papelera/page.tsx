@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, Button } from '@/components/ui'
-import { Trash2, RotateCcw, AlertTriangle, CalendarDays, Users, Home } from 'lucide-react'
+import { Trash2, RotateCcw, AlertTriangle, CalendarDays, Users, Home, Receipt } from 'lucide-react'
 
 interface ReservaEliminada {
   id: number
@@ -33,12 +33,23 @@ interface PropiedadEliminada {
   eliminado_at: string
 }
 
+interface GastoEliminado {
+  id: number
+  concepto: string
+  tipo: string
+  monto: number
+  fecha: string
+  eliminado_at: string
+  propiedades?: { nombre: string }
+}
+
 export default function PapeleraPage() {
   const { userId } = useAuth()
-  const [activeTab, setActiveTab] = useState<'reservas' | 'inquilinos' | 'propiedades'>('reservas')
+  const [activeTab, setActiveTab] = useState<'reservas' | 'inquilinos' | 'propiedades' | 'gastos'>('reservas')
   const [reservas, setReservas] = useState<ReservaEliminada[]>([])
   const [inquilinos, setInquilinos] = useState<InquilinoEliminado[]>([])
   const [propiedades, setPropiedades] = useState<PropiedadEliminada[]>([])
+  const [gastos, setGastos] = useState<GastoEliminado[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -47,7 +58,7 @@ export default function PapeleraPage() {
 
   async function fetchData() {
     setLoading(true)
-    const [resReservas, resInquilinos, resPropiedades] = await Promise.all([
+    const [resReservas, resInquilinos, resPropiedades, resGastos] = await Promise.all([
       supabase
         .from('reservas')
         .select('id, fecha_inicio, fecha_fin, eliminado_at, propiedades(nombre), inquilinos(nombre)')
@@ -66,6 +77,12 @@ export default function PapeleraPage() {
         .eq('user_id', userId)
         .not('eliminado_at', 'is', null)
         .order('eliminado_at', { ascending: false }),
+      supabase
+        .from('gastos')
+        .select('id, concepto, tipo, monto, fecha, eliminado_at, propiedades(nombre)')
+        .eq('user_id', userId)
+        .not('eliminado_at', 'is', null)
+        .order('eliminado_at', { ascending: false }),
     ])
 
     if (resReservas.data) {
@@ -80,11 +97,22 @@ export default function PapeleraPage() {
     }
     if (resInquilinos.data) setInquilinos(resInquilinos.data as InquilinoEliminado[])
     if (resPropiedades.data) setPropiedades(resPropiedades.data as PropiedadEliminada[])
+    if (resGastos.data) {
+      setGastos(resGastos.data.map((g: any) => ({
+        id: g.id,
+        concepto: g.concepto,
+        tipo: g.tipo,
+        monto: g.monto,
+        fecha: g.fecha,
+        eliminado_at: g.eliminado_at,
+        propiedades: g.propiedades ? { nombre: g.propiedades.nombre } : undefined,
+      })))
+    }
     setLoading(false)
   }
 
   // Restaurar elemento
-  async function handleRestore(tipo: 'reservas' | 'inquilinos' | 'propiedades', id: number | string) {
+  async function handleRestore(tipo: 'reservas' | 'inquilinos' | 'propiedades' | 'gastos', id: number | string) {
     const { error } = await supabase
       .from(tipo)
       .update({ eliminado_at: null })
@@ -98,7 +126,7 @@ export default function PapeleraPage() {
   }
 
   // Eliminar permanentemente
-  async function handleDeletePermanent(tipo: 'reservas' | 'inquilinos' | 'propiedades', id: number | string, nombre: string) {
+  async function handleDeletePermanent(tipo: 'reservas' | 'inquilinos' | 'propiedades' | 'gastos', id: number | string, nombre: string) {
     if (!confirm(`¿Estás seguro de eliminar PERMANENTEMENTE "${nombre}"?\n\nEsta acción no se puede deshacer.`)) return
 
     const { error } = await supabase
@@ -118,8 +146,8 @@ export default function PapeleraPage() {
   }
 
   // Vaciar papelera de un tipo
-  async function handleVaciarPapelera(tipo: 'reservas' | 'inquilinos' | 'propiedades') {
-    const items = tipo === 'reservas' ? reservas : tipo === 'inquilinos' ? inquilinos : propiedades
+  async function handleVaciarPapelera(tipo: 'reservas' | 'inquilinos' | 'propiedades' | 'gastos') {
+    const items = tipo === 'reservas' ? reservas : tipo === 'inquilinos' ? inquilinos : tipo === 'propiedades' ? propiedades : gastos
     if (items.length === 0) return
 
     if (!confirm(`¿Estás seguro de vaciar la papelera de ${tipo}?\n\nSe eliminarán ${items.length} elementos PERMANENTEMENTE.`)) return
@@ -140,7 +168,7 @@ export default function PapeleraPage() {
   const formatFecha = (fecha: string) => new Date(fecha).toLocaleDateString('es-AR')
   const formatFechaHora = (fecha: string) => new Date(fecha).toLocaleString('es-AR')
 
-  const totalItems = reservas.length + inquilinos.length + propiedades.length
+  const totalItems = reservas.length + inquilinos.length + propiedades.length + gastos.length
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>
@@ -187,6 +215,17 @@ export default function PapeleraPage() {
         >
           <Home size={16} />
           Propiedades ({propiedades.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('gastos')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
+            activeTab === 'gastos'
+              ? 'border-costa-navy text-costa-navy'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Receipt size={16} />
+          Gastos ({gastos.length})
         </button>
       </div>
 
@@ -321,6 +360,50 @@ export default function PapeleraPage() {
                               Restaurar
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleDeletePermanent('propiedades', p.id, p.nombre)} className="text-red-600 border-red-300 hover:bg-red-50">
+                              <Trash2 size={14} />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Gastos */}
+          {activeTab === 'gastos' && (
+            <Card>
+              <CardContent className="py-4">
+                {gastos.length === 0 ? (
+                  <p className="text-center text-gray-500 py-8">No hay gastos eliminados</p>
+                ) : (
+                  <>
+                    <div className="flex justify-end mb-4">
+                      <Button variant="ghost" size="sm" onClick={() => handleVaciarPapelera('gastos')} className="text-red-600 border-red-300 hover:bg-red-50">
+                        <Trash2 size={14} className="mr-1" />
+                        Vaciar papelera
+                      </Button>
+                    </div>
+                    <div className="space-y-3">
+                      {gastos.map((g) => (
+                        <div key={g.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-costa-navy">{g.concepto}</p>
+                            <p className="text-sm text-gray-600">
+                              {g.propiedades?.nombre || 'Sin propiedad'} · {formatFecha(g.fecha)} · ${g.monto.toLocaleString('es-AR')}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              Eliminado: {formatFechaHora(g.eliminado_at)}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => handleRestore('gastos', g.id)} className="text-green-600 border-green-300 hover:bg-green-50">
+                              <RotateCcw size={14} className="mr-1" />
+                              Restaurar
+                            </Button>
+                            <Button variant="ghost" size="sm" onClick={() => handleDeletePermanent('gastos', g.id, g.concepto)} className="text-red-600 border-red-300 hover:bg-red-50">
                               <Trash2 size={14} />
                             </Button>
                           </div>

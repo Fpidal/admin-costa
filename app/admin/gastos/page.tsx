@@ -179,7 +179,7 @@ function AdministracionContent() {
     if (!userId) return
 
     const [resGastos, resPropiedades, resProveedores] = await Promise.all([
-      supabase.from('gastos').select('*, propiedades(id, nombre)').eq('user_id', userId).order('fecha', { ascending: false }),
+      supabase.from('gastos').select('*, propiedades(id, nombre)').eq('user_id', userId).is('eliminado_at', null).order('fecha', { ascending: false }),
       supabase.from('propiedades').select('id, nombre').eq('user_id', userId).order('nombre'),
       supabase.from('proveedores_servicios').select('*').eq('user_id', userId).order('nombre')
     ])
@@ -193,9 +193,23 @@ function AdministracionContent() {
   function openModal(gasto?: Gasto) {
     if (gasto) {
       setEditingId(gasto.id)
+      // Mapear tipo a concepto del dropdown
+      const tipoToConcepto: Record<string, string> = {
+        'expensa': 'Expensas',
+        'mantenimiento': 'Mantenimiento',
+        'arreglo': 'Arreglos',
+        'otro': 'Otros',
+      }
+      // Si es expensa, usar "Expensas", sino usar el concepto original o mapear desde tipo
+      let conceptoForm = gasto.concepto || ''
+      if (gasto.tipo === 'expensa') {
+        conceptoForm = 'Expensas'
+      } else if (tipoToConcepto[gasto.tipo]) {
+        conceptoForm = tipoToConcepto[gasto.tipo]
+      }
       setForm({
         propiedad_id: gasto.propiedad_id || '',
-        concepto: gasto.concepto || '',
+        concepto: conceptoForm,
         proveedor: gasto.proveedor || '',
         monto: gasto.monto || 0,
         fecha: gasto.fecha || '',
@@ -258,6 +272,7 @@ function AdministracionContent() {
       'Reparaciones': 'arreglo',
       'Multas': 'otro',
       'Otros': 'otro',
+      'Expensas': 'expensa',
     }
 
     const data = {
@@ -271,8 +286,15 @@ function AdministracionContent() {
     }
 
     if (editingId) {
-      const { error } = await supabase.from('gastos').update(data).eq('id', editingId)
-      if (error) alert('Error al actualizar: ' + error.message)
+      // Si es una expensa, no actualizamos el concepto para preservar el original (ej: "Expensas Octubre 2025")
+      if (form.concepto === 'Expensas') {
+        const { concepto, ...dataWithoutConcepto } = data
+        const { error } = await supabase.from('gastos').update(dataWithoutConcepto).eq('id', editingId)
+        if (error) alert('Error al actualizar: ' + error.message)
+      } else {
+        const { error } = await supabase.from('gastos').update(data).eq('id', editingId)
+        if (error) alert('Error al actualizar: ' + error.message)
+      }
     } else {
       const { error } = await supabase.from('gastos').insert([{ ...data, user_id: userId }])
       if (error) alert('Error al crear: ' + error.message)
@@ -284,8 +306,8 @@ function AdministracionContent() {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('¿Estás seguro de eliminar este gasto?')) return
-    const { error } = await supabase.from('gastos').delete().eq('id', id)
+    if (!confirm('¿Mover este gasto a la papelera?')) return
+    const { error } = await supabase.from('gastos').update({ eliminado_at: new Date().toISOString() }).eq('id', id)
     if (error) alert('Error al eliminar: ' + error.message)
     else fetchData()
   }
@@ -796,6 +818,7 @@ function AdministracionContent() {
               { value: 'Reparaciones', label: 'Reparaciones' },
               { value: 'Multas', label: 'Multas' },
               { value: 'Otros', label: 'Otros' },
+              { value: 'Expensas', label: 'Expensas' },
             ]}
             required
           />
