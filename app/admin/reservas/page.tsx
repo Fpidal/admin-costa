@@ -85,6 +85,21 @@ interface Cobro {
   }
 }
 
+interface Liquidacion {
+  id: number
+  reserva_id: number
+  deposito_recibido: number
+  kw_final: number
+  costo_kw: number
+  consumo_energia: number
+  roturas: number
+  otros_descuentos: number
+  cotizacion_dolar: number
+  notas: string | null
+  monto_devolver: number
+  fecha_liquidacion: string
+}
+
 const estadosReserva = [
   { value: 'pendiente', label: 'Pendiente' },
   { value: 'confirmada', label: 'Confirmada' },
@@ -173,6 +188,7 @@ function ReservasContent() {
   const [selectedReservaId, setSelectedReservaId] = useState<string | null>(null)
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cobros, setCobros] = useState<Cobro[]>([])
+  const [liquidaciones, setLiquidaciones] = useState<Liquidacion[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [inquilinos, setInquilinos] = useState<Inquilino[]>([])
   const [loading, setLoading] = useState(true)
@@ -203,20 +219,19 @@ function ReservasContent() {
   async function fetchData() {
     if (!userId) return
 
-    const [resReservas, resPropiedades, resInquilinos, resCobros] = await Promise.all([
+    const [resReservas, resPropiedades, resInquilinos, resCobros, resLiquidaciones] = await Promise.all([
       supabase.from('reservas').select('*, propiedades(id, nombre, lote, direccion), inquilinos(id, nombre, documento, telefono, email, acompanantes)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio', { ascending: false }),
       supabase.from('propiedades').select('id, nombre, direccion, lote').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
       supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
-      supabase.from('cobros').select('*, reservas(id, fecha_inicio, fecha_fin, propiedades(nombre), inquilinos(nombre))').eq('user_id', userId).order('fecha', { ascending: false })
+      supabase.from('cobros').select('*, reservas(id, fecha_inicio, fecha_fin, propiedades(nombre), inquilinos(nombre))').eq('user_id', userId).order('fecha', { ascending: false }),
+      supabase.from('liquidaciones').select('*').eq('user_id', userId)
     ])
 
     if (resReservas.data) setReservas(resReservas.data)
-    if (resPropiedades.data) {
-      console.log('Propiedades cargadas:', resPropiedades.data)
-      setPropiedades(resPropiedades.data)
-    }
+    if (resPropiedades.data) setPropiedades(resPropiedades.data)
     if (resInquilinos.data) setInquilinos(resInquilinos.data)
     if (resCobros.data) setCobros(resCobros.data)
+    if (resLiquidaciones.data) setLiquidaciones(resLiquidaciones.data)
     setLoading(false)
   }
 
@@ -1383,46 +1398,129 @@ function ReservasContent() {
               {reservas.filter(r => r.estado === 'cerrada').length === 0 ? (
                 <p className="text-center text-costa-gris py-8">No hay alquileres cerrados</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {reservas.filter(r => r.estado === 'cerrada').map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-                    const total = noches * (reserva.precio_noche || 0)
-                    const cobradoAlquiler = cobros
-                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
+                    const totalAlquiler = noches * (reserva.precio_noche || 0)
+                    const moneda = reserva.moneda || 'USD'
+
+                    // Cobros por categoría
+                    const cobrosReserva = cobros.filter(c => c.reserva_id === reserva.id)
+                    const cobradoAlquiler = cobrosReserva
+                      .filter(c => c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
                       .reduce((acc, c) => acc + (c.monto || 0), 0)
-                    const moneda = reserva.moneda || 'ARS'
+                    const cobradoLimpieza = cobrosReserva
+                      .filter(c => c.aplicar_a === 'limpieza')
+                      .reduce((acc, c) => acc + (c.monto || 0), 0)
+                    const cobradoLavadero = cobrosReserva
+                      .filter(c => c.aplicar_a === 'lavadero')
+                      .reduce((acc, c) => acc + (c.monto || 0), 0)
+                    const cobradoDeposito = cobrosReserva
+                      .filter(c => c.aplicar_a === 'deposito')
+                      .reduce((acc, c) => acc + (c.monto || 0), 0)
+
+                    // Liquidación
+                    const liquidacion = liquidaciones.find(l => l.reserva_id === reserva.id)
 
                     return (
                       <div key={reserva.id} className="p-4 border border-costa-beige rounded-lg bg-gray-50/50">
-                        <div className="flex items-start justify-between mb-3">
+                        {/* Header */}
+                        <div className="flex items-start justify-between mb-4 pb-3 border-b border-costa-beige">
                           <div>
-                            <p className="font-medium text-costa-navy">{reserva.propiedades?.nombre || '-'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}</p>
-                            <p className="text-sm text-costa-gris">{reserva.inquilinos?.nombre || '-'}</p>
+                            <p className="font-medium text-costa-navy text-lg">{reserva.propiedades?.nombre || '-'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}</p>
+                            <p className="text-costa-gris">{reserva.inquilinos?.nombre || '-'} <span className="text-xs">({reserva.inquilinos?.documento})</span></p>
                           </div>
                           <Badge variant="info" className="flex items-center gap-1">
                             <Lock size={12} />
                             Cerrada
                           </Badge>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+
+                        {/* Info principal */}
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mb-4">
                           <div>
                             <p className="text-xs text-costa-gris">Período</p>
-                            <p className="text-costa-navy">{formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}</p>
-                            <p className="text-xs text-costa-gris">{noches} noches</p>
+                            <p className="text-costa-navy font-medium">{formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-costa-gris">Noches</p>
+                            <p className="text-costa-navy font-medium">{noches}</p>
                           </div>
                           <div>
                             <p className="text-xs text-costa-gris">Personas</p>
-                            <p className="text-costa-navy">{reserva.cantidad_personas || 1}</p>
+                            <p className="text-costa-navy font-medium">{reserva.cantidad_personas || 1}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-costa-gris">Precio/noche</p>
+                            <p className="text-costa-navy font-medium">{formatMonto(reserva.precio_noche || 0, moneda)}</p>
                           </div>
                           <div>
                             <p className="text-xs text-costa-gris">Total Alquiler</p>
-                            <p className="font-medium text-costa-navy">{formatMonto(total, moneda)}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-costa-gris">Cobrado</p>
-                            <p className="font-medium text-costa-olivo">{formatMonto(cobradoAlquiler, moneda)}</p>
+                            <p className="text-costa-navy font-bold">{formatMonto(totalAlquiler, moneda)}</p>
                           </div>
                         </div>
+
+                        {/* Cobros detallados */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-white rounded-lg mb-3">
+                          <div>
+                            <p className="text-xs text-costa-gris">Alquiler cobrado</p>
+                            <p className="font-medium text-costa-olivo">{formatMonto(cobradoAlquiler, moneda)}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-costa-gris">Limpieza</p>
+                            <p className="font-medium text-costa-navy">{formatMonto(cobradoLimpieza, 'ARS')}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-costa-gris">Lavadero</p>
+                            <p className="font-medium text-costa-navy">{formatMonto(cobradoLavadero, 'ARS')}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-costa-gris">Depósito</p>
+                            <p className="font-medium text-costa-navy">{formatMonto(cobradoDeposito, moneda)}</p>
+                          </div>
+                        </div>
+
+                        {/* Liquidación */}
+                        {liquidacion && (
+                          <div className="p-3 bg-costa-beige/30 rounded-lg text-sm">
+                            <p className="text-xs font-medium text-costa-navy mb-2">Liquidación Final</p>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                              {liquidacion.consumo_energia > 0 && (
+                                <div>
+                                  <p className="text-xs text-costa-gris">Electricidad</p>
+                                  <p className="text-costa-coral">-{formatMonto(liquidacion.consumo_energia, 'ARS')}</p>
+                                </div>
+                              )}
+                              {liquidacion.roturas > 0 && (
+                                <div>
+                                  <p className="text-xs text-costa-gris">Roturas</p>
+                                  <p className="text-costa-coral">-{formatMonto(liquidacion.roturas, 'ARS')}</p>
+                                </div>
+                              )}
+                              {liquidacion.otros_descuentos > 0 && (
+                                <div>
+                                  <p className="text-xs text-costa-gris">Otros desc.</p>
+                                  <p className="text-costa-coral">-{formatMonto(liquidacion.otros_descuentos, 'ARS')}</p>
+                                </div>
+                              )}
+                              {liquidacion.cotizacion_dolar > 0 && (
+                                <div>
+                                  <p className="text-xs text-costa-gris">Cotización USD</p>
+                                  <p className="text-costa-navy">{formatMonto(liquidacion.cotizacion_dolar, 'ARS')}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-xs text-costa-gris">Devuelto</p>
+                                <p className={`font-medium ${liquidacion.monto_devolver >= 0 ? 'text-costa-olivo' : 'text-costa-coral'}`}>
+                                  {formatMonto(liquidacion.monto_devolver, 'USD')}
+                                </p>
+                              </div>
+                            </div>
+                            {liquidacion.notas && (
+                              <p className="text-xs text-costa-gris mt-2 italic">Notas: {liquidacion.notas}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
