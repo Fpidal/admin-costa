@@ -1002,7 +1002,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       </Card>
 
       {/* Botón Cerrar Alquiler */}
-      {reserva?.estado !== 'cerrada' && liquidacion && saldoAlquiler <= 0 && (
+      {reserva?.estado !== 'cerrada' && (
         <Card className="mt-4 border-costa-olivo/30 bg-costa-olivo/5">
           <CardContent className="py-4">
             <div className="flex items-center justify-between">
