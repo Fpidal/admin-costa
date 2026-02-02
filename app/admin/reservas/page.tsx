@@ -1462,7 +1462,7 @@ function ReservasContent() {
                         {isExpanded && (
                           <div className="p-4 border-t border-costa-beige bg-white">
                             {/* Info principal */}
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mb-4">
+                            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm mb-3">
                               <div>
                                 <p className="text-xs text-costa-gris">Período</p>
                                 <p className="text-costa-navy font-medium">{formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}</p>
@@ -1480,69 +1480,41 @@ function ReservasContent() {
                                 <p className="text-costa-navy font-medium">{formatMonto(reserva.precio_noche || 0, moneda)}</p>
                               </div>
                               <div>
-                                <p className="text-xs text-costa-gris">Total Alquiler</p>
-                                <p className="text-costa-navy font-bold">{formatMonto(totalAlquiler, moneda)}</p>
-                              </div>
-                            </div>
-
-                            {/* Cobros detallados */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 p-3 bg-costa-beige/20 rounded-lg mb-3">
-                              <div>
-                                <p className="text-xs text-costa-gris">Alquiler cobrado</p>
-                                <p className="font-medium text-costa-olivo">{formatMonto(cobradoAlquiler, moneda)}</p>
-                              </div>
-                              <div>
                                 <p className="text-xs text-costa-gris">Limpieza</p>
-                                <p className="font-medium text-costa-navy">{formatMonto(cobradoLimpieza, 'ARS')}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-costa-gris">Lavadero</p>
-                                <p className="font-medium text-costa-navy">{formatMonto(cobradoLavadero, 'ARS')}</p>
+                                <p className="text-costa-navy font-medium">{formatMonto(cobradoLimpieza + cobradoLavadero, 'ARS')}</p>
                               </div>
                               <div>
                                 <p className="text-xs text-costa-gris">Depósito</p>
-                                <p className="font-medium text-costa-navy">{formatMonto(cobradoDeposito, moneda)}</p>
+                                <p className="text-costa-navy font-medium">{formatMonto(cobradoDeposito, moneda)}</p>
                               </div>
                             </div>
 
-                            {/* Liquidación */}
-                            {liquidacion && (
-                              <div className="p-3 bg-costa-beige/30 rounded-lg text-sm">
-                                <p className="text-xs font-medium text-costa-navy mb-2">Liquidación Final</p>
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                                  {liquidacion.consumo_energia > 0 && (
-                                    <div>
-                                      <p className="text-xs text-costa-gris">Electricidad</p>
-                                      <p className="text-costa-coral">-{formatMonto(liquidacion.consumo_energia, 'ARS')}</p>
-                                    </div>
-                                  )}
-                                  {liquidacion.roturas > 0 && (
-                                    <div>
-                                      <p className="text-xs text-costa-gris">Roturas</p>
-                                      <p className="text-costa-coral">-{formatMonto(liquidacion.roturas, 'ARS')}</p>
-                                    </div>
-                                  )}
-                                  {liquidacion.otros_descuentos > 0 && (
-                                    <div>
-                                      <p className="text-xs text-costa-gris">Otros desc.</p>
-                                      <p className="text-costa-coral">-{formatMonto(liquidacion.otros_descuentos, 'ARS')}</p>
-                                    </div>
-                                  )}
-                                  {liquidacion.cotizacion_dolar > 0 && (
-                                    <div>
-                                      <p className="text-xs text-costa-gris">Cotización USD</p>
-                                      <p className="text-costa-navy">{formatMonto(liquidacion.cotizacion_dolar, 'ARS')}</p>
-                                    </div>
-                                  )}
+                            {/* Liquidación - solo si hay descuentos */}
+                            {liquidacion && (liquidacion.consumo_energia > 0 || liquidacion.roturas > 0 || liquidacion.otros_descuentos > 0) && (
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm pt-3 border-t border-costa-beige">
+                                {liquidacion.consumo_energia > 0 && (
                                   <div>
-                                    <p className="text-xs text-costa-gris">Devuelto</p>
-                                    <p className={`font-medium ${liquidacion.monto_devolver >= 0 ? 'text-costa-olivo' : 'text-costa-coral'}`}>
-                                      {formatMonto(liquidacion.monto_devolver, 'USD')}
-                                    </p>
+                                    <p className="text-xs text-costa-gris">Electricidad</p>
+                                    <p className="text-costa-coral font-medium">-{formatMonto(liquidacion.consumo_energia, 'ARS')}</p>
                                   </div>
-                                </div>
+                                )}
+                                {liquidacion.roturas > 0 && (
+                                  <div>
+                                    <p className="text-xs text-costa-gris">Roturas</p>
+                                    <p className="text-costa-coral font-medium">-{formatMonto(liquidacion.roturas, 'ARS')}</p>
+                                  </div>
+                                )}
+                                {liquidacion.otros_descuentos > 0 && (
+                                  <div>
+                                    <p className="text-xs text-costa-gris">Otros desc.</p>
+                                    <p className="text-costa-coral font-medium">-{formatMonto(liquidacion.otros_descuentos, 'ARS')}</p>
+                                  </div>
+                                )}
                                 {liquidacion.notas && (
-                                  <p className="text-xs text-costa-gris mt-2 italic">Notas: {liquidacion.notas}</p>
+                                  <div className="md:col-span-1">
+                                    <p className="text-xs text-costa-gris">Notas</p>
+                                    <p className="text-costa-navy font-medium italic">{liquidacion.notas}</p>
+                                  </div>
                                 )}
                               </div>
                             )}
