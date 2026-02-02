@@ -1046,11 +1046,8 @@ function ReservasContent() {
             const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
             const total = noches * (reserva.precio_noche || 0)
             const cobradoAlquiler = cobros
-              .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler')
-              .reduce((acc, c) => {
-                const monto = c.concepto === 'devolucion_sena' ? -(c.monto || 0) : (c.monto || 0)
-                return acc + monto
-              }, 0)
+              .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
+              .reduce((acc, c) => acc + (c.monto || 0), 0)
             const saldo = total - cobradoAlquiler
             const moneda = reserva.moneda || 'ARS'
             return (
@@ -1141,11 +1138,8 @@ function ReservasContent() {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const total = noches * (reserva.precio_noche || 0)
                     const cobradoAlquiler = cobros
-                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler')
-                      .reduce((acc, c) => {
-                        const monto = c.concepto === 'devolucion_sena' ? -(c.monto || 0) : (c.monto || 0)
-                        return acc + monto
-                      }, 0)
+                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
+                      .reduce((acc, c) => acc + (c.monto || 0), 0)
                     const saldo = total - cobradoAlquiler
                     const moneda = reserva.moneda || 'ARS'
                     return (
@@ -1315,11 +1309,8 @@ function ReservasContent() {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const total = noches * (reserva.precio_noche || 0)
                     const cobradoAlquiler = cobros
-                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler')
-                      .reduce((acc, c) => {
-                        const monto = c.concepto === 'devolucion_sena' ? -(c.monto || 0) : (c.monto || 0)
-                        return acc + monto
-                      }, 0)
+                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
+                      .reduce((acc, c) => acc + (c.monto || 0), 0)
                     const saldo = total - cobradoAlquiler
 
                     return (
