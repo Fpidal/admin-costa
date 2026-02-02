@@ -635,15 +635,32 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                   <span>Depósito: {formatMonto(pactadoDeposito, 'ARS')}</span>
                 </div>
               </div>
-              {!isCerrada && (
-                <button
-                  onClick={openEditReservaModal}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs text-costa-navy hover:bg-costa-beige rounded transition-colors"
-                >
-                  <Pencil size={14} />
-                  Editar
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {!isCerrada && (
+                  <>
+                    <button
+                      onClick={openEditReservaModal}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-costa-navy hover:bg-costa-beige rounded transition-colors"
+                    >
+                      <Pencil size={14} />
+                      Editar
+                    </button>
+                    <button
+                      onClick={handleCerrarAlquiler}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs bg-costa-olivo text-white hover:bg-costa-olivo/90 rounded transition-colors"
+                    >
+                      <Lock size={14} />
+                      Cerrar
+                    </button>
+                  </>
+                )}
+                {isCerrada && (
+                  <span className="flex items-center gap-1 px-3 py-1.5 text-xs bg-gray-200 text-gray-600 rounded">
+                    <Lock size={14} />
+                    Cerrado
+                  </span>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -1000,38 +1017,6 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
           )}
         </CardContent>
       </Card>
-
-      {/* Botón Cerrar Alquiler */}
-      {reserva?.estado !== 'cerrada' && (
-        <Card className="mt-4 border-costa-olivo/30 bg-costa-olivo/5">
-          <CardContent className="py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-costa-navy">¿Alquiler completado?</p>
-                <p className="text-sm text-costa-gris">Cuando el inquilino se fue, se cobró todo y se devolvió el depósito, podés cerrar este alquiler.</p>
-              </div>
-              <Button onClick={handleCerrarAlquiler} variant="primary" className="flex items-center gap-2">
-                <Lock size={16} />
-                Cerrar Alquiler
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {reserva?.estado === 'cerrada' && (
-        <Card className="mt-4 border-gray-300 bg-gray-50">
-          <CardContent className="py-4">
-            <div className="flex items-center gap-3 text-costa-gris">
-              <Lock size={20} />
-              <div>
-                <p className="font-medium">Alquiler Cerrado</p>
-                <p className="text-sm">Este alquiler está cerrado y no se puede modificar.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Modal nuevo cobro */}
       <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditingCobroId(null); setCobroForm(initialCobroForm); }} title={editingCobroId ? "Editar Pago" : "Registrar Pago"}>
