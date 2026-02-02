@@ -650,7 +650,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                       className="flex items-center gap-1 px-3 py-1.5 text-xs bg-costa-olivo text-white hover:bg-costa-olivo/90 rounded transition-colors"
                     >
                       <Lock size={14} />
-                      Cerrar
+                      Cerrar Alquiler
                     </button>
                   </>
                 )}
