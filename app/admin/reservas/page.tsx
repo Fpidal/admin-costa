@@ -1538,7 +1538,7 @@ function ReservasContent() {
                                       {liquidacion?.consumo_energia ? `-${formatMonto(liquidacion.consumo_energia, 'ARS')}` : formatMonto(0, 'ARS')}
                                       {cotiz > 0 && (liquidacion?.consumo_energia || 0) > 0 && (
                                         <span className="text-xs text-costa-gris font-normal ml-1">
-                                          (-{formatMonto(liquidacion.consumo_energia / cotiz, 'USD')})
+                                          (-{formatMonto((liquidacion?.consumo_energia || 0) / cotiz, 'USD')})
                                         </span>
                                       )}
                                     </p>

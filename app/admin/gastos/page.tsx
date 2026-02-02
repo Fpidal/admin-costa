@@ -7,7 +7,8 @@ import { useAuth } from '@/hooks/useAuth'
 import { demoGastos, demoPropiedades } from '@/lib/demoData'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, InputNumber } from '@/components/ui'
-import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp, Check, Zap } from 'lucide-react'
+import { ElectricidadTab } from '@/components/ElectricidadTab'
 
 interface Propiedad {
   id: string
@@ -106,6 +107,9 @@ function AdministracionContent() {
   // Modal de detalle
   const [detalleModalOpen, setDetalleModalOpen] = useState(false)
   const [gastoSeleccionado, setGastoSeleccionado] = useState<Gasto | null>(null)
+
+  // Tab activa
+  const [activeTab, setActiveTab] = useState<'gastos' | 'electricidad'>('gastos')
 
   // Filtros
   const [filtroMes, setFiltroMes] = useState<string>('')
@@ -325,8 +329,8 @@ function AdministracionContent() {
       let saldo = 0
       let conceptoEnd = columnas.length
 
-      // Buscar las últimas 3 columnas que parecen montos (empiezan con $ o son números)
-      const montoRegex = /^\$\s*[\d.,]+$/
+      // Buscar las últimas 3 columnas que parecen montos (empiezan con $ o son números, pueden ser negativos)
+      const montoRegex = /^\$\s*-?[\d.,]+$/
       const montosEncontrados: number[] = []
 
       for (let i = columnas.length - 1; i >= 2 && montosEncontrados.length < 3; i--) {
@@ -348,12 +352,14 @@ function AdministracionContent() {
       // Procesar concepto según tipo
       let conceptoLimpio = concepto
 
-      // Para Electricidad: extraer medición y consumo
+      // Para Electricidad: extraer medición, fecha y consumo
       if (concepto.toLowerCase().includes('electricidad') && !concepto.toLowerCase().includes('potencia')) {
         const medicionMatch = concepto.match(/Medición\s*(\d+)/i)
+        const fechaMedicionMatch = concepto.match(/al\s*(\d{1,2}\/\d{1,2}\/\d{4})/i)
         const consumoMatch = concepto.match(/Consumo\s*Kwh[:\s]*(\d+)/i)
         conceptoLimpio = 'Electricidad'
         if (medicionMatch) conceptoLimpio += ` - Medición ${medicionMatch[1]}`
+        if (fechaMedicionMatch) conceptoLimpio += ` al ${fechaMedicionMatch[1]}`
         if (consumoMatch) conceptoLimpio += ` - Consumo ${consumoMatch[1]} Kwh`
       }
       // Para Potencia: extraer medición
@@ -515,6 +521,44 @@ function AdministracionContent() {
         </div>
       </PageHeader>
 
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-costa-beige">
+        <button
+          onClick={() => setActiveTab('gastos')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            activeTab === 'gastos'
+              ? 'border-costa-navy text-costa-navy'
+              : 'border-transparent text-costa-gris hover:text-costa-navy'
+          }`}
+        >
+          Gastos y Expensas
+        </button>
+        <button
+          onClick={() => setActiveTab('electricidad')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
+            activeTab === 'electricidad'
+              ? 'border-costa-navy text-costa-navy'
+              : 'border-transparent text-costa-gris hover:text-costa-navy'
+          }`}
+        >
+          <Zap size={14} />
+          Electricidad
+        </button>
+      </div>
+
+      {/* Tab Electricidad */}
+      {activeTab === 'electricidad' && (
+        <ElectricidadTab
+          propiedades={propiedades}
+          gastos={gastos}
+          isDemo={isDemo}
+          userId={userId}
+        />
+      )}
+
+      {/* Tab Gastos */}
+      {activeTab === 'gastos' && (
+      <>
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <Card>
@@ -725,6 +769,8 @@ function AdministracionContent() {
           )}
         </CardContent>
       </Card>
+      </>
+      )}
 
       {/* Modal Nuevo/Editar Gasto */}
       <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Gasto' : 'Nuevo Gasto'}>
