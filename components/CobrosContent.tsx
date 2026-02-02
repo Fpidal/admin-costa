@@ -319,7 +319,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     return acc + monto
   }, 0)
 
-  const cobradoAlquiler = calcularCobrado(cobros.filter(c => c.aplicar_a === 'alquiler'))
+  const cobradoAlquiler = calcularCobrado(cobros.filter(c => c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena'))
   const cobradoLimpieza = calcularCobrado(cobros.filter(c => c.aplicar_a === 'limpieza'))
   const cobradoLavadero = calcularCobrado(cobros.filter(c => c.aplicar_a === 'lavadero'))
   const cobradoDeposito = calcularCobrado(cobros.filter(c => c.aplicar_a === 'deposito'))
@@ -696,10 +696,10 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                   <FormatMontoStyled monto={saldoAlquiler === 0 ? pactadoAlquiler : saldoAlquiler} moneda={monedaAlquiler} />
                 </span>
               </div>
-              {cobros.filter(c => c.aplicar_a === 'alquiler').length > 0 && (
+              {cobros.filter(c => c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena').length > 0 && (
                 <div className="mt-2 pt-2 border-t border-dashed">
                   <p className="text-xs text-costa-gris mb-1">Pagos registrados:</p>
-                  {cobros.filter(c => c.aplicar_a === 'alquiler').map(c => (
+                  {cobros.filter(c => c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena').map(c => (
                     <div key={c.id} className="flex justify-between text-xs py-0.5">
                       <span className="text-costa-gris">{formatFecha(c.fecha)} - {conceptoOptions.find(opt => opt.value === c.concepto)?.label || c.concepto || 'Pago'}</span>
                       <span className="text-costa-olivo">{formatMonto(c.monto, c.moneda)}</span>

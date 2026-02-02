@@ -1254,9 +1254,17 @@ function ReservasContent() {
                   }, {} as Record<number, Cobro[]>)
                 ).map(([reservaId, cobrosList]) => {
                   const firstCobro = cobrosList[0]
-                  const totalCobrado = cobrosList.reduce((sum, c) => sum + c.monto, 0)
                   const isExpanded = expandedReservas.has(reservaId)
                   const numReserva = String(reservaId).slice(-6).toUpperCase()
+                  const liquidacionReserva = liquidaciones.find(l => String(l.reserva_id) === String(reservaId))
+                  const cotizReserva = liquidacionReserva?.cotizacion_dolar || 0
+
+                  // Calcular total en USD (convirtiendo pesos si hay cotización)
+                  const totalEnUSD = cobrosList.reduce((sum, c) => {
+                    if (c.moneda === 'USD') return sum + c.monto
+                    if (c.moneda === 'ARS' && cotizReserva > 0) return sum + (c.monto / cotizReserva)
+                    return sum + c.monto // fallback si no hay cotización
+                  }, 0)
 
                   return (
                     <div key={reservaId}>
@@ -1289,7 +1297,12 @@ function ReservasContent() {
                             {cobrosList.length} cobro{cobrosList.length > 1 ? 's' : ''}
                           </span>
                           <span className="font-semibold text-costa-navy text-sm">
-                            {formatMonto(totalCobrado, firstCobro.moneda)}
+                            {formatMonto(totalEnUSD, 'USD')}
+                            {cotizReserva > 0 && cobrosList.some(c => c.moneda === 'ARS') && (
+                              <span className="text-xs text-costa-gris font-normal ml-1">
+                                (TC {formatMonto(cotizReserva, 'ARS')})
+                              </span>
+                            )}
                           </span>
                           <Link href={`/admin/reservas/${reservaId}/cobros${isDemo ? '?demo=true' : ''}`} onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="sm" title="Gestionar cobros">
@@ -1307,7 +1320,14 @@ function ReservasContent() {
                               <span className="text-costa-gris w-20">{formatFecha(cobro.fecha)}</span>
                               <Badge variant="info" className="text-xs">{cobro.concepto}</Badge>
                               <span className="text-costa-gris text-xs capitalize flex-1">{cobro.medio_pago}</span>
-                              <span className="font-medium text-costa-navy">{formatMonto(cobro.monto, cobro.moneda)}</span>
+                              <span className="font-medium text-costa-navy">
+                                {formatMonto(cobro.monto, cobro.moneda)}
+                                {cobro.moneda === 'ARS' && cotizReserva > 0 && (
+                                  <span className="text-xs text-costa-gris font-normal ml-1">
+                                    ({formatMonto(cobro.monto / cotizReserva, 'USD')})
+                                  </span>
+                                )}
+                              </span>
                             </div>
                           ))}
                         </div>
