@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Select } from '@/components/ui'
-import { Plus, Zap, Pencil, Trash2, AlertTriangle, Check } from 'lucide-react'
+import { Plus, Zap, Pencil, Trash2, AlertTriangle, Check, FileText } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 
 interface Propiedad {
@@ -13,6 +13,12 @@ interface Propiedad {
   barrio?: string
 }
 
+interface DetalleExpensa {
+  concepto: string
+  monto: number
+  fecha_vencimiento?: string
+}
+
 interface Gasto {
   id: number
   propiedad_id: string | null
@@ -20,15 +26,26 @@ interface Gasto {
   tipo: string
   concepto: string
   monto: number
-  detalle?: { concepto: string; monto: number }[] | null
+  detalle?: DetalleExpensa[] | null
 }
 
-interface Medicion {
+// Datos extraídos de Eidico
+interface DatoElectricidad {
+  id: string
+  fechaGasto: string      // Fecha del gasto/expensa
+  fechaMedicion: string   // Fecha de la medición (al dd/mm/yyyy)
+  medicion: number        // Número del medidor
+  consumo: number         // kWh consumidos
+  monto: number           // Monto en pesos
+  fuente: 'eidico' | 'manual'
+}
+
+// Medición manual para comparar
+interface MedicionManual {
   id: number
   propiedad_id: string
   fecha: string
   lectura: number
-  consumo: number | null
   notas: string | null
   created_at: string
 }
@@ -52,22 +69,21 @@ const formatNumero = (num: number) => {
   return new Intl.NumberFormat('es-AR').format(num)
 }
 
-// Datos demo
-const demoMediciones: Medicion[] = [
-  { id: 1, propiedad_id: 'demo-prop-1', fecha: '2025-10-27', lectura: 59409, consumo: 381, notas: null, created_at: '2025-10-27' },
-  { id: 2, propiedad_id: 'demo-prop-1', fecha: '2025-09-27', lectura: 59028, consumo: 420, notas: null, created_at: '2025-09-27' },
-  { id: 3, propiedad_id: 'demo-prop-1', fecha: '2025-08-27', lectura: 58608, consumo: 350, notas: null, created_at: '2025-08-27' },
-  { id: 4, propiedad_id: 'demo-prop-1', fecha: '2025-07-27', lectura: 58258, consumo: 380, notas: null, created_at: '2025-07-27' },
-  { id: 5, propiedad_id: 'demo-prop-1', fecha: '2025-06-27', lectura: 57878, consumo: 290, notas: null, created_at: '2025-06-27' },
-  { id: 6, propiedad_id: 'demo-prop-1', fecha: '2025-05-27', lectura: 57588, consumo: 310, notas: null, created_at: '2025-05-27' },
-]
+// Convertir fecha dd/mm/yyyy a yyyy-mm-dd
+const convertirFecha = (fechaStr: string): string => {
+  const match = fechaStr.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (match) {
+    const [, dia, mes, anio] = match
+    return `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
+  }
+  return fechaStr
+}
 
 export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) {
   const [propiedadId, setPropiedadId] = useState<string>('')
-  const [mediciones, setMediciones] = useState<Medicion[]>([])
+  const [medicionesManuales, setMedicionesManuales] = useState<MedicionManual[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
-  const [editingId, setEditingId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState({
@@ -76,15 +92,10 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
     notas: ''
   })
 
-  // Cargar mediciones cuando cambia la propiedad
+  // Cargar mediciones manuales cuando cambia la propiedad
   useEffect(() => {
-    if (!propiedadId) {
-      setMediciones([])
-      return
-    }
-
-    if (isDemo) {
-      setMediciones(demoMediciones.filter(m => m.propiedad_id === propiedadId))
+    if (!propiedadId || isDemo) {
+      setMedicionesManuales([])
       return
     }
 
@@ -97,7 +108,7 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
         .order('fecha', { ascending: false })
 
       if (data && !error) {
-        setMediciones(data)
+        setMedicionesManuales(data)
       }
       setLoading(false)
     }
@@ -109,108 +120,103 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
   const propiedad = propiedades.find(p => p.id === propiedadId)
   const esDeportiva = propiedad?.nombre?.toLowerCase().includes('deportiva') || propiedad?.barrio?.toLowerCase() === 'deportiva'
 
-  // Última medición
-  const ultimaMedicion = mediciones[0]
-  const penultimaMedicion = mediciones[1]
-
-  // Extraer consumos de Eidico desde gastos
-  const consumosEidico = useMemo(() => {
+  // Extraer datos de electricidad desde gastos importados de Eidico
+  const datosElectricidad = useMemo((): DatoElectricidad[] => {
     if (!propiedadId) return []
 
-    return gastos
-      .filter(g => g.propiedad_id === propiedadId && g.tipo === 'expensa')
-      .flatMap(g => {
-        const items: { fecha: string; consumo: number; monto: number; medicion?: number }[] = []
+    const datos: DatoElectricidad[] = []
 
+    gastos
+      .filter(g => g.propiedad_id === propiedadId && g.tipo === 'expensa')
+      .forEach(g => {
         // Buscar en detalle
         if (g.detalle) {
-          g.detalle.forEach(d => {
+          g.detalle.forEach((d, idx) => {
             if (d.concepto.toLowerCase().includes('electricidad') && !d.concepto.toLowerCase().includes('potencia')) {
-              const consumoMatch = d.concepto.match(/Consumo\s*(\d+)\s*Kwh/i)
               const medicionMatch = d.concepto.match(/Medición\s*(\d+)/i)
-              if (consumoMatch) {
-                items.push({
-                  fecha: g.fecha,
+              const fechaMedMatch = d.concepto.match(/al\s*(\d{1,2}\/\d{1,2}\/\d{4})/i)
+              const consumoMatch = d.concepto.match(/Consumo\s*(?:Kwh)?\s*(\d+)/i) || d.concepto.match(/Consumo\s*(\d+)\s*Kwh/i)
+
+              if (medicionMatch && consumoMatch) {
+                datos.push({
+                  id: `${g.id}-${idx}`,
+                  fechaGasto: g.fecha,
+                  fechaMedicion: fechaMedMatch ? convertirFecha(fechaMedMatch[1]) : g.fecha,
+                  medicion: parseInt(medicionMatch[1]),
                   consumo: parseInt(consumoMatch[1]),
                   monto: d.monto,
-                  medicion: medicionMatch ? parseInt(medicionMatch[1]) : undefined
+                  fuente: 'eidico'
                 })
               }
             }
           })
         }
 
-        // Buscar en concepto principal
-        if (items.length === 0 && g.concepto.toLowerCase().includes('electricidad')) {
-          const consumoMatch = g.concepto.match(/Consumo\s*(\d+)\s*Kwh/i)
+        // Buscar en concepto principal si no hay detalle
+        if (g.concepto.toLowerCase().includes('electricidad') && !g.concepto.toLowerCase().includes('potencia')) {
           const medicionMatch = g.concepto.match(/Medición\s*(\d+)/i)
-          if (consumoMatch) {
-            items.push({
-              fecha: g.fecha,
+          const fechaMedMatch = g.concepto.match(/al\s*(\d{1,2}\/\d{1,2}\/\d{4})/i)
+          const consumoMatch = g.concepto.match(/Consumo\s*(?:Kwh)?\s*(\d+)/i) || g.concepto.match(/Consumo\s*(\d+)\s*Kwh/i)
+
+          // Verificar que no se haya agregado ya desde detalle
+          const yaExiste = datos.some(d => d.id.startsWith(`${g.id}-`))
+
+          if (medicionMatch && consumoMatch && !yaExiste) {
+            datos.push({
+              id: `${g.id}-main`,
+              fechaGasto: g.fecha,
+              fechaMedicion: fechaMedMatch ? convertirFecha(fechaMedMatch[1]) : g.fecha,
+              medicion: parseInt(medicionMatch[1]),
               consumo: parseInt(consumoMatch[1]),
               monto: g.monto,
-              medicion: medicionMatch ? parseInt(medicionMatch[1]) : undefined
+              fuente: 'eidico'
             })
           }
         }
-
-        return items
       })
-      .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())
+
+    // Ordenar por fecha de medición (más reciente primero)
+    return datos.sort((a, b) => new Date(b.fechaMedicion).getTime() - new Date(a.fechaMedicion).getTime())
   }, [propiedadId, gastos])
 
-  // Datos para el gráfico (últimos 12 meses)
+  // Último dato
+  const ultimoDato = datosElectricidad[0]
+
+  // Datos para el gráfico (últimos 12 registros)
   const datosGrafico = useMemo(() => {
     const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-    return mediciones
+    return datosElectricidad
       .slice(0, 12)
       .reverse()
-      .map(m => ({
-        mes: meses[new Date(m.fecha).getMonth()],
-        consumo: m.consumo || 0
+      .map(d => ({
+        mes: meses[new Date(d.fechaMedicion).getMonth()],
+        consumo: d.consumo
       }))
-  }, [mediciones])
+  }, [datosElectricidad])
 
-  // Comparar medición manual con Eidico
-  const compararConEidico = (medicion: Medicion) => {
-    const eidico = consumosEidico.find(e => {
-      // Buscar por medición o por fecha aproximada
-      if (e.medicion && e.medicion === medicion.lectura) return true
-      const fechaMed = new Date(medicion.fecha)
-      const fechaEid = new Date(e.fecha)
-      const diffDias = Math.abs((fechaMed.getTime() - fechaEid.getTime()) / (1000 * 60 * 60 * 24))
-      return diffDias < 45 // Dentro de 45 días
+  // Buscar medición manual para comparar con dato de Eidico
+  const buscarMedicionManual = (dato: DatoElectricidad) => {
+    // Buscar medición manual cercana a la fecha de medición de Eidico
+    return medicionesManuales.find(m => {
+      const fechaManual = new Date(m.fecha)
+      const fechaEidico = new Date(dato.fechaMedicion)
+      const diffDias = Math.abs((fechaManual.getTime() - fechaEidico.getTime()) / (1000 * 60 * 60 * 24))
+      return diffDias < 15 // Dentro de 15 días
     })
-
-    if (!eidico) return null
-
-    const diferencia = (medicion.consumo || 0) - eidico.consumo
-    return { eidico, diferencia }
   }
 
   // Handlers
-  const openModal = (medicion?: Medicion) => {
-    if (medicion) {
-      setEditingId(medicion.id)
-      setForm({
-        fecha: medicion.fecha,
-        lectura: medicion.lectura.toString(),
-        notas: medicion.notas || ''
-      })
-    } else {
-      setEditingId(null)
-      setForm({
-        fecha: new Date().toISOString().split('T')[0],
-        lectura: '',
-        notas: ''
-      })
-    }
+  const openModal = () => {
+    setForm({
+      fecha: new Date().toISOString().split('T')[0],
+      lectura: '',
+      notas: ''
+    })
     setModalOpen(true)
   }
 
   const closeModal = () => {
     setModalOpen(false)
-    setEditingId(null)
     setForm({ fecha: new Date().toISOString().split('T')[0], lectura: '', notas: '' })
   }
 
@@ -220,39 +226,17 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
 
     setSaving(true)
 
-    const lecturaNum = parseInt(form.lectura)
-
-    // Calcular consumo basado en medición anterior
-    let consumo = null
-    if (editingId) {
-      // Si estamos editando, buscar la medición anterior a esta
-      const idx = mediciones.findIndex(m => m.id === editingId)
-      const anterior = mediciones[idx + 1]
-      if (anterior) {
-        consumo = lecturaNum - anterior.lectura
-      }
-    } else {
-      // Nueva medición: usar la última como anterior
-      if (ultimaMedicion) {
-        consumo = lecturaNum - ultimaMedicion.lectura
-      }
-    }
-
     const data = {
       propiedad_id: propiedadId,
       fecha: form.fecha,
-      lectura: lecturaNum,
-      consumo,
+      lectura: parseInt(form.lectura),
+      consumo: null, // Se calcula comparando con Eidico
       notas: form.notas || null,
       user_id: userId
     }
 
     try {
-      if (editingId) {
-        await supabase.from('mediciones_electricidad').update(data).eq('id', editingId)
-      } else {
-        await supabase.from('mediciones_electricidad').insert(data)
-      }
+      await supabase.from('mediciones_electricidad').insert(data)
 
       // Recargar mediciones
       const { data: nuevas } = await supabase
@@ -261,7 +245,7 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
         .eq('propiedad_id', propiedadId)
         .order('fecha', { ascending: false })
 
-      if (nuevas) setMediciones(nuevas)
+      if (nuevas) setMedicionesManuales(nuevas)
       closeModal()
     } catch (error) {
       console.error('Error guardando medición:', error)
@@ -270,21 +254,18 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
     setSaving(false)
   }
 
-  const handleDelete = async (id: number) => {
+  const handleDeleteManual = async (id: number) => {
     if (isDemo) return
-    if (!confirm('¿Eliminar esta medición?')) return
+    if (!confirm('¿Eliminar esta medición manual?')) return
 
     await supabase.from('mediciones_electricidad').delete().eq('id', id)
-    setMediciones(mediciones.filter(m => m.id !== id))
+    setMedicionesManuales(medicionesManuales.filter(m => m.id !== id))
   }
 
-  // Consumo calculado en tiempo real
-  const consumoCalculado = useMemo(() => {
-    if (!form.lectura || !ultimaMedicion) return null
-    const lectura = parseInt(form.lectura)
-    if (isNaN(lectura)) return null
-    return lectura - ultimaMedicion.lectura
-  }, [form.lectura, ultimaMedicion])
+  // Calcular totales
+  const totalConsumo = datosElectricidad.reduce((acc, d) => acc + d.consumo, 0)
+  const totalMonto = datosElectricidad.reduce((acc, d) => acc + d.monto, 0)
+  const promedioConsumo = datosElectricidad.length > 0 ? Math.round(totalConsumo / datosElectricidad.length) : 0
 
   return (
     <div className="space-y-4">
@@ -311,49 +292,117 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
               <CardTitle className="flex items-center justify-between text-base">
                 <div className="flex items-center gap-2">
                   <Zap size={18} className="text-yellow-500" />
-                  Resumen
+                  Resumen de Consumo
                   {esDeportiva && (
                     <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
                       Deportiva +20%
                     </span>
                   )}
                 </div>
-                <Button size="sm" onClick={() => openModal()}>
+                <Button size="sm" variant="secondary" onClick={openModal}>
                   <Plus size={14} />
-                  Nueva Medición
+                  Mi Medición
                 </Button>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              {loading ? (
-                <p className="text-costa-gris text-sm">Cargando...</p>
-              ) : ultimaMedicion ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {datosElectricidad.length === 0 ? (
+                <div className="text-center py-6 text-costa-gris">
+                  <FileText size={32} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No hay datos de electricidad importados</p>
+                  <p className="text-xs mt-1">Importá expensas de Eidico en la solapa "Gastos y Expensas"</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-xs text-costa-gris">Última lectura</p>
-                    <p className="text-lg font-bold text-costa-navy">{formatNumero(ultimaMedicion.lectura)}</p>
-                    <p className="text-xs text-costa-gris">{formatFecha(ultimaMedicion.fecha)}</p>
+                    <p className="text-xs text-costa-gris">Última medición</p>
+                    <p className="text-lg font-bold text-costa-navy">{formatNumero(ultimoDato.medicion)}</p>
+                    <p className="text-xs text-costa-gris">{formatFecha(ultimoDato.fechaMedicion)}</p>
                   </div>
                   <div>
                     <p className="text-xs text-costa-gris">Último consumo</p>
-                    <p className="text-lg font-bold text-costa-navy">{ultimaMedicion.consumo ? `${formatNumero(ultimaMedicion.consumo)} kWh` : '-'}</p>
+                    <p className="text-lg font-bold text-costa-navy">{formatNumero(ultimoDato.consumo)} kWh</p>
+                    <p className="text-xs text-costa-gris">{formatMonto(ultimoDato.monto)}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-costa-gris">Total mediciones</p>
-                    <p className="text-lg font-bold text-costa-navy">{mediciones.length}</p>
+                    <p className="text-xs text-costa-gris">Promedio mensual</p>
+                    <p className="text-lg font-bold text-costa-navy">{formatNumero(promedioConsumo)} kWh</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-costa-gris">Total registros</p>
+                    <p className="text-lg font-bold text-costa-navy">{datosElectricidad.length}</p>
                   </div>
                 </div>
-              ) : (
-                <p className="text-costa-gris text-sm">No hay mediciones registradas</p>
               )}
             </CardContent>
           </Card>
 
-          {/* Historial */}
-          {mediciones.length > 0 && (
+          {/* Historial de datos de Eidico */}
+          {datosElectricidad.length > 0 && (
             <Card>
               <CardHeader className="py-3">
-                <CardTitle className="text-base">Historial de Mediciones</CardTitle>
+                <CardTitle className="text-base">Historial de Consumo (desde Eidico)</CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-costa-beige/50">
+                      <tr>
+                        <th className="p-3 text-left">Fecha Medición</th>
+                        <th className="p-3 text-right">Medidor</th>
+                        <th className="p-3 text-right">Consumo</th>
+                        <th className="p-3 text-right">Monto</th>
+                        <th className="p-3 text-center">Mi Medición</th>
+                        <th className="p-3 text-center">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {datosElectricidad.map((dato) => {
+                        const medManual = buscarMedicionManual(dato)
+                        const diferencia = medManual ? medManual.lectura - dato.medicion : null
+
+                        return (
+                          <tr key={dato.id} className="border-t border-costa-beige">
+                            <td className="p-3">
+                              <span>{formatFecha(dato.fechaMedicion)}</span>
+                            </td>
+                            <td className="p-3 text-right font-mono">{formatNumero(dato.medicion)}</td>
+                            <td className="p-3 text-right font-medium">{formatNumero(dato.consumo)} kWh</td>
+                            <td className="p-3 text-right text-costa-gris">{formatMonto(dato.monto)}</td>
+                            <td className="p-3 text-center font-mono">
+                              {medManual ? formatNumero(medManual.lectura) : '-'}
+                            </td>
+                            <td className="p-3 text-center">
+                              {medManual ? (
+                                diferencia === 0 ? (
+                                  <span className="inline-flex items-center gap-1 text-green-600 text-xs">
+                                    <Check size={14} /> Coincide
+                                  </span>
+                                ) : (
+                                  <span className={`inline-flex items-center gap-1 text-xs ${Math.abs(diferencia!) > 100 ? 'text-costa-coral' : 'text-orange-500'}`}>
+                                    <AlertTriangle size={14} />
+                                    {diferencia! > 0 ? '+' : ''}{formatNumero(diferencia!)}
+                                  </span>
+                                )
+                              ) : (
+                                <span className="text-costa-gris text-xs">Sin verificar</span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Mediciones manuales */}
+          {medicionesManuales.length > 0 && (
+            <Card>
+              <CardHeader className="py-3">
+                <CardTitle className="text-base">Mis Mediciones Manuales</CardTitle>
               </CardHeader>
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
@@ -362,54 +411,23 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
                       <tr>
                         <th className="p-3 text-left">Fecha</th>
                         <th className="p-3 text-right">Lectura</th>
-                        <th className="p-3 text-right">Consumo</th>
-                        <th className="p-3 text-right">Eidico</th>
-                        <th className="p-3 text-center">Estado</th>
+                        <th className="p-3 text-left">Notas</th>
                         <th className="p-3 text-right">Acciones</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {mediciones.map((medicion) => {
-                        const comparacion = compararConEidico(medicion)
-                        return (
-                          <tr key={medicion.id} className="border-t border-costa-beige">
-                            <td className="p-3">{formatFecha(medicion.fecha)}</td>
-                            <td className="p-3 text-right font-mono">{formatNumero(medicion.lectura)}</td>
-                            <td className="p-3 text-right">
-                              {medicion.consumo ? `${formatNumero(medicion.consumo)} kWh` : '-'}
-                            </td>
-                            <td className="p-3 text-right text-costa-gris">
-                              {comparacion ? `${formatNumero(comparacion.eidico.consumo)} kWh` : '-'}
-                            </td>
-                            <td className="p-3 text-center">
-                              {comparacion ? (
-                                comparacion.diferencia === 0 ? (
-                                  <span className="inline-flex items-center gap-1 text-green-600">
-                                    <Check size={14} /> OK
-                                  </span>
-                                ) : (
-                                  <span className={`inline-flex items-center gap-1 ${Math.abs(comparacion.diferencia) > 10 ? 'text-orange-500' : 'text-costa-gris'}`}>
-                                    <AlertTriangle size={14} />
-                                    {comparacion.diferencia > 0 ? '+' : ''}{comparacion.diferencia}
-                                  </span>
-                                )
-                              ) : (
-                                <span className="text-costa-gris">-</span>
-                              )}
-                            </td>
-                            <td className="p-3 text-right">
-                              <div className="flex justify-end gap-1">
-                                <Button variant="ghost" size="sm" onClick={() => openModal(medicion)}>
-                                  <Pencil size={14} />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => handleDelete(medicion.id)}>
-                                  <Trash2 size={14} className="text-costa-coral" />
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        )
-                      })}
+                      {medicionesManuales.map((m) => (
+                        <tr key={m.id} className="border-t border-costa-beige">
+                          <td className="p-3">{formatFecha(m.fecha)}</td>
+                          <td className="p-3 text-right font-mono">{formatNumero(m.lectura)}</td>
+                          <td className="p-3 text-costa-gris text-xs">{m.notas || '-'}</td>
+                          <td className="p-3 text-right">
+                            <Button variant="ghost" size="sm" onClick={() => handleDeleteManual(m.id)}>
+                              <Trash2 size={14} className="text-costa-coral" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -443,11 +461,15 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
         </>
       )}
 
-      {/* Modal Nueva/Editar Medición */}
-      <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Medición' : 'Nueva Medición'}>
+      {/* Modal Nueva Medición Manual */}
+      <Modal isOpen={modalOpen} onClose={closeModal} title="Agregar Mi Medición">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <p className="text-sm text-costa-gris">
+            Registrá tu lectura del medidor para compararla con lo que cobra Eidico.
+          </p>
+
           <div>
-            <label className="block text-sm font-medium text-costa-navy mb-1">Fecha</label>
+            <label className="block text-sm font-medium text-costa-navy mb-1">Fecha de la medición</label>
             <input
               type="date"
               value={form.fecha}
@@ -467,28 +489,12 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
               placeholder="Ej: 59850"
               required
             />
-            {ultimaMedicion && !editingId && (
+            {ultimoDato && (
               <p className="text-xs text-costa-gris mt-1">
-                Última lectura: {formatNumero(ultimaMedicion.lectura)} ({formatFecha(ultimaMedicion.fecha)})
+                Última de Eidico: {formatNumero(ultimoDato.medicion)} ({formatFecha(ultimoDato.fechaMedicion)})
               </p>
             )}
           </div>
-
-          {consumoCalculado !== null && !editingId && (
-            <div className="bg-costa-beige/30 p-3 rounded-lg">
-              <p className="text-sm">
-                <span className="text-costa-gris">Consumo calculado:</span>{' '}
-                <span className={`font-bold ${consumoCalculado < 0 ? 'text-costa-coral' : 'text-costa-navy'}`}>
-                  {formatNumero(consumoCalculado)} kWh
-                </span>
-              </p>
-              {consumoCalculado < 0 && (
-                <p className="text-xs text-costa-coral mt-1">
-                  La lectura es menor que la anterior. Verificá el número.
-                </p>
-              )}
-            </div>
-          )}
 
           <div>
             <label className="block text-sm font-medium text-costa-navy mb-1">Notas (opcional)</label>
@@ -506,7 +512,7 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
               Cancelar
             </Button>
             <Button type="submit" disabled={saving || isDemo}>
-              {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Guardar'}
+              {saving ? 'Guardando...' : 'Guardar'}
             </Button>
           </div>
         </form>
