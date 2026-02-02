@@ -67,6 +67,7 @@ const aplicarAOptions = [
 
 const conceptoOptions = [
   { value: 'seña', label: 'Seña' },
+  { value: 'devolucion_sena', label: 'Devolución de seña' },
   { value: 'anticipo', label: 'Anticipo' },
   { value: 'liquidacion', label: 'Liquidación' },
   { value: 'otro', label: 'Otro' },
@@ -311,10 +312,16 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
   const pactadoLavadero = reserva?.monto_lavadero || 0
   const pactadoDeposito = reserva?.deposito_pesos || 0
 
-  const cobradoAlquiler = cobros.filter(c => c.aplicar_a === 'alquiler').reduce((acc, c) => acc + c.monto, 0)
-  const cobradoLimpieza = cobros.filter(c => c.aplicar_a === 'limpieza').reduce((acc, c) => acc + c.monto, 0)
-  const cobradoLavadero = cobros.filter(c => c.aplicar_a === 'lavadero').reduce((acc, c) => acc + c.monto, 0)
-  const cobradoDeposito = cobros.filter(c => c.aplicar_a === 'deposito').reduce((acc, c) => acc + c.monto, 0)
+  // Si el concepto es "devolucion_sena", resta en lugar de sumar
+  const calcularCobrado = (cobrosArr: Cobro[]) => cobrosArr.reduce((acc, c) => {
+    const monto = c.concepto === 'devolucion_sena' ? -c.monto : c.monto
+    return acc + monto
+  }, 0)
+
+  const cobradoAlquiler = calcularCobrado(cobros.filter(c => c.aplicar_a === 'alquiler'))
+  const cobradoLimpieza = calcularCobrado(cobros.filter(c => c.aplicar_a === 'limpieza'))
+  const cobradoLavadero = calcularCobrado(cobros.filter(c => c.aplicar_a === 'lavadero'))
+  const cobradoDeposito = calcularCobrado(cobros.filter(c => c.aplicar_a === 'deposito'))
 
   const saldoAlquiler = pactadoAlquiler - cobradoAlquiler
   const saldoLimpieza = pactadoLimpieza - cobradoLimpieza
@@ -903,12 +910,12 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                       <td className="py-1.5 text-costa-gris">
                         {mediosPago.find(m => m.value === cobro.medio_pago)?.label}
                       </td>
-                      <td className="py-1.5 font-medium text-right">
+                      <td className={`py-1.5 font-medium text-right ${cobro.concepto === 'devolucion_sena' ? 'text-costa-coral' : ''}`}>
                         <div>
-                          {formatMonto(cobro.monto, cobro.moneda)}
+                          {cobro.concepto === 'devolucion_sena' ? '-' : ''}{formatMonto(cobro.monto, cobro.moneda)}
                           {cobro.moneda === 'ARS' && cotizacion > 1 && (
                             <span className="text-xs text-costa-gris font-normal ml-1">
-                              ({formatMonto(cobro.monto / cotizacion, 'USD')})
+                              ({cobro.concepto === 'devolucion_sena' ? '-' : ''}{formatMonto(cobro.monto / cotizacion, 'USD')})
                             </span>
                           )}
                         </div>
@@ -951,8 +958,9 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                       <td className="py-2 font-bold text-right text-costa-olivo">
                         {(() => {
                           const totalUSD = cobros.reduce((acc, c) => {
-                            if (c.moneda === 'USD') return acc + c.monto
-                            return acc + (c.monto / cotizacion)
+                            const signo = c.concepto === 'devolucion_sena' ? -1 : 1
+                            if (c.moneda === 'USD') return acc + (c.monto * signo)
+                            return acc + ((c.monto / cotizacion) * signo)
                           }, 0)
                           return formatMonto(totalUSD, 'USD')
                         })()}
