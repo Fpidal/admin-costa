@@ -688,13 +688,27 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
               </div>
               <div className="flex justify-between py-1 border-b border-costa-beige bg-costa-beige/30 px-2 rounded">
                 <span className="font-medium text-costa-navy">Total</span>
-                <span className="font-medium text-costa-navy">{formatMonto(pactadoLimpieza + pactadoLavadero, 'ARS')}</span>
+                <div className="text-right">
+                  <span className="font-medium text-costa-navy">{formatMonto(pactadoLimpieza + pactadoLavadero, 'ARS')}</span>
+                  {cotizacion > 1 && (
+                    <span className="text-xs text-costa-gris ml-2">
+                      ({formatMonto((pactadoLimpieza + pactadoLavadero) / cotizacion, 'USD')})
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="flex justify-between py-1 border-b border-costa-beige">
                 <span className="text-costa-gris">Cobrado</span>
-                <span className={cobradoLimpieza + cobradoLavadero > 0 ? 'font-medium text-costa-olivo' : 'text-costa-gris'}>
-                  {formatMonto(cobradoLimpieza + cobradoLavadero, 'ARS')}
-                </span>
+                <div className="text-right">
+                  <span className={cobradoLimpieza + cobradoLavadero > 0 ? 'font-medium text-costa-olivo' : 'text-costa-gris'}>
+                    {formatMonto(cobradoLimpieza + cobradoLavadero, 'ARS')}
+                  </span>
+                  {cotizacion > 1 && cobradoLimpieza + cobradoLavadero > 0 && (
+                    <span className="text-xs text-costa-gris ml-2">
+                      ({formatMonto((cobradoLimpieza + cobradoLavadero) / cotizacion, 'USD')})
+                    </span>
+                  )}
+                </div>
               </div>
               {(() => {
                 const totalLimpieza = pactadoLimpieza + pactadoLavadero
@@ -705,19 +719,36 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                     <span className={saldo === 0 ? 'text-costa-olivo' : 'text-costa-coral'}>
                       {saldo === 0 ? 'COMPLETO ✓' : 'PENDIENTE'}
                     </span>
-                    <span className={saldo === 0 ? 'text-costa-olivo' : 'text-costa-coral'}>
-                      {saldo === 0 ? formatMonto(totalLimpieza, 'ARS') : formatMonto(saldo, 'ARS')}
-                    </span>
+                    <div className="text-right">
+                      <span className={saldo === 0 ? 'text-costa-olivo' : 'text-costa-coral'}>
+                        {saldo === 0 ? formatMonto(totalLimpieza, 'ARS') : formatMonto(saldo, 'ARS')}
+                      </span>
+                      {cotizacion > 1 && (
+                        <span className={`text-xs ml-2 ${saldo === 0 ? 'text-costa-olivo/70' : 'text-costa-coral/70'}`}>
+                          ({formatMonto((saldo === 0 ? totalLimpieza : saldo) / cotizacion, 'USD')})
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )
               })()}
+              {cotizacion > 1 && (
+                <div className="text-xs text-costa-gris text-right pt-1">
+                  Cotización: {formatMonto(cotizacion, 'ARS')} = U$D 1
+                </div>
+              )}
               {cobros.filter(c => c.aplicar_a === 'limpieza' || c.aplicar_a === 'lavadero').length > 0 && (
                 <div className="mt-2 pt-2 border-t border-dashed">
                   <p className="text-xs text-costa-gris mb-1">Pagos registrados:</p>
                   {cobros.filter(c => c.aplicar_a === 'limpieza' || c.aplicar_a === 'lavadero').map(c => (
                     <div key={c.id} className="flex justify-between text-xs py-0.5">
                       <span className="text-costa-gris">{formatFecha(c.fecha)} - {conceptoOptions.find(opt => opt.value === c.concepto)?.label || c.concepto || (c.aplicar_a === 'limpieza' ? 'Limpieza' : 'Lavadero')}</span>
-                      <span className="text-costa-olivo">{formatMonto(c.monto, c.moneda)}</span>
+                      <div>
+                        <span className="text-costa-olivo">{formatMonto(c.monto, c.moneda)}</span>
+                        {c.moneda === 'ARS' && cotizacion > 1 && (
+                          <span className="text-costa-gris ml-1">({formatMonto(c.monto / cotizacion, 'USD')})</span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -873,7 +904,14 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                         {mediosPago.find(m => m.value === cobro.medio_pago)?.label}
                       </td>
                       <td className="py-1.5 font-medium text-right">
-                        {formatMonto(cobro.monto, cobro.moneda)}
+                        <div>
+                          {formatMonto(cobro.monto, cobro.moneda)}
+                          {cobro.moneda === 'ARS' && cotizacion > 1 && (
+                            <span className="text-xs text-costa-gris font-normal ml-1">
+                              ({formatMonto(cobro.monto / cotizacion, 'USD')})
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-1.5">
                         <div className="flex items-center justify-center gap-1">
@@ -903,6 +941,26 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                     </tr>
                   ))}
                 </tbody>
+                {/* Resumen de totales */}
+                {cobros.length > 0 && cotizacion > 1 && (
+                  <tfoot>
+                    <tr className="border-t-2 bg-costa-beige/30">
+                      <td colSpan={4} className="py-2 text-right font-medium text-costa-navy">
+                        Total cobrado (en U$D):
+                      </td>
+                      <td className="py-2 font-bold text-right text-costa-olivo">
+                        {(() => {
+                          const totalUSD = cobros.reduce((acc, c) => {
+                            if (c.moneda === 'USD') return acc + c.monto
+                            return acc + (c.monto / cotizacion)
+                          }, 0)
+                          return formatMonto(totalUSD, 'USD')
+                        })()}
+                      </td>
+                      <td></td>
+                    </tr>
+                  </tfoot>
+                )}
               </table>
             </div>
           )}
