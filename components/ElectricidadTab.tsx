@@ -84,6 +84,7 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
   const [medicionesManuales, setMedicionesManuales] = useState<MedicionManual[]>([])
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const [editingId, setEditingId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState({
@@ -206,17 +207,28 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
   }
 
   // Handlers
-  const openModal = () => {
-    setForm({
-      fecha: new Date().toISOString().split('T')[0],
-      lectura: '',
-      notas: ''
-    })
+  const openModal = (medicion?: MedicionManual) => {
+    if (medicion) {
+      setEditingId(medicion.id)
+      setForm({
+        fecha: medicion.fecha,
+        lectura: medicion.lectura.toString(),
+        notas: medicion.notas || ''
+      })
+    } else {
+      setEditingId(null)
+      setForm({
+        fecha: new Date().toISOString().split('T')[0],
+        lectura: '',
+        notas: ''
+      })
+    }
     setModalOpen(true)
   }
 
   const closeModal = () => {
     setModalOpen(false)
+    setEditingId(null)
     setForm({ fecha: new Date().toISOString().split('T')[0], lectura: '', notas: '' })
   }
 
@@ -230,13 +242,17 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
       propiedad_id: propiedadId,
       fecha: form.fecha,
       lectura: parseInt(form.lectura),
-      consumo: null, // Se calcula comparando con Eidico
+      consumo: null,
       notas: form.notas || null,
       user_id: userId
     }
 
     try {
-      await supabase.from('mediciones_electricidad').insert(data)
+      if (editingId) {
+        await supabase.from('mediciones_electricidad').update(data).eq('id', editingId)
+      } else {
+        await supabase.from('mediciones_electricidad').insert(data)
+      }
 
       // Recargar mediciones
       const { data: nuevas } = await supabase
@@ -299,7 +315,7 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
                     </span>
                   )}
                 </div>
-                <Button size="sm" variant="secondary" onClick={openModal}>
+                <Button size="sm" variant="secondary" onClick={() => openModal()}>
                   <Plus size={14} />
                   Mi Medición
                 </Button>
@@ -422,9 +438,14 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
                           <td className="p-3 text-right font-mono">{formatNumero(m.lectura)}</td>
                           <td className="p-3 text-costa-gris text-xs">{m.notas || '-'}</td>
                           <td className="p-3 text-right">
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteManual(m.id)}>
-                              <Trash2 size={14} className="text-costa-coral" />
-                            </Button>
+                            <div className="flex justify-end gap-1">
+                              <Button variant="ghost" size="sm" onClick={() => openModal(m)}>
+                                <Pencil size={14} />
+                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => handleDeleteManual(m.id)}>
+                                <Trash2 size={14} className="text-costa-coral" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -462,7 +483,7 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
       )}
 
       {/* Modal Nueva Medición Manual */}
-      <Modal isOpen={modalOpen} onClose={closeModal} title="Agregar Mi Medición">
+      <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? "Editar Medición" : "Agregar Mi Medición"}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <p className="text-sm text-costa-gris">
             Registrá tu lectura del medidor para compararla con lo que cobra Eidico.
@@ -512,7 +533,7 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
               Cancelar
             </Button>
             <Button type="submit" disabled={saving || isDemo}>
-              {saving ? 'Guardando...' : 'Guardar'}
+              {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Guardar'}
             </Button>
           </div>
         </form>
