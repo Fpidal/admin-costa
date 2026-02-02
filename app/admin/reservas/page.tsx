@@ -1486,30 +1486,54 @@ function ReservasContent() {
                             </div>
 
                             {/* Fila 2: Limpieza, Lavadero, Electricidad, Cotización, Depósito */}
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm pt-3 border-t border-costa-beige">
-                              <div>
-                                <p className="text-xs text-costa-gris">Limpieza final</p>
-                                <p className="text-costa-navy font-medium">{formatMonto(reserva.limpieza_final || 0, 'ARS')}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-costa-gris">Lavadero</p>
-                                <p className="text-costa-navy font-medium">{formatMonto(reserva.monto_lavadero || 0, 'ARS')}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-costa-gris">Electricidad</p>
-                                <p className={`font-medium ${liquidacion?.consumo_energia ? 'text-costa-coral' : 'text-costa-navy'}`}>
-                                  {liquidacion?.consumo_energia ? `-${formatMonto(liquidacion.consumo_energia, 'ARS')}` : formatMonto(0, 'ARS')}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-costa-gris">Cotización USD</p>
-                                <p className="text-costa-navy font-medium">{formatMonto(liquidacion?.cotizacion_dolar || 0, 'ARS')}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-costa-gris">Depósito</p>
-                                <p className="text-costa-navy font-medium">{formatMonto(cobradoDeposito, moneda)}</p>
-                              </div>
-                            </div>
+                            {(() => {
+                              const cotiz = liquidacion?.cotizacion_dolar || 0
+                              return (
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm pt-3 border-t border-costa-beige">
+                                  <div>
+                                    <p className="text-xs text-costa-gris">Limpieza final</p>
+                                    <p className="text-costa-navy font-medium">
+                                      {formatMonto(reserva.limpieza_final || 0, 'ARS')}
+                                      {cotiz > 0 && (reserva.limpieza_final || 0) > 0 && (
+                                        <span className="text-xs text-costa-gris font-normal ml-1">
+                                          ({formatMonto((reserva.limpieza_final || 0) / cotiz, 'USD')})
+                                        </span>
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-costa-gris">Lavadero</p>
+                                    <p className="text-costa-navy font-medium">
+                                      {formatMonto(reserva.monto_lavadero || 0, 'ARS')}
+                                      {cotiz > 0 && (reserva.monto_lavadero || 0) > 0 && (
+                                        <span className="text-xs text-costa-gris font-normal ml-1">
+                                          ({formatMonto((reserva.monto_lavadero || 0) / cotiz, 'USD')})
+                                        </span>
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-costa-gris">Electricidad</p>
+                                    <p className={`font-medium ${liquidacion?.consumo_energia ? 'text-costa-coral' : 'text-costa-navy'}`}>
+                                      {liquidacion?.consumo_energia ? `-${formatMonto(liquidacion.consumo_energia, 'ARS')}` : formatMonto(0, 'ARS')}
+                                      {cotiz > 0 && (liquidacion?.consumo_energia || 0) > 0 && (
+                                        <span className="text-xs text-costa-gris font-normal ml-1">
+                                          (-{formatMonto(liquidacion.consumo_energia / cotiz, 'USD')})
+                                        </span>
+                                      )}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-costa-gris">Cotización USD</p>
+                                    <p className="text-costa-navy font-medium">{formatMonto(cotiz, 'ARS')}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-costa-gris">Depósito</p>
+                                    <p className="text-costa-navy font-medium">{formatMonto(cobradoDeposito, moneda)}</p>
+                                  </div>
+                                </div>
+                              )
+                            })()}
                           </div>
                         )}
                       </div>
