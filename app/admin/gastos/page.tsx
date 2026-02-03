@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { demoGastos, demoPropiedades } from '@/lib/demoData'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, InputNumber } from '@/components/ui'
-import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp, Check, Zap } from 'lucide-react'
+import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp, Check, Zap, RotateCcw } from 'lucide-react'
 import { ElectricidadTab } from '@/components/ElectricidadTab'
 
 interface Propiedad {
@@ -313,7 +313,15 @@ function AdministracionContent() {
   }
 
   async function marcarPagado(id: number) {
+    if (!confirm('¿Confirmar que este gasto fue pagado?')) return
     const { error } = await supabase.from('gastos').update({ pagado: true }).eq('id', id)
+    if (error) alert('Error: ' + error.message)
+    else fetchData()
+  }
+
+  async function desmarcarPagado(id: number) {
+    if (!confirm('¿Desmarcar como pagado? El gasto volverá a estado Pendiente.')) return
+    const { error } = await supabase.from('gastos').update({ pagado: false }).eq('id', id)
     if (error) alert('Error: ' + error.message)
     else fetchData()
   }
@@ -677,9 +685,13 @@ function AdministracionContent() {
                         <ChevronDown size={16} />
                       </Button>
                     )}
-                    {!gasto.pagado && (
-                      <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>
+                    {!gasto.pagado ? (
+                      <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)} title="Marcar como pagado">
                         <Check size={14} />
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => desmarcarPagado(gasto.id)} title="Desmarcar pago" className="text-orange-500 hover:bg-orange-50">
+                        <RotateCcw size={14} />
                       </Button>
                     )}
                     <Button variant="ghost" size="sm" onClick={() => openModal(gasto)}><Pencil size={16} /></Button>
@@ -750,10 +762,15 @@ function AdministracionContent() {
                                 <ChevronDown size={14} />
                               </Button>
                             )}
-                            {!gasto.pagado && (
+                            {!gasto.pagado ? (
                               <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>
                                 <Check size={14} className="mr-1" />
                                 Pagar
+                              </Button>
+                            ) : (
+                              <Button variant="ghost" size="sm" onClick={() => desmarcarPagado(gasto.id)} className="text-orange-500 hover:bg-orange-50">
+                                <RotateCcw size={14} className="mr-1" />
+                                Deshacer
                               </Button>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => openModal(gasto)}><Pencil size={14} /></Button>
@@ -1076,10 +1093,15 @@ function AdministracionContent() {
             )}
 
             <div className="flex justify-end gap-2 pt-4">
-              {!gastoSeleccionado.pagado && (
+              {!gastoSeleccionado.pagado ? (
                 <Button onClick={() => { marcarPagado(gastoSeleccionado.id); setDetalleModalOpen(false); }}>
                   <Check size={16} className="mr-1" />
                   Marcar como Pagado
+                </Button>
+              ) : (
+                <Button variant="secondary" onClick={() => { desmarcarPagado(gastoSeleccionado.id); setDetalleModalOpen(false); }} className="text-orange-500">
+                  <RotateCcw size={16} className="mr-1" />
+                  Deshacer Pago
                 </Button>
               )}
               <Button variant="ghost" onClick={() => setDetalleModalOpen(false)}>Cerrar</Button>
