@@ -387,13 +387,13 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
 
       {propiedadId && (
         <>
-          {/* Resumen */}
+          {/* Mis Mediciones */}
           <Card>
             <CardHeader className="py-3">
               <CardTitle className="flex items-center justify-between text-base">
                 <div className="flex items-center gap-2">
                   <Zap size={18} className="text-yellow-500" />
-                  Resumen de Consumo
+                  Mis Mediciones
                   {esDeportiva && (
                     <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
                       Deportiva +20%
@@ -402,36 +402,81 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
                 </div>
                 <Button size="sm" variant="secondary" onClick={() => openModal()}>
                   <Plus size={14} />
-                  Mi Medición
+                  Nueva Medición
                 </Button>
               </CardTitle>
             </CardHeader>
             <CardContent className="pt-0">
-              {datosElectricidad.length === 0 ? (
+              {medicionesManuales.length === 0 ? (
                 <div className="text-center py-6 text-costa-gris">
                   <FileText size={32} className="mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No hay datos de electricidad importados</p>
-                  <p className="text-xs mt-1">Importá expensas de Eidico en la solapa "Gastos y Expensas"</p>
+                  <p className="text-sm">No hay mediciones registradas</p>
+                  <p className="text-xs mt-1">Registrá tu lectura del medidor para comparar cuando lleguen las expensas</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-xs text-costa-gris">Última medición</p>
-                    <p className="text-lg font-bold text-costa-navy">{formatNumero(ultimoDato.medicion)}</p>
-                    <p className="text-xs text-costa-gris">{formatFecha(ultimoDato.fechaMedicion)}</p>
+                <div className="space-y-4">
+                  {/* Última medición destacada */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pb-3 border-b border-costa-beige">
+                    <div>
+                      <p className="text-xs text-costa-gris">Última lectura</p>
+                      <p className="text-lg font-bold text-costa-navy">{formatNumero(medicionesManuales[0].lectura)}</p>
+                      <p className="text-xs text-costa-gris">{formatFecha(medicionesManuales[0].fecha)}</p>
+                    </div>
+                    {medicionesManuales.length > 1 && (
+                      <div>
+                        <p className="text-xs text-costa-gris">Consumo estimado</p>
+                        <p className="text-lg font-bold text-costa-navy">
+                          {formatNumero(medicionesManuales[0].lectura - medicionesManuales[1].lectura)} kWh
+                        </p>
+                        <p className="text-xs text-costa-gris">vs medición anterior</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-xs text-costa-gris">Total mediciones</p>
+                      <p className="text-lg font-bold text-costa-navy">{medicionesManuales.length}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-costa-gris">Último consumo</p>
-                    <p className="text-lg font-bold text-costa-navy">{formatNumero(ultimoDato.consumo)} kWh</p>
-                    <p className="text-xs text-costa-gris">{formatMonto(ultimoDato.monto)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-costa-gris">Promedio mensual</p>
-                    <p className="text-lg font-bold text-costa-navy">{formatNumero(promedioConsumo)} kWh</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-costa-gris">Total registros</p>
-                    <p className="text-lg font-bold text-costa-navy">{datosElectricidad.length}</p>
+
+                  {/* Lista de mediciones */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-costa-beige/50">
+                        <tr>
+                          <th className="p-2 text-left">Fecha</th>
+                          <th className="p-2 text-right">Lectura</th>
+                          <th className="p-2 text-right">Consumo</th>
+                          <th className="p-2 text-left">Notas</th>
+                          <th className="p-2 text-right w-20"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {medicionesManuales.map((m, idx) => {
+                          const consumo = idx < medicionesManuales.length - 1
+                            ? m.lectura - medicionesManuales[idx + 1].lectura
+                            : null
+                          return (
+                            <tr key={m.id} className="border-t border-costa-beige">
+                              <td className="p-2">{formatFecha(m.fecha)}</td>
+                              <td className="p-2 text-right font-mono font-medium">{formatNumero(m.lectura)}</td>
+                              <td className="p-2 text-right text-costa-gris">
+                                {consumo !== null ? `${formatNumero(consumo)} kWh` : '-'}
+                              </td>
+                              <td className="p-2 text-costa-gris text-xs">{m.notas || '-'}</td>
+                              <td className="p-2 text-right">
+                                <div className="flex justify-end gap-1">
+                                  <Button variant="ghost" size="sm" onClick={() => openModal(m)}>
+                                    <Pencil size={14} />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" onClick={() => handleDeleteManual(m.id)}>
+                                    <Trash2 size={14} className="text-costa-coral" />
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               )}
@@ -513,48 +558,6 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
                           </tr>
                         )
                       })}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Mediciones manuales */}
-          {medicionesManuales.length > 0 && (
-            <Card>
-              <CardHeader className="py-3">
-                <CardTitle className="text-base">Mis Mediciones Manuales</CardTitle>
-              </CardHeader>
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead className="bg-costa-beige/50">
-                      <tr>
-                        <th className="p-3 text-left">Fecha</th>
-                        <th className="p-3 text-right">Lectura</th>
-                        <th className="p-3 text-left">Notas</th>
-                        <th className="p-3 text-right">Acciones</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {medicionesManuales.map((m) => (
-                        <tr key={m.id} className="border-t border-costa-beige">
-                          <td className="p-3">{formatFecha(m.fecha)}</td>
-                          <td className="p-3 text-right font-mono">{formatNumero(m.lectura)}</td>
-                          <td className="p-3 text-costa-gris text-xs">{m.notas || '-'}</td>
-                          <td className="p-3 text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button variant="ghost" size="sm" onClick={() => openModal(m)}>
-                                <Pencil size={14} />
-                              </Button>
-                              <Button variant="ghost" size="sm" onClick={() => handleDeleteManual(m.id)}>
-                                <Trash2 size={14} className="text-costa-coral" />
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
                     </tbody>
                   </table>
                 </div>
