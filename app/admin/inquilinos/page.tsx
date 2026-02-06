@@ -506,7 +506,7 @@ function InquilinosContent() {
                   <AlertTriangle size={24} className="text-red-600" />
                 </div>
                 <div className="flex-1">
-                  <h4 className="font-bold text-red-700 text-lg">⚠️ ATENCIÓN: Persona en Lista Negra</h4>
+                  <h4 className="font-bold text-red-700 text-lg">⚠️ ATENCIÓN: Inquilino con Incidentes</h4>
                   <p className="text-red-600 font-medium mt-1">
                     {listaNegraAlert.nombre} - DNI: {listaNegraAlert.documento}
                   </p>

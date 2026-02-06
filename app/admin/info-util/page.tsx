@@ -95,9 +95,38 @@ const initialListaNegraForm = {
   nombre: '',
   telefono: '',
   email: '',
-  motivo: '',
+  motivo: 'pendiente',
   fecha: new Date().toISOString().split('T')[0],
   notas: '',
+}
+
+const motivosIncidente = [
+  { value: 'pendiente', label: 'Pendiente', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+  { value: 'danos', label: 'Daños', color: 'bg-red-100 text-red-800 border-red-300' },
+  { value: 'incumplimiento', label: 'Incumplimiento', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+  { value: 'convivencia', label: 'Convivencia', color: 'bg-blue-100 text-blue-800 border-blue-300' },
+  { value: 'sucios', label: 'Sucios', color: 'bg-amber-100 text-amber-800 border-amber-300' },
+  { value: 'otro', label: 'Otro', color: 'bg-gray-100 text-gray-700 border-gray-300' },
+]
+
+const getMotivoConfig = (motivo: string) => {
+  const normalizado = motivo.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (normalizado.includes('dano') || normalizado.includes('rotura') || normalizado.includes('destroz')) {
+    return motivosIncidente.find(m => m.value === 'danos')!
+  }
+  if (normalizado.includes('incumpl') || normalizado.includes('impago') || normalizado.includes('pago')) {
+    return motivosIncidente.find(m => m.value === 'incumplimiento')!
+  }
+  if (normalizado.includes('conviv') || normalizado.includes('ruido') || normalizado.includes('molest') || normalizado.includes('queja')) {
+    return motivosIncidente.find(m => m.value === 'convivencia')!
+  }
+  if (normalizado.includes('sucio') || normalizado.includes('limpieza') || normalizado.includes('mugre') || normalizado.includes('desorden')) {
+    return motivosIncidente.find(m => m.value === 'sucios')!
+  }
+  if (normalizado.includes('pendiente') || normalizado.includes('revisar')) {
+    return motivosIncidente.find(m => m.value === 'pendiente')!
+  }
+  return motivosIncidente.find(m => m.value === 'otro')!
 }
 
 export default function InfoUtilPage() {
@@ -262,14 +291,21 @@ export default function InfoUtilPage() {
   function openListaNegraModal(item?: ListaNegra) {
     if (item) {
       setEditingListaNegraId(item.id)
+      // Mapear motivo existente al nuevo formato de dropdown
+      const motivoConfig = getMotivoConfig(item.motivo || '')
+      // Si el motivo no es uno de los valores del dropdown, es texto libre antiguo
+      const esValorDropdown = motivosIncidente.some(m => m.value === item.motivo)
+      // Si hay notas, usarlas. Si no, y el motivo era texto libre, usar el motivo como notas
+      const notasFinales = item.notas || (!esValorDropdown ? item.motivo : '')
+
       setListaNegraForm({
         documento: item.documento || '',
         nombre: item.nombre || '',
         telefono: item.telefono || '',
         email: item.email || '',
-        motivo: item.motivo || '',
+        motivo: motivoConfig.value,
         fecha: item.fecha || new Date().toISOString().split('T')[0],
-        notas: item.notas || '',
+        notas: notasFinales,
       })
     } else {
       setEditingListaNegraId(null)
@@ -312,7 +348,7 @@ export default function InfoUtilPage() {
   }
 
   async function handleListaNegraDelete(id: number) {
-    if (!confirm('¿Estás seguro de eliminar este registro de la lista negra?')) return
+    if (!confirm('¿Estás seguro de eliminar este registro de incidente?')) return
     const { error } = await supabase.from('lista_negra').delete().eq('id', id)
     if (error) alert('Error al eliminar: ' + error.message)
     else fetchData()
@@ -585,7 +621,7 @@ export default function InfoUtilPage() {
             <div className="p-2 rounded-lg bg-gray-100">
               <AlertTriangle className="w-5 h-5 text-gray-600" />
             </div>
-            Lista Negra de Inquilinos
+            Inquilinos con Incidentes
           </h2>
           <div className="flex items-center gap-2">
             {listaNegra.length > 0 && (
@@ -618,70 +654,91 @@ export default function InfoUtilPage() {
         {listaNegraFiltrada.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-gray-500">
-              {listaNegra.length === 0 ? 'No hay registros en la lista negra' : 'No se encontraron coincidencias'}
+              {listaNegra.length === 0 ? 'No hay registros de incidentes' : 'No se encontraron coincidencias'}
             </CardContent>
           </Card>
         ) : (
-          <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {(listaNegraExpandida ? listaNegraFiltrada : listaNegraFiltrada.slice(0, 6)).map((item) => (
-                <div
-                  key={item.id}
-                  className="relative bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 hover:shadow-md transition-all"
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">DNI</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Motivo</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase"></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {(listaNegraExpandida ? listaNegraFiltrada : listaNegraFiltrada.slice(0, 10)).map((item) => {
+                      const motivoConfig = getMotivoConfig(item.motivo)
+                      const esValorDropdown = motivosIncidente.some(m => m.value === item.motivo)
+                      // Mostrar notas si existen, o el motivo original si era texto libre
+                      const detalleTexto = item.notas || (!esValorDropdown ? item.motivo : '')
+                      return (
+                        <tr key={item.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3">
+                            <span className="font-medium text-costa-navy">{item.nombre}</span>
+                          </td>
+                          <td className="px-4 py-3 text-gray-600">{item.documento}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${motivoConfig.color}`}>
+                              {motivoConfig.label}
+                            </span>
+                            {detalleTexto && (
+                              <p className="text-xs text-gray-500 mt-1 truncate max-w-[200px]" title={detalleTexto}>
+                                {detalleTexto}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-gray-500 text-xs">
+                            {new Date(item.fecha).toLocaleDateString('es-AR')}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex justify-end gap-1">
+                              <button
+                                onClick={() => openListaNegraModal(item)}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                onClick={() => handleListaNegraDelete(item.id)}
+                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {listaNegraFiltrada.length > 10 && (
+                <button
+                  onClick={() => setListaNegraExpandida(!listaNegraExpandida)}
+                  className="w-full py-3 text-sm font-medium text-costa-navy hover:bg-gray-50 border-t flex items-center justify-center gap-2 transition-colors"
                 >
-                  {/* Botones editar/eliminar */}
-                  <div className="absolute top-2 right-2 flex items-center gap-1">
-                    <button
-                      onClick={() => openListaNegraModal(item)}
-                      className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                    >
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      onClick={() => handleListaNegraDelete(item.id)}
-                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-
-                  {/* Contenido */}
-                  <h4 className="font-bold text-costa-navy pr-16 truncate">{item.nombre}</h4>
-                  <p className="text-sm text-gray-500 mt-1">DNI: {item.documento}</p>
-
-                  <div className="mt-3 p-2 bg-gray-50 rounded-md">
-                    <p className="text-sm text-gray-700 flex items-start gap-1.5">
-                      <AlertTriangle size={14} className="flex-shrink-0 mt-0.5 text-gray-500" />
-                      <span className="line-clamp-2">{item.motivo}</span>
-                    </p>
-                  </div>
-
-                  <p className="text-xs text-gray-400 mt-3">
-                    Agregado: {new Date(item.fecha).toLocaleDateString('es-AR')}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {listaNegraFiltrada.length > 6 && (
-              <button
-                onClick={() => setListaNegraExpandida(!listaNegraExpandida)}
-                className="w-full mt-4 py-3 text-sm font-medium text-costa-navy hover:bg-gray-50 rounded-lg border border-gray-200 flex items-center justify-center gap-2 transition-colors"
-              >
-                {listaNegraExpandida ? (
-                  <>
-                    <ChevronUp size={16} />
-                    Mostrar menos
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown size={16} />
-                    Ver {listaNegraFiltrada.length - 6} registros más
-                  </>
-                )}
-              </button>
-            )}
-          </>
+                  {listaNegraExpandida ? (
+                    <>
+                      <ChevronUp size={16} />
+                      Mostrar menos
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={16} />
+                      Ver {listaNegraFiltrada.length - 10} registros más
+                    </>
+                  )}
+                </button>
+              )}
+            </CardContent>
+          </Card>
         )}
       </div>
 
@@ -767,7 +824,7 @@ export default function InfoUtilPage() {
       </Modal>
 
       {/* Modal Lista Negra */}
-      <Modal isOpen={listaNegraModalOpen} onClose={closeListaNegraModal} title={editingListaNegraId ? 'Editar Registro' : 'Agregar a Lista Negra'}>
+      <Modal isOpen={listaNegraModalOpen} onClose={closeListaNegraModal} title={editingListaNegraId ? 'Editar Registro' : 'Agregar Inquilino con Incidente'}>
         <form onSubmit={handleListaNegraSubmit} className="space-y-4">
           <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
             <p className="text-sm text-amber-700 flex items-center gap-2">
@@ -775,9 +832,10 @@ export default function InfoUtilPage() {
               Los inquilinos en esta lista serán alertados al cargar una reserva.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          {/* Fila 1: DNI, Nombre, Fecha */}
+          <div className="grid grid-cols-3 gap-4">
             <Input
-              label="Documento (DNI/Pasaporte)"
+              label="DNI/Pasaporte"
               value={listaNegraForm.documento}
               onChange={(e) => setListaNegraForm({ ...listaNegraForm, documento: e.target.value })}
               required
@@ -788,15 +846,21 @@ export default function InfoUtilPage() {
               onChange={(e) => setListaNegraForm({ ...listaNegraForm, nombre: e.target.value })}
               required
             />
+            <Input
+              label="Fecha incidente"
+              type="date"
+              value={listaNegraForm.fecha}
+              onChange={(e) => setListaNegraForm({ ...listaNegraForm, fecha: e.target.value })}
+            />
           </div>
-          <Input
-            label="Motivo"
-            value={listaNegraForm.motivo}
-            onChange={(e) => setListaNegraForm({ ...listaNegraForm, motivo: e.target.value })}
-            placeholder="Ej: Daños a la propiedad, impago, mal comportamiento..."
-            required
-          />
-          <div className="grid grid-cols-2 gap-4">
+          {/* Fila 2: Tipo, Teléfono, Email */}
+          <div className="grid grid-cols-3 gap-4">
+            <Select
+              label="Tipo de incidente"
+              value={listaNegraForm.motivo}
+              onChange={(e) => setListaNegraForm({ ...listaNegraForm, motivo: e.target.value })}
+              options={motivosIncidente.map(m => ({ value: m.value, label: m.label }))}
+            />
             <Input
               label="Teléfono"
               value={listaNegraForm.telefono}
@@ -809,18 +873,17 @@ export default function InfoUtilPage() {
               onChange={(e) => setListaNegraForm({ ...listaNegraForm, email: e.target.value })}
             />
           </div>
-          <Input
-            label="Fecha del incidente"
-            type="date"
-            value={listaNegraForm.fecha}
-            onChange={(e) => setListaNegraForm({ ...listaNegraForm, fecha: e.target.value })}
-          />
-          <Input
-            label="Notas adicionales"
-            value={listaNegraForm.notas}
-            onChange={(e) => setListaNegraForm({ ...listaNegraForm, notas: e.target.value })}
-            placeholder="Detalles adicionales..."
-          />
+          {/* Fila 3: Detalle del incidente - textarea grande */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Detalle del incidente</label>
+            <textarea
+              value={listaNegraForm.notas}
+              onChange={(e) => setListaNegraForm({ ...listaNegraForm, notas: e.target.value })}
+              placeholder="Descripción detallada del incidente..."
+              rows={3}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-costa-coral/50 focus:border-costa-coral resize-none"
+            />
+          </div>
           <div className="flex justify-end gap-3 pt-4 border-t">
             <Button type="button" variant="secondary" onClick={closeListaNegraModal}>Cancelar</Button>
             <Button type="submit" disabled={savingListaNegra}>
