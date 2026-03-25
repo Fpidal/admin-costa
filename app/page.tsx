@@ -421,8 +421,88 @@ function LandingContent() {
         </div>
       </section>
 
-      {/* Descubrí Costa Esmeralda Section */}
+      {/* Testimonios Section */}
       <section className="py-16 bg-costa-beige/30">
+        <div className="max-w-6xl mx-auto px-4">
+          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
+            Lo que dicen nuestros huéspedes
+          </h2>
+          <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
+            Familias que ya disfrutaron de Costa Esmeralda con nosotros
+          </p>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="bg-white p-6 rounded-2xl shadow-sm">
+              <div className="flex items-center gap-1 text-amber-400 mb-4">
+                {[1,2,3,4,5].map(i => (
+                  <svg key={i} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                ))}
+              </div>
+              <p className="text-costa-gris mb-4 italic">
+                "Pasamos unas vacaciones increíbles. La casa estaba impecable y el trato con el dueño fue excelente. Volveremos seguro."
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-costa-navy text-white flex items-center justify-center font-semibold">
+                  MG
+                </div>
+                <div>
+                  <p className="font-medium text-costa-navy">María García</p>
+                  <p className="text-xs text-costa-gris">Enero 2026 • Golf 2</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm">
+              <div className="flex items-center gap-1 text-amber-400 mb-4">
+                {[1,2,3,4,5].map(i => (
+                  <svg key={i} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                ))}
+              </div>
+              <p className="text-costa-gris mb-4 italic">
+                "Sin intermediarios significa respuestas rápidas y flexibilidad. Nos sentimos como en casa desde el primer día."
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-costa-olivo text-white flex items-center justify-center font-semibold">
+                  PL
+                </div>
+                <div>
+                  <p className="font-medium text-costa-navy">Pablo López</p>
+                  <p className="text-xs text-costa-gris">Febrero 2026 • Senderos 3</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-2xl shadow-sm">
+              <div className="flex items-center gap-1 text-amber-400 mb-4">
+                {[1,2,3,4,5].map(i => (
+                  <svg key={i} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                  </svg>
+                ))}
+              </div>
+              <p className="text-costa-gris mb-4 italic">
+                "La pileta climatizada fue un hit con los chicos. El dueño nos dejó todo listo y nos recomendó lugares increíbles."
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-costa-coral text-white flex items-center justify-center font-semibold">
+                  CF
+                </div>
+                <div>
+                  <p className="font-medium text-costa-navy">Carolina Fernández</p>
+                  <p className="text-xs text-costa-gris">Diciembre 2025 • Marítimo 1</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Descubrí Costa Esmeralda Section */}
+      <section className="py-16 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
             Descubrí Costa Esmeralda
@@ -853,6 +933,80 @@ function LandingContent() {
               })}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-16 bg-costa-beige/30">
+        <div className="max-w-3xl mx-auto px-4">
+          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
+            Preguntas frecuentes
+          </h2>
+          <p className="text-costa-gris text-center mb-12">
+            Todo lo que necesitás saber antes de reservar
+          </p>
+
+          <div className="space-y-4">
+            <details className="bg-white rounded-xl shadow-sm group">
+              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+                <span className="font-medium text-costa-navy">¿Cómo reservo una propiedad?</span>
+                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="px-5 pb-5 text-costa-gris">
+                <p>Es muy simple: elegí la propiedad que te gusta, hacé clic en "Consultar" y te comunicás directo con el dueño por WhatsApp. Coordinás fechas, precio y forma de pago sin intermediarios.</p>
+              </div>
+            </details>
+
+            <details className="bg-white rounded-xl shadow-sm group">
+              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+                <span className="font-medium text-costa-navy">¿Qué incluye el alquiler?</span>
+                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="px-5 pb-5 text-costa-gris">
+                <p>Cada propiedad detalla sus amenities (pileta, WiFi, parrilla, etc.). Generalmente incluye ropa blanca, utensilios de cocina y acceso a todas las instalaciones del barrio. Consultá con el dueño por detalles específicos.</p>
+              </div>
+            </details>
+
+            <details className="bg-white rounded-xl shadow-sm group">
+              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+                <span className="font-medium text-costa-navy">¿Es seguro Costa Esmeralda?</span>
+                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="px-5 pb-5 text-costa-gris">
+                <p>Sí, Costa Esmeralda es un barrio cerrado con seguridad privada las 24 horas, control de acceso vehicular y servicio de emergencias médicas. Es uno de los desarrollos más seguros de la costa argentina.</p>
+              </div>
+            </details>
+
+            <details className="bg-white rounded-xl shadow-sm group">
+              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+                <span className="font-medium text-costa-navy">¿Puedo llevar mascotas?</span>
+                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="px-5 pb-5 text-costa-gris">
+                <p>Depende de cada propiedad. Algunas aceptan mascotas y otras no. Consultá directamente con el dueño antes de reservar para confirmar.</p>
+              </div>
+            </details>
+
+            <details className="bg-white rounded-xl shadow-sm group">
+              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+                <span className="font-medium text-costa-navy">¿Cuáles son los horarios de check-in y check-out?</span>
+                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="px-5 pb-5 text-costa-gris">
+                <p>Generalmente el check-in es a partir de las 15:00 hs y el check-out hasta las 10:00 hs. Podés coordinar horarios flexibles directamente con el dueño según disponibilidad.</p>
+              </div>
+            </details>
+
+            <details className="bg-white rounded-xl shadow-sm group">
+              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
+                <span className="font-medium text-costa-navy">¿Cómo llego a Costa Esmeralda?</span>
+                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
+              </summary>
+              <div className="px-5 pb-5 text-costa-gris">
+                <p>Costa Esmeralda está a 10 minutos de Pinamar, sobre la Ruta 11 (km 394). Desde Buenos Aires son aproximadamente 4 horas por Autovía 2 y Ruta 11. El acceso es por la entrada principal con control de seguridad.</p>
+              </div>
+            </details>
+          </div>
         </div>
       </section>
 
