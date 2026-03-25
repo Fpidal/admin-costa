@@ -94,6 +94,17 @@ function LandingContent() {
   const [propiedadModal, setPropiedadModal] = useState<Propiedad | null>(null)
   const [modalImageIndex, setModalImageIndex] = useState(0)
 
+  // Hero slideshow
+  const [heroImageIndex, setHeroImageIndex] = useState(0)
+  const heroImages = [
+    'https://dpghrdgippisgzvlahwi.supabase.co/storage/v1/object/public/Imagenes/foto%20playa%20costa.JPG',
+    'https://costa-esmeralda.com.ar/wp-content/uploads/2021/06/naturaleza.jpg',
+    'https://costa-esmeralda.com.ar/wp-content/uploads/2024/04/Cancha-de-Polo-02-scaled.jpg',
+  ]
+
+  // Sticky header
+  const [showStickyHeader, setShowStickyHeader] = useState(false)
+
   // Estado para búsqueda de fechas y precios
   const [fechasBusqueda, setFechasBusqueda] = useState<{ checkIn: string; checkOut: string } | null>(null)
   const [preciosCalendario, setPreciosCalendario] = useState<Record<number, PrecioCalendario[]>>({})
@@ -207,6 +218,23 @@ function LandingContent() {
       document.body.style.overflow = ''
     }
   }, [lightbox])
+
+  // Hero slideshow automático
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHeroImageIndex((prev) => (prev + 1) % heroImages.length)
+    }, 5000) // Cambiar cada 5 segundos
+    return () => clearInterval(interval)
+  }, [heroImages.length])
+
+  // Sticky header al scrollear
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowStickyHeader(window.scrollY > 400)
+    }
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
 
   // Buscar precios cuando se seleccionan fechas
   useEffect(() => {
@@ -330,6 +358,31 @@ function LandingContent() {
 
   return (
     <div className="min-h-screen">
+      {/* Sticky Header */}
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${showStickyHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
+        <div className="bg-white/95 backdrop-blur-sm shadow-md">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <span className="text-xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
+              Admin Costa
+            </span>
+            <div className="flex items-center gap-4">
+              <a
+                href="#propiedades"
+                className="px-4 py-2 bg-costa-navy text-white text-sm font-medium rounded-lg hover:bg-costa-navy/90 transition-colors"
+              >
+                Ver propiedades
+              </a>
+              <Link
+                href={isDemo ? "/admin?demo=true" : "/admin"}
+                className="px-4 py-2 text-sm text-costa-navy hover:text-costa-navy/70 transition-colors"
+              >
+                Acceso dueños
+              </Link>
+            </div>
+          </div>
+        </div>
+      </header>
+
       {/* Demo Banner */}
       {isDemo && (
         <div className="bg-amber-100 text-amber-800 text-center py-2 text-sm font-medium">
@@ -337,14 +390,28 @@ function LandingContent() {
         </div>
       )}
 
-      {/* Hero Section */}
+      {/* Hero Section con Slideshow */}
       <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: 'url(https://dpghrdgippisgzvlahwi.supabase.co/storage/v1/object/public/Imagenes/foto%20playa%20costa.JPG)' }}
-        >
-          <div className="absolute inset-0 bg-gradient-to-b from-costa-navy/60 via-costa-navy/40 to-costa-navy/70" />
+        {/* Background Slideshow */}
+        {heroImages.map((img, idx) => (
+          <div
+            key={idx}
+            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${idx === heroImageIndex ? 'opacity-100' : 'opacity-0'}`}
+            style={{ backgroundImage: `url(${img})` }}
+          >
+            <div className="absolute inset-0 bg-gradient-to-b from-costa-navy/60 via-costa-navy/40 to-costa-navy/70" />
+          </div>
+        ))}
+
+        {/* Indicadores del slideshow */}
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex gap-2">
+          {heroImages.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => setHeroImageIndex(idx)}
+              className={`w-2 h-2 rounded-full transition-all ${idx === heroImageIndex ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/70'}`}
+            />
+          ))}
         </div>
 
         {/* Acceso dueños - arriba derecha */}
@@ -360,15 +427,48 @@ function LandingContent() {
           <h1 className="text-5xl md:text-6xl font-semibold text-white mb-4 tracking-wide" style={{ fontFamily: 'var(--font-playfair)' }}>
             Tu casa en Costa Esmeralda
           </h1>
-          <p className="text-xl md:text-2xl text-white/90 mb-8 font-light">
+          <p className="text-xl md:text-2xl text-white/90 mb-6 font-light">
             Propiedades administradas directamente por sus dueños
           </p>
+
+          {/* Badges de confianza */}
+          <div className="flex flex-wrap justify-center gap-4 mb-8">
+            <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm">
+              <CheckCircle size={16} className="text-costa-olivo" />
+              Propietarios verificados
+            </span>
+            <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm">
+              <Shield size={16} className="text-costa-olivo" />
+              Reserva segura
+            </span>
+            <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm">
+              <Users size={16} className="text-costa-olivo" />
+              Trato directo
+            </span>
+          </div>
+
           <a
             href="#propiedades"
             className="inline-block px-8 py-3 bg-white text-costa-navy font-medium rounded-lg hover:bg-costa-beige transition-colors"
           >
             Ver propiedades
           </a>
+
+          {/* Contador */}
+          <div className="flex justify-center gap-8 mt-10">
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-bold text-white">{propiedades.length || '10'}+</p>
+              <p className="text-white/70 text-sm">Propiedades</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-bold text-white">200+</p>
+              <p className="text-white/70 text-sm">Familias felices</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-bold text-white">5</p>
+              <p className="text-white/70 text-sm">Años de experiencia</p>
+            </div>
+          </div>
         </div>
 
         {/* Scroll indicator */}
