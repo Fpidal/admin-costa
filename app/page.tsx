@@ -628,6 +628,90 @@ function LandingContent() {
         </div>
       </section>
 
+      {/* Galería del Barrio */}
+      <section className="py-16 bg-costa-beige/30">
+        <div className="max-w-6xl mx-auto px-4">
+          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
+            Viví la experiencia Costa Esmeralda
+          </h2>
+          <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
+            Naturaleza, deportes y tranquilidad en un solo lugar
+          </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {/* Foto grande - Playa */}
+            <div className="col-span-2 row-span-2 relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[400px]">
+              <img
+                src="https://dpghrdgippisgzvlahwi.supabase.co/storage/v1/object/public/Imagenes/foto%20playa%20costa.JPG"
+                alt="Playa Costa Esmeralda"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-4 left-4 text-white">
+                <h3 className="text-xl font-semibold">Playa privada</h3>
+                <p className="text-sm text-white/80">Acceso directo al mar</p>
+              </div>
+            </div>
+
+            {/* Golf */}
+            <div className="relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[190px]">
+              <img
+                src="https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=400&h=300&fit=crop"
+                alt="Campo de Golf"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-3 left-3 text-white">
+                <h3 className="font-semibold">Golf</h3>
+                <p className="text-xs text-white/80">27 hoyos</p>
+              </div>
+            </div>
+
+            {/* Polo */}
+            <div className="relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[190px]">
+              <img
+                src="https://costa-esmeralda.com.ar/wp-content/uploads/2024/04/Cancha-de-Polo-02-scaled.jpg"
+                alt="Cancha de Polo"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-3 left-3 text-white">
+                <h3 className="font-semibold">Polo</h3>
+                <p className="text-xs text-white/80">Canchas profesionales</p>
+              </div>
+            </div>
+
+            {/* Naturaleza */}
+            <div className="relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[190px]">
+              <img
+                src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=400&h=300&fit=crop"
+                alt="Bosque y naturaleza"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-3 left-3 text-white">
+                <h3 className="font-semibold">Naturaleza</h3>
+                <p className="text-xs text-white/80">Bosques y senderos</p>
+              </div>
+            </div>
+
+            {/* Club House */}
+            <div className="relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[190px]">
+              <img
+                src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop"
+                alt="Club House y restaurante"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+              <div className="absolute bottom-3 left-3 text-white">
+                <h3 className="font-semibold">Gastronomía</h3>
+                <p className="text-xs text-white/80">Club House</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Properties Section */}
       <section id="propiedades" className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4">
