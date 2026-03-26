@@ -4,7 +4,8 @@ import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
-import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope, Phone, ThermometerSun, Zap, WashingMachine, Ruler, LandPlot, Eye } from 'lucide-react'
+import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope, Phone, ThermometerSun, Zap, WashingMachine, Ruler, LandPlot, Eye, Globe } from 'lucide-react'
+import { useLanguage } from '@/hooks/useLanguage'
 import Link from 'next/link'
 import { SelectorFechasPublico } from '@/components/SelectorFechasPublico'
 import { calcularPrecioReserva, formatPrecio, PrecioCalendario } from '@/lib/calcularPrecio'
@@ -83,6 +84,7 @@ const formatWhatsApp = (telefono: string | null | undefined): string => {
 function LandingContent() {
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+  const { language, toggleLanguage, t } = useLanguage()
 
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
@@ -366,17 +368,26 @@ function LandingContent() {
               Admin Costa
             </span>
             <div className="flex items-center gap-4">
+              {/* Selector de idioma */}
+              <button
+                onClick={toggleLanguage}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-costa-gris hover:text-costa-navy transition-colors"
+                title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+              >
+                <Globe size={16} />
+                {language === 'es' ? 'EN' : 'ES'}
+              </button>
               <a
                 href="#propiedades"
                 className="px-4 py-2 bg-costa-navy text-white text-sm font-medium rounded-lg hover:bg-costa-navy/90 transition-colors"
               >
-                Ver propiedades
+                {t('viewProperties')}
               </a>
               <Link
                 href={isDemo ? "/admin?demo=true" : "/admin"}
                 className="px-4 py-2 text-sm text-costa-navy hover:text-costa-navy/70 transition-colors"
               >
-                Acceso dueños
+                {t('accessOwners')}
               </Link>
             </div>
           </div>
@@ -414,36 +425,46 @@ function LandingContent() {
           ))}
         </div>
 
-        {/* Acceso dueños - arriba derecha */}
-        <Link
-          href={isDemo ? "/admin?demo=true" : "/admin"}
-          className="absolute top-4 right-4 z-20 px-4 py-2 text-sm text-white/80 hover:text-white border border-white/30 hover:border-white/50 rounded-lg transition-colors"
-        >
-          Acceso dueños
-        </Link>
+        {/* Acceso dueños y selector idioma - arriba derecha */}
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm text-white/80 hover:text-white border border-white/30 hover:border-white/50 rounded-lg transition-colors"
+            title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
+          >
+            <Globe size={16} />
+            {language === 'es' ? 'EN' : 'ES'}
+          </button>
+          <Link
+            href={isDemo ? "/admin?demo=true" : "/admin"}
+            className="px-4 py-2 text-sm text-white/80 hover:text-white border border-white/30 hover:border-white/50 rounded-lg transition-colors"
+          >
+            {t('accessOwners')}
+          </Link>
+        </div>
 
         {/* Content */}
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-semibold text-white mb-4 tracking-wide" style={{ fontFamily: 'var(--font-playfair)' }}>
-            Tu casa en Costa Esmeralda
+            {t('heroTitle')}
           </h1>
           <p className="text-xl md:text-2xl text-white/90 mb-6 font-light">
-            Propiedades administradas directamente por sus dueños
+            {t('heroSubtitle')}
           </p>
 
           {/* Badges de confianza */}
           <div className="flex flex-wrap justify-center gap-4 mb-8">
             <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm">
               <CheckCircle size={16} className="text-costa-olivo" />
-              Propietarios verificados
+              {t('verifiedOwners')}
             </span>
             <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm">
               <Shield size={16} className="text-costa-olivo" />
-              Reserva segura
+              {t('secureBooking')}
             </span>
             <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm">
               <Users size={16} className="text-costa-olivo" />
-              Trato directo
+              {t('directContact')}
             </span>
           </div>
 
@@ -451,22 +472,22 @@ function LandingContent() {
             href="#propiedades"
             className="inline-block px-8 py-3 bg-white text-costa-navy font-medium rounded-lg hover:bg-costa-beige transition-colors"
           >
-            Ver propiedades
+            {t('viewProperties')}
           </a>
 
           {/* Contador */}
           <div className="flex justify-center gap-8 mt-10">
             <div className="text-center">
               <p className="text-3xl md:text-4xl font-bold text-white">{propiedades.length || '10'}+</p>
-              <p className="text-white/70 text-sm">Propiedades</p>
+              <p className="text-white/70 text-sm">{t('properties')}</p>
             </div>
             <div className="text-center">
               <p className="text-3xl md:text-4xl font-bold text-white">200+</p>
-              <p className="text-white/70 text-sm">Familias felices</p>
+              <p className="text-white/70 text-sm">{t('happyFamilies')}</p>
             </div>
             <div className="text-center">
               <p className="text-3xl md:text-4xl font-bold text-white">5</p>
-              <p className="text-white/70 text-sm">Años de experiencia</p>
+              <p className="text-white/70 text-sm">{t('yearsExperience')}</p>
             </div>
           </div>
         </div>
@@ -481,10 +502,10 @@ function LandingContent() {
       <section className="py-16 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            Nuestro modelo
+            {t('ourModel')}
           </h2>
           <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
-            Propiedades administradas directamente por sus dueños o representantes
+            {t('ourModelSubtitle')}
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -492,9 +513,9 @@ function LandingContent() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-beige flex items-center justify-center">
                 <CheckCircle size={32} className="text-costa-olivo" />
               </div>
-              <h3 className="text-lg font-semibold text-costa-navy mb-2">Sin intermediarios</h3>
+              <h3 className="text-lg font-semibold text-costa-navy mb-2">{t('noIntermediaries')}</h3>
               <p className="text-costa-gris text-sm">
-                Trato directo con los dueños. Sin comisiones de agencias ni costos ocultos.
+                {t('noIntermediariesDesc')}
               </p>
             </div>
 
@@ -502,9 +523,9 @@ function LandingContent() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-beige flex items-center justify-center">
                 <Users size={32} className="text-costa-olivo" />
               </div>
-              <h3 className="text-lg font-semibold text-costa-navy mb-2">Propietarios comprometidos</h3>
+              <h3 className="text-lg font-semibold text-costa-navy mb-2">{t('committedOwners')}</h3>
               <p className="text-costa-gris text-sm">
-                Cuidamos nuestras propiedades porque son nuestras. Atención personalizada garantizada.
+                {t('committedOwnersDesc')}
               </p>
             </div>
 
@@ -512,9 +533,9 @@ function LandingContent() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-beige flex items-center justify-center">
                 <Waves size={32} className="text-costa-olivo" />
               </div>
-              <h3 className="text-lg font-semibold text-costa-navy mb-2">Estándares de calidad</h3>
+              <h3 className="text-lg font-semibold text-costa-navy mb-2">{t('qualityStandards')}</h3>
               <p className="text-costa-gris text-sm">
-                Propiedades seleccionadas en Costa Esmeralda. Confort y tranquilidad asegurados.
+                {t('qualityStandardsDesc')}
               </p>
             </div>
           </div>
@@ -525,10 +546,10 @@ function LandingContent() {
       <section className="py-16 bg-costa-beige/30">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            Lo que dicen nuestros huéspedes
+            {t('testimonialsTitle')}
           </h2>
           <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
-            Familias que ya disfrutaron de Costa Esmeralda con nosotros
+            {t('testimonialsSubtitle')}
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -541,7 +562,7 @@ function LandingContent() {
                 ))}
               </div>
               <p className="text-costa-gris mb-4 italic">
-                "Pasamos unas vacaciones increíbles. La casa estaba impecable y el trato con el dueño fue excelente. Volveremos seguro."
+                "{t('testimonial1')}"
               </p>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-costa-navy text-white flex items-center justify-center font-semibold">
@@ -563,7 +584,7 @@ function LandingContent() {
                 ))}
               </div>
               <p className="text-costa-gris mb-4 italic">
-                "Sin intermediarios significa respuestas rápidas y flexibilidad. Nos sentimos como en casa desde el primer día."
+                "{t('testimonial2')}"
               </p>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-costa-olivo text-white flex items-center justify-center font-semibold">
@@ -585,7 +606,7 @@ function LandingContent() {
                 ))}
               </div>
               <p className="text-costa-gris mb-4 italic">
-                "La pileta climatizada fue un hit con los chicos. El dueño nos dejó todo listo y nos recomendó lugares increíbles."
+                "{t('testimonial3')}"
               </p>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-costa-coral text-white flex items-center justify-center font-semibold">
@@ -605,10 +626,10 @@ function LandingContent() {
       <section className="py-16 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            Descubrí Costa Esmeralda
+            {t('discoverTitle')}
           </h2>
           <p className="text-costa-gris text-center mb-12 max-w-3xl mx-auto">
-            No alquilás solo una casa. Vivís una experiencia en Costa Esmeralda: un barrio privado sobre el mar con seguridad las 24 horas, naturaleza, y una infraestructura pensada para disfrutar en cualquier época del año.
+            {t('discoverSubtitle')}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -617,8 +638,8 @@ function LandingContent() {
                 <Shield size={24} className="text-costa-navy" />
               </div>
               <div>
-                <h3 className="font-semibold text-costa-navy">Seguridad 24 hs</h3>
-                <p className="text-sm text-costa-gris">Seguridad privada las 24 horas</p>
+                <h3 className="font-semibold text-costa-navy">{t('security24h')}</h3>
+                <p className="text-sm text-costa-gris">{t('security24hDesc')}</p>
               </div>
             </button>
 
@@ -627,8 +648,8 @@ function LandingContent() {
                 <Stethoscope size={24} className="text-costa-navy" />
               </div>
               <div>
-                <h3 className="font-semibold text-costa-navy">Ambulancia y médicos</h3>
-                <p className="text-sm text-costa-gris">Atención médica las 24 hs</p>
+                <h3 className="font-semibold text-costa-navy">{t('ambulanceDoctors')}</h3>
+                <p className="text-sm text-costa-gris">{t('ambulanceDoctorsDesc')}</p>
               </div>
             </button>
 
@@ -637,8 +658,8 @@ function LandingContent() {
                 <Flag size={24} className="text-costa-navy" />
               </div>
               <div>
-                <h3 className="font-semibold text-costa-navy">Campo de golf</h3>
-                <p className="text-sm text-costa-gris">27 hoyos de nivel internacional</p>
+                <h3 className="font-semibold text-costa-navy">{t('golfCourse')}</h3>
+                <p className="text-sm text-costa-gris">{t('golfCourseDesc')}</p>
               </div>
             </button>
 
@@ -647,8 +668,8 @@ function LandingContent() {
                 <Trophy size={24} className="text-costa-navy" />
               </div>
               <div>
-                <h3 className="font-semibold text-costa-navy">Cancha de polo</h3>
-                <p className="text-sm text-costa-gris">Para aficionados y profesionales</p>
+                <h3 className="font-semibold text-costa-navy">{t('poloCourt')}</h3>
+                <p className="text-sm text-costa-gris">{t('poloCourtDesc')}</p>
               </div>
             </button>
 
@@ -657,8 +678,8 @@ function LandingContent() {
                 <Dumbbell size={24} className="text-costa-navy" />
               </div>
               <div>
-                <h3 className="font-semibold text-costa-navy">Centro deportivo</h3>
-                <p className="text-sm text-costa-gris">Gimnasio, tenis y más</p>
+                <h3 className="font-semibold text-costa-navy">{t('sportsCenter')}</h3>
+                <p className="text-sm text-costa-gris">{t('sportsCenterDesc')}</p>
               </div>
             </button>
 
@@ -667,8 +688,8 @@ function LandingContent() {
                 <UtensilsCrossed size={24} className="text-costa-navy" />
               </div>
               <div>
-                <h3 className="font-semibold text-costa-navy">Restaurantes</h3>
-                <p className="text-sm text-costa-gris">Gastronomía y club house</p>
+                <h3 className="font-semibold text-costa-navy">{t('restaurants')}</h3>
+                <p className="text-sm text-costa-gris">{t('restaurantsDesc')}</p>
               </div>
             </button>
 
@@ -677,8 +698,8 @@ function LandingContent() {
                 <Car size={24} className="text-costa-navy" />
               </div>
               <div>
-                <h3 className="font-semibold text-costa-navy">Cuatriciclos y UTVs</h3>
-                <p className="text-sm text-costa-gris">Alquiler para pasear</p>
+                <h3 className="font-semibold text-costa-navy">{t('atvs')}</h3>
+                <p className="text-sm text-costa-gris">{t('atvsDesc')}</p>
               </div>
             </button>
 
@@ -687,8 +708,8 @@ function LandingContent() {
                 <TreePine size={24} className="text-costa-navy" />
               </div>
               <div>
-                <h3 className="font-semibold text-costa-navy">Cabalgatas</h3>
-                <p className="text-sm text-costa-gris">Alquiler de caballos y paseos</p>
+                <h3 className="font-semibold text-costa-navy">{t('horseRiding')}</h3>
+                <p className="text-sm text-costa-gris">{t('horseRidingDesc')}</p>
               </div>
             </button>
 
@@ -697,8 +718,8 @@ function LandingContent() {
                 <ShoppingCart size={24} className="text-costa-navy" />
               </div>
               <div>
-                <h3 className="font-semibold text-costa-navy">Proveeduría</h3>
-                <p className="text-sm text-costa-gris">Carnicería, almacén y más</p>
+                <h3 className="font-semibold text-costa-navy">{t('grocery')}</h3>
+                <p className="text-sm text-costa-gris">{t('groceryDesc')}</p>
               </div>
             </button>
           </div>
@@ -706,7 +727,7 @@ function LandingContent() {
           {/* Mapa de ubicación */}
           <div className="mt-12">
             <h3 className="text-xl font-semibold text-costa-navy text-center mb-6" style={{ fontFamily: 'var(--font-playfair)' }}>
-              Ubicación
+              {t('location')}
             </h3>
             <div className="rounded-2xl overflow-hidden shadow-lg">
               <iframe
@@ -722,7 +743,7 @@ function LandingContent() {
               />
             </div>
             <p className="text-center text-costa-gris text-sm mt-4">
-              Costa Esmeralda, Partido de la Costa, Buenos Aires — <span className="text-costa-navy font-medium">A solo 10 minutos de Pinamar</span>
+              {t('locationDesc')} — <span className="text-costa-navy font-medium">{t('nearPinamar')}</span>
             </p>
           </div>
         </div>
@@ -732,10 +753,10 @@ function LandingContent() {
       <section className="py-16 bg-costa-beige/30">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            Viví la experiencia Costa Esmeralda
+            {t('galleryTitle')}
           </h2>
           <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
-            Naturaleza, deportes y tranquilidad en un solo lugar
+            {t('gallerySubtitle')}
           </p>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -748,8 +769,8 @@ function LandingContent() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-4 left-4 text-white">
-                <h3 className="text-xl font-semibold">Playa privada</h3>
-                <p className="text-sm text-white/80">Acceso directo al mar</p>
+                <h3 className="text-xl font-semibold">{t('privateBeach')}</h3>
+                <p className="text-sm text-white/80">{t('beachAccess')}</p>
               </div>
             </div>
 
@@ -762,8 +783,8 @@ function LandingContent() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-3 left-3 text-white">
-                <h3 className="font-semibold">Golf</h3>
-                <p className="text-xs text-white/80">27 hoyos</p>
+                <h3 className="font-semibold">{t('golf')}</h3>
+                <p className="text-xs text-white/80">{t('golf27holes')}</p>
               </div>
             </div>
 
@@ -776,8 +797,8 @@ function LandingContent() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-3 left-3 text-white">
-                <h3 className="font-semibold">Polo</h3>
-                <p className="text-xs text-white/80">Canchas profesionales</p>
+                <h3 className="font-semibold">{t('polo')}</h3>
+                <p className="text-xs text-white/80">{t('professionalCourts')}</p>
               </div>
             </div>
 
@@ -790,8 +811,8 @@ function LandingContent() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-3 left-3 text-white">
-                <h3 className="font-semibold">Naturaleza</h3>
-                <p className="text-xs text-white/80">Bosques y senderos</p>
+                <h3 className="font-semibold">{t('nature')}</h3>
+                <p className="text-xs text-white/80">{t('forestsTrails')}</p>
               </div>
             </div>
 
@@ -804,8 +825,8 @@ function LandingContent() {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
               <div className="absolute bottom-3 left-3 text-white">
-                <h3 className="font-semibold">Gastronomía</h3>
-                <p className="text-xs text-white/80">Club House</p>
+                <h3 className="font-semibold">{t('gastronomy')}</h3>
+                <p className="text-xs text-white/80">{t('clubHouse')}</p>
               </div>
             </div>
           </div>
@@ -816,10 +837,10 @@ function LandingContent() {
       <section id="propiedades" className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            Nuestras propiedades
+            {t('propertiesTitle')}
           </h2>
           <p className="text-costa-gris text-center mb-8">
-            Encontrá el lugar ideal para tu estadía en Costa Esmeralda
+            {t('propertiesSubtitle')}
           </p>
 
           {/* Selector de fechas */}
@@ -830,14 +851,14 @@ function LandingContent() {
               fechasActivas={fechasBusqueda}
             />
             {loadingPrecios && (
-              <p className="text-center text-costa-gris text-sm mt-2">Calculando precios...</p>
+              <p className="text-center text-costa-gris text-sm mt-2">{t('calculatingPrices')}</p>
             )}
           </div>
 
           {/* Filtro por barrio */}
           <div className="flex justify-center mb-8">
             <div className="flex items-center gap-3 bg-costa-beige/50 px-4 py-2 rounded-full">
-              <span className="text-sm text-costa-navy font-medium">Filtrar por barrio:</span>
+              <span className="text-sm text-costa-navy font-medium">{t('filterByNeighborhood')}</span>
               <select
                 value={filtroBarrio}
                 onChange={(e) => setFiltroBarrio(e.target.value)}
@@ -849,7 +870,7 @@ function LandingContent() {
               </select>
               {filtroBarrio !== 'Todos' && (
                 <span className="text-xs text-costa-gris">
-                  ({propiedadesFiltradas.length} {propiedadesFiltradas.length === 1 ? 'propiedad' : 'propiedades'})
+                  ({propiedadesFiltradas.length} {propiedadesFiltradas.length === 1 ? t('propertiesAvailable') : t('propertiesAvailablePlural')})
                 </span>
               )}
             </div>
@@ -861,32 +882,32 @@ function LandingContent() {
               <p className="text-costa-navy font-medium">
                 {propiedadesDisponibles.length > 0 ? (
                   <>
-                    <span className="text-costa-olivo">{propiedadesDisponibles.length}</span> propiedad{propiedadesDisponibles.length !== 1 ? 'es' : ''} disponible{propiedadesDisponibles.length !== 1 ? 's' : ''} del{' '}
-                    <span className="font-semibold">{new Date(fechasBusqueda.checkIn + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span> al{' '}
-                    <span className="font-semibold">{new Date(fechasBusqueda.checkOut + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}</span>
+                    <span className="text-costa-olivo">{propiedadesDisponibles.length}</span> {propiedadesDisponibles.length === 1 ? t('propertiesAvailable') : t('propertiesAvailablePlural')} {t('fromDate')}{' '}
+                    <span className="font-semibold">{new Date(fechasBusqueda.checkIn + 'T12:00:00').toLocaleDateString(language === 'es' ? 'es-AR' : 'en-US', { day: 'numeric', month: 'short' })}</span> {t('toDate')}{' '}
+                    <span className="font-semibold">{new Date(fechasBusqueda.checkOut + 'T12:00:00').toLocaleDateString(language === 'es' ? 'es-AR' : 'en-US', { day: 'numeric', month: 'short' })}</span>
                   </>
                 ) : (
-                  <span className="text-costa-coral">No hay propiedades disponibles para las fechas seleccionadas</span>
+                  <span className="text-costa-coral">{t('noPropertiesDates')}</span>
                 )}
               </p>
             </div>
           )}
 
           {loading ? (
-            <div className="text-center text-costa-gris py-12">Cargando propiedades...</div>
+            <div className="text-center text-costa-gris py-12">{t('loadingProperties')}</div>
           ) : propiedadesDisponibles.length === 0 && fechasBusqueda ? (
             <div className="text-center py-12">
               <Calendar size={48} className="mx-auto text-costa-gris mb-4" />
-              <p className="text-costa-gris mb-2">No hay propiedades disponibles para estas fechas</p>
+              <p className="text-costa-gris mb-2">{t('noPropertiesDates')}</p>
               <button
                 onClick={handleLimpiarFechas}
                 className="text-costa-navy underline hover:text-costa-coral transition-colors"
               >
-                Ver todas las propiedades
+                {t('viewAllProperties')}
               </button>
             </div>
           ) : propiedadesDisponibles.length === 0 ? (
-            <div className="text-center text-costa-gris py-12">No hay propiedades en este barrio</div>
+            <div className="text-center text-costa-gris py-12">{t('noPropertiesNeighborhood')}</div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {propiedadesDisponibles.map((propiedad) => {
@@ -962,7 +983,7 @@ function LandingContent() {
                         </>
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-costa-gris">
-                          Sin imagen
+                          {t('noImage')}
                         </div>
                       )}
 
@@ -976,15 +997,15 @@ function LandingContent() {
                         </h3>
                         {propiedad.estado === 'alquilada' ? (
                           <span className="px-2 py-0.5 bg-costa-coral text-white text-xs rounded-full flex-shrink-0">
-                            Alquilada
+                            {t('rented')}
                           </span>
                         ) : propiedad.estado === 'mantenimiento' ? (
                           <span className="px-2 py-0.5 bg-yellow-500 text-white text-xs rounded-full flex-shrink-0">
-                            Mantenimiento
+                            {t('maintenance')}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 bg-costa-olivo text-white text-xs rounded-full flex-shrink-0">
-                            Disponible
+                            {t('available')}
                           </span>
                         )}
                       </div>
@@ -1005,7 +1026,7 @@ function LandingContent() {
                       {propiedad.capacidad > 0 && (
                         <div className="flex items-center gap-2 text-costa-navy font-medium mb-3">
                           <span className="text-lg">👤</span>
-                          <span>{propiedad.capacidad} personas</span>
+                          <span>{propiedad.capacidad} {t('people')}</span>
                         </div>
                       )}
 
@@ -1013,11 +1034,11 @@ function LandingContent() {
                       {(propiedad.habitaciones > 0 || propiedad.banos > 0) && (
                         <p className="text-sm text-costa-gris mb-3">
                           {[
-                            propiedad.habitaciones > 0 && `${propiedad.habitaciones} dormitorio${propiedad.habitaciones > 1 ? 's' : ''}`,
-                            propiedad.banos > 0 && `${propiedad.banos} baño${propiedad.banos > 1 ? 's' : ''}`,
-                            propiedad.toilette && 'Toilette',
-                            propiedad.plantas > 1 && `${propiedad.plantas} plantas`,
-                            propiedad.cochera && 'Cochera'
+                            propiedad.habitaciones > 0 && `${propiedad.habitaciones} ${propiedad.habitaciones > 1 ? t('bedroomss') : t('bedrooms')}`,
+                            propiedad.banos > 0 && `${propiedad.banos} ${propiedad.banos > 1 ? t('bathrooms') : t('bathroom')}`,
+                            propiedad.toilette && t('toilette'),
+                            propiedad.plantas > 1 && `${propiedad.plantas} ${t('floors')}`,
+                            propiedad.cochera && t('garage')
                           ].filter(Boolean).join(' • ')}
                         </p>
                       )}
@@ -1027,25 +1048,25 @@ function LandingContent() {
                         {propiedad.pileta && (
                           <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
                             <Waves size={12} />
-                            {propiedad.pileta_climatizada ? 'Pileta climat.' : 'Pileta'}
+                            {propiedad.pileta_climatizada ? t('heatedPool') : t('pool')}
                           </span>
                         )}
                         {propiedad.aire_acondicionado && (
                           <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
                             <Snowflake size={12} />
-                            A/C
+                            {t('ac')}
                           </span>
                         )}
                         {propiedad.parrilla && (
                           <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
                             <Flame size={12} />
-                            Parrilla
+                            {t('grill')}
                           </span>
                         )}
                         {propiedad.wifi && (
                           <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
                             <Wifi size={12} />
-                            WiFi
+                            {t('wifi')}
                           </span>
                         )}
                       </div>
@@ -1059,14 +1080,14 @@ function LandingContent() {
                                 <span className="text-lg font-bold text-costa-navy">
                                   {formatPrecio(preciosCalculados[propiedad.id].total)}
                                 </span>
-                                <span className="text-xs text-costa-gris">total</span>
+                                <span className="text-xs text-costa-gris">{t('total')}</span>
                               </div>
                               <p className="text-xs text-costa-gris">
-                                {preciosCalculados[propiedad.id].noches} noche{preciosCalculados[propiedad.id].noches > 1 ? 's' : ''} × {formatPrecio(preciosCalculados[propiedad.id].promedio)}/noche
+                                {preciosCalculados[propiedad.id].noches} {preciosCalculados[propiedad.id].noches > 1 ? t('nights') : t('night')} × {formatPrecio(preciosCalculados[propiedad.id].promedio)}/{t('night')}
                               </p>
                             </>
                           ) : (
-                            <p className="text-sm text-red-600 font-medium">No disponible en estas fechas</p>
+                            <p className="text-sm text-red-600 font-medium">{t('notAvailable')}</p>
                           )}
                         </div>
                       )}
@@ -1081,7 +1102,7 @@ function LandingContent() {
                           className="flex items-center justify-center gap-1 py-2.5 bg-costa-beige hover:bg-costa-beige/80 text-costa-navy rounded-lg text-xs sm:text-sm font-medium transition-colors"
                         >
                           <Eye size={14} />
-                          Ver
+                          {t('view')}
                         </button>
                         <a
                           href={`https://wa.me/${formatWhatsApp(propiedad.telefono_contacto)}?text=Hola! Me interesa la propiedad ${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}`}
@@ -1092,23 +1113,25 @@ function LandingContent() {
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                           </svg>
-                          Consultar
+                          {t('inquire')}
                         </a>
                         <button
                           onClick={() => {
                             const baseUrl = window.location.origin
-                            const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
+                            const mensaje = language === 'es'
+                              ? `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} ${t('people')} | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
+                              : `Check out this property in Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lot ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} ${t('people')} | 🛏️ ${propiedad.habitaciones} bed | 🚿 ${propiedad.banos} bath\n\n${baseUrl}/#propiedades`
                             window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
                           }}
                           className="flex items-center justify-center gap-1 py-2.5 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                          title="Compartir por WhatsApp"
+                          title={language === 'es' ? 'Compartir por WhatsApp' : 'Share via WhatsApp'}
                         >
                           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
                             <polyline points="16 6 12 2 8 6"/>
                             <line x1="12" y1="2" x2="12" y2="15"/>
                           </svg>
-                          Compartir
+                          {t('share')}
                         </button>
                       </div>
                     </div>
@@ -1124,70 +1147,70 @@ function LandingContent() {
       <section className="py-16 bg-costa-beige/30">
         <div className="max-w-3xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            Preguntas frecuentes
+            {t('faqTitle')}
           </h2>
           <p className="text-costa-gris text-center mb-12">
-            Todo lo que necesitás saber antes de reservar
+            {t('faqSubtitle')}
           </p>
 
           <div className="space-y-4">
             <details className="bg-white rounded-xl shadow-sm group">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">¿Cómo reservo una propiedad?</span>
+                <span className="font-medium text-costa-navy">{t('faq1Question')}</span>
                 <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
               </summary>
               <div className="px-5 pb-5 text-costa-gris">
-                <p>Es muy simple: elegí la propiedad que te gusta, hacé clic en "Consultar" y te comunicás directo con el dueño por WhatsApp. Coordinás fechas, precio y forma de pago sin intermediarios.</p>
+                <p>{t('faq1Answer')}</p>
               </div>
             </details>
 
             <details className="bg-white rounded-xl shadow-sm group">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">¿Qué incluye el alquiler?</span>
+                <span className="font-medium text-costa-navy">{t('faq2Question')}</span>
                 <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
               </summary>
               <div className="px-5 pb-5 text-costa-gris">
-                <p>Cada propiedad detalla sus amenities (pileta, WiFi, parrilla, etc.). Generalmente incluye ropa blanca, utensilios de cocina y acceso a todas las instalaciones del barrio. Consultá con el dueño por detalles específicos.</p>
+                <p>{t('faq2Answer')}</p>
               </div>
             </details>
 
             <details className="bg-white rounded-xl shadow-sm group">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">¿Es seguro Costa Esmeralda?</span>
+                <span className="font-medium text-costa-navy">{t('faq3Question')}</span>
                 <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
               </summary>
               <div className="px-5 pb-5 text-costa-gris">
-                <p>Sí, Costa Esmeralda es un barrio cerrado con seguridad privada las 24 horas, control de acceso vehicular y servicio de emergencias médicas. Es uno de los desarrollos más seguros de la costa argentina.</p>
+                <p>{t('faq3Answer')}</p>
               </div>
             </details>
 
             <details className="bg-white rounded-xl shadow-sm group">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">¿Puedo llevar mascotas?</span>
+                <span className="font-medium text-costa-navy">{t('faq4Question')}</span>
                 <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
               </summary>
               <div className="px-5 pb-5 text-costa-gris">
-                <p>Depende de cada propiedad. Algunas aceptan mascotas y otras no. Consultá directamente con el dueño antes de reservar para confirmar.</p>
+                <p>{t('faq4Answer')}</p>
               </div>
             </details>
 
             <details className="bg-white rounded-xl shadow-sm group">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">¿Cuáles son los horarios de check-in y check-out?</span>
+                <span className="font-medium text-costa-navy">{t('faq5Question')}</span>
                 <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
               </summary>
               <div className="px-5 pb-5 text-costa-gris">
-                <p>Generalmente el check-in es a partir de las 15:00 hs y el check-out hasta las 10:00 hs. Podés coordinar horarios flexibles directamente con el dueño según disponibilidad.</p>
+                <p>{t('faq5Answer')}</p>
               </div>
             </details>
 
             <details className="bg-white rounded-xl shadow-sm group">
               <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">¿Cómo llego a Costa Esmeralda?</span>
+                <span className="font-medium text-costa-navy">{t('faq6Question')}</span>
                 <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
               </summary>
               <div className="px-5 pb-5 text-costa-gris">
-                <p>Costa Esmeralda está a 10 minutos de Pinamar, sobre la Ruta 11 (km 394). Desde Buenos Aires son aproximadamente 4 horas por Autovía 2 y Ruta 11. El acceso es por la entrada principal con control de seguridad.</p>
+                <p>{t('faq6Answer')}</p>
               </div>
             </details>
           </div>
@@ -1201,11 +1224,11 @@ function LandingContent() {
             <div>
               <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</h3>
               <p className="text-white/70 text-sm">
-                Propiedades en Costa Esmeralda administradas directamente por sus dueños.
+                {t('footerDesc')}
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Contacto</h4>
+              <h4 className="font-semibold mb-4">{t('contact')}</h4>
               <p className="text-white/70 text-sm mb-2">Costa Esmeralda, Buenos Aires</p>
               <a
                 href="https://wa.me/541160473922"
@@ -1217,14 +1240,14 @@ function LandingContent() {
               </a>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Accesos</h4>
+              <h4 className="font-semibold mb-4">{t('access')}</h4>
               <Link href={isDemo ? "/admin?demo=true" : "/admin"} className="text-white/70 hover:text-white transition-colors text-sm block mb-2">
-                Acceso dueños
+                {t('accessOwners')}
               </Link>
             </div>
           </div>
           <div className="border-t border-white/20 mt-8 pt-8 text-center text-white/50 text-sm">
-            © {new Date().getFullYear()} Admin Costa. Todos los derechos reservados.
+            © {new Date().getFullYear()} Admin Costa. {t('allRightsReserved')}
           </div>
         </div>
       </footer>
@@ -1345,7 +1368,7 @@ function LandingContent() {
               </button>
             </div>
             <div className="p-6 space-y-4">
-              <p className="text-sm text-costa-gris mb-4">Teléfonos útiles:</p>
+              <p className="text-sm text-costa-gris mb-4">{t('usefulPhones')}</p>
               {serviciosContacto[servicioModal].contactos.map((contacto, idx) => (
                 <a
                   key={idx}
@@ -1435,15 +1458,15 @@ function LandingContent() {
               <div className="absolute top-4 left-4">
                 {propiedadModal.estado === 'alquilada' ? (
                   <span className="px-3 py-1 bg-costa-coral text-white text-sm rounded-full font-medium">
-                    Alquilada
+                    {t('rented')}
                   </span>
                 ) : propiedadModal.estado === 'mantenimiento' ? (
                   <span className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-full font-medium">
-                    Mantenimiento
+                    {t('maintenance')}
                   </span>
                 ) : (
                   <span className="px-3 py-1 bg-costa-olivo text-white text-sm rounded-full font-medium">
-                    Disponible
+                    {t('available')}
                   </span>
                 )}
               </div>
@@ -1474,28 +1497,28 @@ function LandingContent() {
                   <div className="text-center">
                     <div className="text-2xl mb-1">👤</div>
                     <p className="text-lg font-semibold text-costa-navy">{propiedadModal.capacidad}</p>
-                    <p className="text-xs text-costa-gris">Personas</p>
+                    <p className="text-xs text-costa-gris">{t('people')}</p>
                   </div>
                 )}
                 {propiedadModal.habitaciones > 0 && (
                   <div className="text-center">
                     <Bed size={24} className="mx-auto mb-1 text-costa-navy" />
                     <p className="text-lg font-semibold text-costa-navy">{propiedadModal.habitaciones}</p>
-                    <p className="text-xs text-costa-gris">Dormitorios</p>
+                    <p className="text-xs text-costa-gris">{propiedadModal.habitaciones > 1 ? t('bedroomss') : t('bedrooms')}</p>
                   </div>
                 )}
                 {propiedadModal.banos > 0 && (
                   <div className="text-center">
                     <Bath size={24} className="mx-auto mb-1 text-costa-navy" />
                     <p className="text-lg font-semibold text-costa-navy">{propiedadModal.banos}</p>
-                    <p className="text-xs text-costa-gris">Baños</p>
+                    <p className="text-xs text-costa-gris">{propiedadModal.banos > 1 ? t('bathrooms') : t('bathroom')}</p>
                   </div>
                 )}
                 {propiedadModal.plantas > 1 && (
                   <div className="text-center">
                     <div className="text-2xl mb-1">🏠</div>
                     <p className="text-lg font-semibold text-costa-navy">{propiedadModal.plantas}</p>
-                    <p className="text-xs text-costa-gris">Plantas</p>
+                    <p className="text-xs text-costa-gris">{t('floors')}</p>
                   </div>
                 )}
               </div>
@@ -1506,19 +1529,19 @@ function LandingContent() {
                   {propiedadModal.metros_cubiertos > 0 && (
                     <div className="flex items-center gap-2 text-costa-gris">
                       <Ruler size={18} />
-                      <span>{propiedadModal.metros_cubiertos} m² cubiertos</span>
+                      <span>{propiedadModal.metros_cubiertos} {t('sqmCovered')}</span>
                     </div>
                   )}
                   {propiedadModal.metros_semicubiertos > 0 && (
                     <div className="flex items-center gap-2 text-costa-gris">
                       <Ruler size={18} />
-                      <span>{propiedadModal.metros_semicubiertos} m² semicubiertos</span>
+                      <span>{propiedadModal.metros_semicubiertos} {t('sqmSemiCovered')}</span>
                     </div>
                   )}
                   {propiedadModal.metros_lote > 0 && (
                     <div className="flex items-center gap-2 text-costa-gris">
                       <LandPlot size={18} />
-                      <span>{propiedadModal.metros_lote} m² lote</span>
+                      <span>{propiedadModal.metros_lote} {t('sqmLot')}</span>
                     </div>
                   )}
                 </div>
@@ -1526,72 +1549,72 @@ function LandingContent() {
 
               {/* Amenities */}
               <div className="mb-4">
-                <h3 className="text-sm font-semibold text-costa-navy mb-3">Amenities</h3>
+                <h3 className="text-sm font-semibold text-costa-navy mb-3">{t('amenities')}</h3>
                 <div className="flex flex-wrap gap-2">
                   {propiedadModal.pileta && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <Waves size={16} />
-                      {propiedadModal.pileta_climatizada ? 'Pileta climatizada' : 'Pileta'}
+                      {propiedadModal.pileta_climatizada ? t('heatedPoolFull') : t('pool')}
                     </span>
                   )}
                   {propiedadModal.aire_acondicionado && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <Snowflake size={16} />
-                      Aire acondicionado
+                      {t('airConditioning')}
                     </span>
                   )}
                   {propiedadModal.calefaccion && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <ThermometerSun size={16} />
-                      Calefacción
+                      {t('heating')}
                     </span>
                   )}
                   {propiedadModal.parrilla && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <Flame size={16} />
-                      Parrilla
+                      {t('grill')}
                     </span>
                   )}
                   {propiedadModal.fogonero && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <Flame size={16} />
-                      Fogonero
+                      {t('firepit')}
                     </span>
                   )}
                   {propiedadModal.wifi && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <Wifi size={16} />
-                      WiFi
+                      {t('wifi')}
                     </span>
                   )}
                   {propiedadModal.grupo_electrogeno && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <Zap size={16} />
-                      Grupo electrógeno
+                      {t('generator')}
                     </span>
                   )}
                   {propiedadModal.lavadero && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <WashingMachine size={16} />
-                      Lavadero
+                      {t('laundry')}
                     </span>
                   )}
                   {propiedadModal.lavavajillas && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <UtensilsCrossed size={16} />
-                      Lavavajillas
+                      {t('dishwasher')}
                     </span>
                   )}
                   {propiedadModal.cochera && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <Car size={16} />
-                      Cochera
+                      {t('garage')}
                     </span>
                   )}
                   {propiedadModal.toilette && (
                     <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
                       <Bath size={16} />
-                      Toilette
+                      {t('toilette')}
                     </span>
                   )}
                 </div>
@@ -1600,7 +1623,7 @@ function LandingContent() {
               {/* Descripción */}
               {propiedadModal.descripcion && (
                 <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-costa-navy mb-2">Descripción</h3>
+                  <h3 className="text-sm font-semibold text-costa-navy mb-2">{t('description')}</h3>
                   <p className="text-costa-gris whitespace-pre-line">{propiedadModal.descripcion}</p>
                 </div>
               )}
@@ -1608,7 +1631,7 @@ function LandingContent() {
               {/* Botones de acción */}
               <div className="flex gap-3">
                 <a
-                  href={`https://wa.me/${formatWhatsApp(propiedadModal.telefono_contacto)}?text=Hola! Me interesa la propiedad ${propiedadModal.nombre}${propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}`}
+                  href={`https://wa.me/${formatWhatsApp(propiedadModal.telefono_contacto)}?text=${language === 'es' ? 'Hola! Me interesa la propiedad' : 'Hi! I\'m interested in the property'} ${propiedadModal.nombre}${propiedadModal.lote ? ` - ${language === 'es' ? 'Lote' : 'Lot'} ${propiedadModal.lote}` : ''}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 flex-1 py-3 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg font-medium transition-colors"
@@ -1616,12 +1639,14 @@ function LandingContent() {
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
                   </svg>
-                  Consultar disponibilidad
+                  {t('checkAvailability')}
                 </a>
                 <button
                   onClick={() => {
                     const baseUrl = window.location.origin
-                    const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} personas | 🛏️ ${propiedadModal.habitaciones} hab | 🚿 ${propiedadModal.banos} baños\n\n${baseUrl}/#propiedades`
+                    const mensaje = language === 'es'
+                      ? `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} ${t('people')} | 🛏️ ${propiedadModal.habitaciones} hab | 🚿 ${propiedadModal.banos} baños\n\n${baseUrl}/#propiedades`
+                      : `Check out this property in Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lot ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} ${t('people')} | 🛏️ ${propiedadModal.habitaciones} bed | 🚿 ${propiedadModal.banos} bath\n\n${baseUrl}/#propiedades`
                     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
                   }}
                   className="flex items-center justify-center gap-2 px-6 py-3 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg font-medium transition-colors"
@@ -1631,7 +1656,7 @@ function LandingContent() {
                     <polyline points="16 6 12 2 8 6"/>
                     <line x1="12" y1="2" x2="12" y2="15"/>
                   </svg>
-                  Compartir
+                  {t('share')}
                 </button>
               </div>
             </div>
@@ -1644,7 +1669,7 @@ function LandingContent() {
 
 export default function LandingPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-gray-500">Cargando...</div></div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-gray-500">Loading...</div></div>}>
       <LandingContent />
     </Suspense>
   )
