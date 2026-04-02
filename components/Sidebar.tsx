@@ -54,29 +54,29 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
   return (
     <>
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-white shadow-md">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-3 bg-white shadow-md">
         <button
-          className="p-2 rounded-lg hover:bg-gray-100"
+          className="p-2 rounded-lg hover:bg-gray-100 flex-shrink-0"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
-          {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
-        <div className="flex items-center gap-2">
-          <span className="text-lg font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</span>
+        <div className="flex items-center gap-2 min-w-0 flex-1 justify-center">
+          <span className="text-base font-semibold text-costa-navy truncate" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</span>
           {isDemo && (
-            <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">DEMO</span>
+            <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full flex-shrink-0">DEMO</span>
           )}
         </div>
         {onLogout && !isDemo && (
           <button
             onClick={onLogout}
-            className="p-2 rounded-lg text-costa-coral hover:bg-costa-coral/10"
+            className="p-2 rounded-lg text-costa-coral hover:bg-costa-coral/10 flex-shrink-0"
             title="Cerrar sesión"
           >
-            <LogOut size={22} />
+            <LogOut size={20} />
           </button>
         )}
-        {isDemo && <div className="w-10" />}
+        {isDemo && <div className="w-10 flex-shrink-0" />}
       </div>
 
       {/* Overlay */}
