@@ -360,8 +360,8 @@ function LandingContent() {
 
   return (
     <div className="min-h-screen">
-      {/* Sticky Header */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${showStickyHeader ? 'translate-y-0 opacity-100' : '-translate-y-full opacity-0'}`}>
+      {/* Sticky Header - siempre visible en móvil, aparece al scroll en desktop */}
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 translate-y-0 opacity-100 ${!showStickyHeader && 'md:-translate-y-full md:opacity-0'}`}>
         <div className="bg-white/95 backdrop-blur-sm shadow-md">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <span className="text-xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
@@ -402,7 +402,7 @@ function LandingContent() {
       )}
 
       {/* Hero Section con Slideshow */}
-      <section className="relative h-[70vh] min-h-[500px] flex items-center justify-center overflow-hidden">
+      <section className="relative h-[60vh] md:h-[70vh] min-h-[400px] md:min-h-[500px] flex items-center justify-center overflow-hidden pt-60 md:pt-0">
         {/* Background Slideshow */}
         {heroImages.map((img, idx) => (
           <div
@@ -499,7 +499,7 @@ function LandingContent() {
       </section>
 
       {/* Modelo Section */}
-      <section className="py-16 bg-white">
+      <section className="py-8 md:py-16 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
             {t('ourModel')}
@@ -508,33 +508,36 @@ function LandingContent() {
             {t('ourModelSubtitle')}
           </p>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-beige flex items-center justify-center">
-                <CheckCircle size={32} className="text-costa-olivo" />
+          <div className="grid grid-cols-3 gap-2 md:gap-8">
+            <div className="text-center p-2 md:p-6">
+              <div className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-2 md:mb-4 rounded-full bg-costa-beige flex items-center justify-center">
+                <CheckCircle size={20} className="md:hidden text-costa-olivo" />
+                <CheckCircle size={32} className="hidden md:block text-costa-olivo" />
               </div>
-              <h3 className="text-lg font-semibold text-costa-navy mb-2">{t('noIntermediaries')}</h3>
-              <p className="text-costa-gris text-sm">
+              <h3 className="text-xs md:text-lg font-semibold text-costa-navy mb-1 md:mb-2">{t('noIntermediaries')}</h3>
+              <p className="text-costa-gris text-[10px] md:text-sm hidden md:block">
                 {t('noIntermediariesDesc')}
               </p>
             </div>
 
-            <div className="text-center p-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-beige flex items-center justify-center">
-                <Users size={32} className="text-costa-olivo" />
+            <div className="text-center p-2 md:p-6">
+              <div className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-2 md:mb-4 rounded-full bg-costa-beige flex items-center justify-center">
+                <Users size={20} className="md:hidden text-costa-olivo" />
+                <Users size={32} className="hidden md:block text-costa-olivo" />
               </div>
-              <h3 className="text-lg font-semibold text-costa-navy mb-2">{t('committedOwners')}</h3>
-              <p className="text-costa-gris text-sm">
+              <h3 className="text-xs md:text-lg font-semibold text-costa-navy mb-1 md:mb-2">{t('committedOwners')}</h3>
+              <p className="text-costa-gris text-[10px] md:text-sm hidden md:block">
                 {t('committedOwnersDesc')}
               </p>
             </div>
 
-            <div className="text-center p-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-beige flex items-center justify-center">
-                <Waves size={32} className="text-costa-olivo" />
+            <div className="text-center p-2 md:p-6">
+              <div className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-2 md:mb-4 rounded-full bg-costa-beige flex items-center justify-center">
+                <Waves size={20} className="md:hidden text-costa-olivo" />
+                <Waves size={32} className="hidden md:block text-costa-olivo" />
               </div>
-              <h3 className="text-lg font-semibold text-costa-navy mb-2">{t('qualityStandards')}</h3>
-              <p className="text-costa-gris text-sm">
+              <h3 className="text-xs md:text-lg font-semibold text-costa-navy mb-1 md:mb-2">{t('qualityStandards')}</h3>
+              <p className="text-costa-gris text-[10px] md:text-sm hidden md:block">
                 {t('qualityStandardsDesc')}
               </p>
             </div>
@@ -543,7 +546,7 @@ function LandingContent() {
       </section>
 
       {/* Testimonios Section */}
-      <section className="py-16 bg-costa-beige/30">
+      <section className="py-8 md:py-16 bg-costa-beige/30">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
             {t('testimonialsTitle')}
@@ -623,7 +626,7 @@ function LandingContent() {
       </section>
 
       {/* Descubrí Costa Esmeralda Section */}
-      <section className="py-16 bg-white">
+      <section className="py-8 md:py-16 bg-white">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
             {t('discoverTitle')}
@@ -750,7 +753,7 @@ function LandingContent() {
       </section>
 
       {/* Galería del Barrio */}
-      <section className="py-16 bg-costa-beige/30">
+      <section className="py-8 md:py-16 bg-costa-beige/30">
         <div className="max-w-6xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
             {t('galleryTitle')}
@@ -1144,7 +1147,7 @@ function LandingContent() {
       </section>
 
       {/* FAQ Section */}
-      <section className="py-16 bg-costa-beige/30">
+      <section className="py-8 md:py-16 bg-costa-beige/30">
         <div className="max-w-3xl mx-auto px-4">
           <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
             {t('faqTitle')}
