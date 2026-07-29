@@ -16,12 +16,14 @@ import {
   Globe,
   Eye,
   Shield,
-  Trash2
+  Trash2,
+  Images
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navigation = [
   { name: 'Propiedades', href: '/admin/propiedades', icon: Building2 },
+  { name: 'Piezas', href: '/admin/piezas', icon: Images },
   { name: 'Reservas', href: '/admin/reservas', icon: CalendarDays },
   { name: 'Calendario', href: '/admin/calendario', icon: CalendarRange },
   { name: 'Inquilinos', href: '/admin/inquilinos', icon: Users },
