@@ -594,6 +594,14 @@ export default function PiezasPage() {
     setImgs((prev) => prev.filter((_, j) => j !== i))
     setSrcs((prev) => prev.filter((_, j) => j !== i))
   }
+  // Suma una foto de la propiedad a la selección (máximo 4)
+  const agregar = async (url: string) => {
+    if (srcs.length >= 4 || srcs.includes(url)) return
+    const img = await cargarImagen(url)
+    setSrcs((prev) => (prev.length >= 4 || prev.includes(url) ? prev : [...prev, url]))
+    if (img) setImgs((prev) => [...prev, img])
+    else setFotosBloqueadas(true)
+  }
 
   /* ---------- UI ---------- */
   const seg = 'px-4 py-2 rounded-lg text-sm font-medium border transition-colors'
@@ -601,6 +609,15 @@ export default function PiezasPage() {
   const segOff = 'bg-white text-costa-gris border-costa-beige hover:border-costa-navy/40'
   const label = 'block text-[11px] font-semibold tracking-wider uppercase text-costa-gris mb-2'
   const input = 'w-full px-3 py-2 border border-costa-beige rounded-lg text-sm text-costa-navy bg-costa-beige-light focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all'
+
+  // Todas las fotos de la propiedad, y las que todavía no están en la selección
+  const fotosPropiedad = sel
+    ? [
+        ...(sel.imagen_url ? [sel.imagen_url] : []),
+        ...((sel.imagenes || []).filter((u) => u && u !== sel.imagen_url)),
+      ]
+    : []
+  const fotosDisponibles = fotosPropiedad.filter((u) => !srcs.includes(u))
 
   if (cargando) {
     return (
@@ -731,6 +748,34 @@ export default function PiezasPage() {
                 ))}
               </div>
             )}
+
+            {fotosDisponibles.length > 0 && (
+              <div className="mt-3 border-t border-costa-beige pt-3">
+                <p className="text-[11px] text-costa-gris mb-2">
+                  {srcs.length >= 4
+                    ? 'Ya hay 4 fotos en la pieza. Quitá alguna (×) para poder sumar otra.'
+                    : 'Más fotos de la propiedad — tocá para sumarlas (máximo 4):'}
+                </p>
+                <div className="grid grid-cols-6 gap-2">
+                  {fotosDisponibles.map((u, i) => (
+                    <button
+                      key={u + i}
+                      onClick={() => agregar(u)}
+                      disabled={srcs.length >= 4}
+                      title={srcs.length >= 4 ? 'Máximo 4 fotos' : 'Agregar a la pieza'}
+                      className="relative rounded-lg overflow-hidden group disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{ paddingTop: '92%' }}
+                    >
+                      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${u})` }} />
+                      <div className="absolute inset-0 flex items-center justify-center bg-costa-navy/0 group-hover:bg-costa-navy/40 transition-colors">
+                        <span className="text-white text-xl font-bold opacity-0 group-hover:opacity-100">+</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {fotosBloqueadas && (
               <p className="text-xs text-costa-coral mt-2">
                 Algunas fotos no se pudieron cargar para la pieza. Verificá que el bucket de Supabase sea público.
