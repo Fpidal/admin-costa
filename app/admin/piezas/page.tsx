@@ -52,6 +52,7 @@ interface DatosAviso {
   destacados: string
   contacto: string
   formato: Formato
+  fotos: string[] // URLs elegidas, en orden (la primera es la portada)
 }
 
 /* ------------------------------------------------------------------ */
@@ -186,32 +187,46 @@ export default function PiezasPage() {
     if (d.formato) setFormato(d.formato)
   }, [])
 
-  const cargarFotos = useCallback(async (p: Propiedad) => {
-    const urls = [
-      ...(p.imagen_url ? [p.imagen_url] : []),
-      ...((p.imagenes || []).filter((u) => u && u !== p.imagen_url)),
-    ].slice(0, 4)
-
-    setSrcs(urls)
+  // Carga en el canvas una lista explícita de URLs (usada para restaurar lo grabado)
+  const cargarFotosDesde = useCallback(async (urls: string[]) => {
+    const lista = (urls || []).slice(0, 4)
+    setSrcs(lista)
     setImgs([])
     setFotosBloqueadas(false)
-    if (!urls.length) return
+    if (!lista.length) return
 
     setCargandoFotos(true)
-    const res = await Promise.all(urls.map(cargarImagen))
+    const res = await Promise.all(lista.map(cargarImagen))
     const ok = res.filter(Boolean) as HTMLImageElement[]
     setImgs(ok)
-    setFotosBloqueadas(ok.length < urls.length)
+    setFotosBloqueadas(ok.length < lista.length)
     setCargandoFotos(false)
   }, [])
+
+  // Fotos por defecto: las de la ficha de la propiedad
+  const cargarFotos = useCallback(
+    (p: Propiedad) => {
+      const urls = [
+        ...(p.imagen_url ? [p.imagen_url] : []),
+        ...((p.imagenes || []).filter((u) => u && u !== p.imagen_url)),
+      ].slice(0, 4)
+      return cargarFotosDesde(urls)
+    },
+    [cargarFotosDesde],
+  )
 
   const elegirPropiedad = (p: Propiedad) => {
     setSelId(p.id)
     setGuardadoMsg('')
     const g = avisosGuardados[`${p.id}:${tipo}`]
-    if (g) aplicarGuardado(g)
-    else aplicarTextos(p, tipo)
-    void cargarFotos(p)
+    if (g) {
+      aplicarGuardado(g)
+      if (g.fotos?.length) void cargarFotosDesde(g.fotos)
+      else void cargarFotos(p)
+    } else {
+      aplicarTextos(p, tipo)
+      void cargarFotos(p)
+    }
   }
 
   const elegirTipo = (t: Tipo) => {
@@ -219,8 +234,13 @@ export default function PiezasPage() {
     setGuardadoMsg('')
     if (sel) {
       const g = avisosGuardados[`${sel.id}:${t}`]
-      if (g) aplicarGuardado(g)
-      else aplicarTextos(sel, t)
+      if (g) {
+        aplicarGuardado(g)
+        // Si el tipo tiene fotos grabadas se restauran; si no, se dejan las actuales
+        if (g.fotos?.length) void cargarFotosDesde(g.fotos)
+      } else {
+        aplicarTextos(sel, t)
+      }
     }
   }
 
@@ -239,6 +259,7 @@ export default function PiezasPage() {
       destacados,
       contacto,
       formato,
+      fotos: srcs,
     }
     const { error } = await supabase.from('piezas_avisos').upsert(
       {
@@ -307,13 +328,18 @@ export default function PiezasPage() {
       const p0 = lista.find((x) => x.id === inicial)
       if (p0) {
         const g = mapa[`${p0.id}:alquiler`]
-        if (g) aplicarGuardado(g)
-        else aplicarTextos(p0, 'alquiler')
-        void cargarFotos(p0)
+        if (g) {
+          aplicarGuardado(g)
+          if (g.fotos?.length) void cargarFotosDesde(g.fotos)
+          else void cargarFotos(p0)
+        } else {
+          aplicarTextos(p0, 'alquiler')
+          void cargarFotos(p0)
+        }
       }
       setCargando(false)
     })()
-  }, [authLoading, userId, propIdParam, aplicarTextos, aplicarGuardado, cargarFotos])
+  }, [authLoading, userId, propIdParam, aplicarTextos, aplicarGuardado, cargarFotos, cargarFotosDesde])
 
   /* ---------- dibujar ---------- */
   const dibujar = useCallback(() => {
