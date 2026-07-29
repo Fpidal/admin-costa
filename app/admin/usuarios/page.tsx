@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
-import { Card, CardContent, Button, Badge } from '@/components/ui'
-import { Users, Shield, ShieldOff, UserCheck, UserX, Mail, Calendar, MapPin, Home, Clock, CheckCircle, Trash2 } from 'lucide-react'
+import { Card, CardContent, Button, Badge, Modal, Textarea } from '@/components/ui'
+import { Users, Shield, ShieldOff, UserCheck, UserX, Mail, Calendar, MapPin, Home, Clock, CheckCircle, Trash2, MessageSquare } from 'lucide-react'
 
 interface Profile {
   id: string
@@ -24,6 +24,9 @@ export default function UsuariosPage() {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [mensajeModal, setMensajeModal] = useState<{ userId: string; nombre: string } | null>(null)
+  const [textoMensaje, setTextoMensaje] = useState('')
+  const [enviandoMensaje, setEnviandoMensaje] = useState(false)
 
   useEffect(() => {
     checkAdminAndFetch()
@@ -122,6 +125,25 @@ export default function UsuariosPage() {
         u.id === userId ? { ...u, is_admin: !isAdmin } : u
       ))
     }
+  }
+
+  async function enviarMensaje() {
+    if (!mensajeModal || !currentUserId || !textoMensaje.trim()) return
+
+    setEnviandoMensaje(true)
+    const { error } = await supabase
+      .from('mensajes_usuarios')
+      .insert([{ user_id: mensajeModal.userId, de_admin_id: currentUserId, mensaje: textoMensaje.trim() }])
+
+    setEnviandoMensaje(false)
+
+    if (error) {
+      alert('Error al enviar mensaje: ' + error.message)
+      return
+    }
+
+    setMensajeModal(null)
+    setTextoMensaje('')
   }
 
   async function toggleAutorizado(userId: string, autorizado: boolean) {
@@ -335,6 +357,14 @@ export default function UsuariosPage() {
                   {usuario.id !== currentUserId && (
                     <div className="flex items-center gap-2">
                       <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setMensajeModal({ userId: usuario.id, nombre: usuario.nombre || usuario.email })}
+                        title="Enviar mensaje"
+                      >
+                        <MessageSquare size={16} className="text-costa-navy" />
+                      </Button>
+                      <Button
                         variant={usuario.activo ? 'secondary' : 'primary'}
                         size="sm"
                         onClick={() => toggleActivo(usuario.id, usuario.activo)}
@@ -383,6 +413,28 @@ export default function UsuariosPage() {
           ))}
         </div>
       </div>
+
+      <Modal
+        isOpen={mensajeModal !== null}
+        onClose={() => { setMensajeModal(null); setTextoMensaje('') }}
+        title={`Mensaje para ${mensajeModal?.nombre || ''}`}
+        size="sm"
+      >
+        <Textarea
+          value={textoMensaje}
+          onChange={(e) => setTextoMensaje(e.target.value)}
+          placeholder="Escribí el mensaje..."
+          rows={4}
+        />
+        <div className="flex justify-end gap-2 mt-4">
+          <Button variant="secondary" onClick={() => { setMensajeModal(null); setTextoMensaje('') }}>
+            Cancelar
+          </Button>
+          <Button variant="primary" onClick={enviarMensaje} disabled={enviandoMensaje || !textoMensaje.trim()}>
+            {enviandoMensaje ? 'Enviando...' : 'Enviar'}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

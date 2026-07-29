@@ -20,6 +20,7 @@ import {
   Images
 } from 'lucide-react'
 import { useState } from 'react'
+import { CampanitaMensajes } from './CampanitaMensajes'
 
 const navigation = [
   { name: 'Propiedades', href: '/admin/propiedades', icon: Building2 },
@@ -69,14 +70,19 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
             <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full flex-shrink-0">DEMO</span>
           )}
         </div>
-        {onLogout && !isDemo && (
-          <button
-            onClick={onLogout}
-            className="p-2 rounded-lg text-costa-coral hover:bg-costa-coral/10 flex-shrink-0"
-            title="Cerrar sesión"
-          >
-            <LogOut size={20} />
-          </button>
+        {!isDemo && (
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <CampanitaMensajes />
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="p-2 rounded-lg text-costa-coral hover:bg-costa-coral/10"
+                title="Cerrar sesión"
+              >
+                <LogOut size={20} />
+              </button>
+            )}
+          </div>
         )}
         {isDemo && <div className="w-10 flex-shrink-0" />}
       </div>
@@ -123,6 +129,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
               <Globe size={14} />
               Ver sitio
             </Link>
+            {!isDemo && <CampanitaMensajes />}
             {onLogout && !isDemo && (
               <button
                 onClick={onLogout}

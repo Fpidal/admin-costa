@@ -146,6 +146,7 @@ function PropiedadesContent() {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
+  const [draftFolderId, setDraftFolderId] = useState<string | null>(null)
   const [form, setForm] = useState(initialForm)
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -233,6 +234,7 @@ function PropiedadesContent() {
   function openModal(propiedad?: Propiedad) {
     if (propiedad) {
       setEditingId(propiedad.id)
+      setDraftFolderId(null)
       setForm({
         nombre: propiedad.nombre || '',
         lote: propiedad.lote || '',
@@ -268,6 +270,7 @@ function PropiedadesContent() {
       })
     } else {
       setEditingId(null)
+      setDraftFolderId(crypto.randomUUID())
       setForm(initialForm)
     }
     setModalOpen(true)
@@ -276,6 +279,7 @@ function PropiedadesContent() {
   function closeModal() {
     setModalOpen(false)
     setEditingId(null)
+    setDraftFolderId(null)
     setForm(initialForm)
   }
 
@@ -288,9 +292,12 @@ function PropiedadesContent() {
       return
     }
 
+    const folderId = editingId ? String(editingId) : draftFolderId
+    if (!userId || !folderId) return
+
     setUploading(true)
     const fileExt = file.name.split('.').pop()
-    const fileName = `${Date.now()}.${fileExt}`
+    const fileName = `propiedades/${userId}/${folderId}/${Date.now()}.${fileExt}`
 
     const { error: uploadError } = await supabase.storage
       .from('Imagenes')
@@ -371,12 +378,43 @@ function PropiedadesContent() {
         alert('Error al actualizar: ' + error.message)
       }
     } else {
-      const { error } = await supabase
+      const { data: nuevaPropiedad, error } = await supabase
         .from('propiedades')
         .insert([{ ...data, user_id: userId }])
+        .select('id')
+        .single()
 
       if (error) {
         alert('Error al crear: ' + error.message)
+      } else if (nuevaPropiedad && draftFolderId && form.imagenes.length > 0 && userId) {
+        const realId = String(nuevaPropiedad.id)
+        const imagenesFinales = await Promise.all(
+          form.imagenes.map(async (url) => {
+            const draftPrefix = `propiedades/${userId}/${draftFolderId}/`
+            const idx = url.indexOf(draftPrefix)
+            if (idx === -1) return url
+
+            const fileName = url.slice(idx + draftPrefix.length)
+            const oldPath = `propiedades/${userId}/${draftFolderId}/${fileName}`
+            const newPath = `propiedades/${userId}/${realId}/${fileName}`
+
+            const { error: moveError } = await supabase.storage
+              .from('Imagenes')
+              .move(oldPath, newPath)
+
+            if (moveError) return url
+
+            const { data: { publicUrl } } = supabase.storage
+              .from('Imagenes')
+              .getPublicUrl(newPath)
+            return publicUrl
+          })
+        )
+
+        await supabase
+          .from('propiedades')
+          .update({ imagenes: imagenesFinales, imagen_url: imagenesFinales[0] || null })
+          .eq('id', realId)
       }
     }
 
