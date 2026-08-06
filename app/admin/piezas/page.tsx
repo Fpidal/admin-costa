@@ -51,6 +51,8 @@ interface DatosAviso {
   precio2: string
   destacados: string
   contacto: string
+  chipIzq: string
+  chipDer: string
   formato: Formato
   fotos: string[] // URLs elegidas, en orden (la primera es la portada)
 }
@@ -70,6 +72,18 @@ const MUT = '#6B7A72'
 
 const money = (n: number) =>
   'US$ ' + Math.round(n || 0).toLocaleString('es-AR')
+
+// La temporada de verano se nombra por el año en que cae enero:
+// de marzo en adelante ya se promociona la del año siguiente.
+function temporadaActual() {
+  const hoy = new Date()
+  return hoy.getMonth() >= 2 ? hoy.getFullYear() + 1 : hoy.getFullYear()
+}
+
+// Etiquetas por defecto de los chips sobre la foto (editables)
+const chipIzqDe = (t: Tipo) =>
+  t === 'venta' ? 'EN VENTA' : `TEMPORADA ${temporadaActual()}`
+const CHIP_DER_DEFAULT = 'DUEÑO DIRECTO'
 
 function fichaDe(p: Propiedad, tipo: Tipo) {
   if (tipo === 'alquiler') {
@@ -103,7 +117,8 @@ function destacadosDe(p: Propiedad, tipo: Tipo) {
     if (p.calefaccion) d.push('Calefacción')
     d.push('Se entrega amoblada y equipada')
   }
-  return d.slice(0, 5).join(' · ')
+  // Al ir a dos columnas entran más ítems sin comerse el resto de la pieza
+  return d.slice(0, 10).join(' · ')
 }
 
 function cargarImagen(src: string): Promise<HTMLImageElement | null> {
@@ -152,6 +167,8 @@ export default function PiezasPage() {
   const [precio2, setPrecio2] = useState('')
   const [destacados, setDestacados] = useState('')
   const [contacto, setContacto] = useState('')
+  const [chipIzq, setChipIzq] = useState('')
+  const [chipDer, setChipDer] = useState(CHIP_DER_DEFAULT)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sel = propiedades.find((p) => p.id === selId) || null
@@ -163,6 +180,8 @@ export default function PiezasPage() {
     setTitulo(p.nombre?.replace(/\s*-\s*Lote.*$/i, '').trim() || p.nombre)
     setFicha(fichaDe(p, t))
     setDestacados(destacadosDe(p, t))
+    setChipIzq(chipIzqDe(t))
+    setChipDer(CHIP_DER_DEFAULT)
     if (t === 'alquiler') {
       setPrecio(p.precio_alquiler ? money(p.precio_alquiler) : 'US$ ')
       setSufijo('/ noche')
@@ -175,7 +194,7 @@ export default function PiezasPage() {
   }, [])
 
   // Restaura en los inputs un aviso previamente grabado
-  const aplicarGuardado = useCallback((d: DatosAviso) => {
+  const aplicarGuardado = useCallback((d: DatosAviso, t: Tipo) => {
     setVolanta(d.volanta ?? '')
     setTitulo(d.titulo ?? '')
     setFicha(d.ficha ?? '')
@@ -184,6 +203,10 @@ export default function PiezasPage() {
     setPrecio2(d.precio2 ?? '')
     setDestacados(d.destacados ?? '')
     setContacto(d.contacto ?? '')
+    // Los avisos grabados antes de que los chips fueran editables no traen
+    // estos campos: en ese caso se usan las etiquetas por defecto.
+    setChipIzq(d.chipIzq ?? chipIzqDe(t))
+    setChipDer(d.chipDer ?? CHIP_DER_DEFAULT)
     if (d.formato) setFormato(d.formato)
   }, [])
 
@@ -220,7 +243,7 @@ export default function PiezasPage() {
     setGuardadoMsg('')
     const g = avisosGuardados[`${p.id}:${tipo}`]
     if (g) {
-      aplicarGuardado(g)
+      aplicarGuardado(g, tipo)
       if (g.fotos?.length) void cargarFotosDesde(g.fotos)
       else void cargarFotos(p)
     } else {
@@ -235,7 +258,7 @@ export default function PiezasPage() {
     if (sel) {
       const g = avisosGuardados[`${sel.id}:${t}`]
       if (g) {
-        aplicarGuardado(g)
+        aplicarGuardado(g, t)
         // Si el tipo tiene fotos grabadas se restauran; si no, se dejan las actuales
         if (g.fotos?.length) void cargarFotosDesde(g.fotos)
       } else {
@@ -258,6 +281,8 @@ export default function PiezasPage() {
       precio2,
       destacados,
       contacto,
+      chipIzq,
+      chipDer,
       formato,
       fotos: srcs,
     }
@@ -329,7 +354,7 @@ export default function PiezasPage() {
       if (p0) {
         const g = mapa[`${p0.id}:alquiler`]
         if (g) {
-          aplicarGuardado(g)
+          aplicarGuardado(g, 'alquiler')
           if (g.fotos?.length) void cargarFotosDesde(g.fotos)
           else void cargarFotos(p0)
         } else {
@@ -459,18 +484,35 @@ export default function PiezasPage() {
       }
       y += 54 * q
 
+      // Destacados en dos columnas: entra el doble de ítems en el mismo alto.
+      // Con un solo ítem no tiene sentido partir, va a todo el ancho.
       const items = destacados.split('·').map((s) => s.trim()).filter(Boolean)
       ctx.font = '400 ' + 26 * q + 'px Inter, sans-serif'
-      for (const it of items) {
-        if (paint) {
-          ctx.fillStyle = BRASS
-          ctx.beginPath()
-          ctx.arc(P + 7 * q, y - 9 * q, 6 * q, 0, 7)
-          ctx.fill()
-          ctx.fillStyle = '#3A4A43'
+
+      const gapCol = 34 * q
+      const dosCols = items.length > 1
+      const colW = dosCols ? (maxW - gapCol) / 2 : maxW
+      const corte = Math.ceil(items.length / 2)
+      const columnas = dosCols ? [items.slice(0, corte), items.slice(corte)] : [items]
+
+      const yIni = y
+      let yFin = y
+      for (let c = 0; c < columnas.length; c++) {
+        const x = P + c * (colW + gapCol)
+        let yc = yIni
+        for (const it of columnas[c]) {
+          if (paint) {
+            ctx.fillStyle = BRASS
+            ctx.beginPath()
+            ctx.arc(x + 7 * q, yc - 9 * q, 6 * q, 0, 7)
+            ctx.fill()
+            ctx.fillStyle = '#3A4A43'
+          }
+          yc = wrap(it, x + 32 * q, yc, colW - 32 * q, 38 * q, paint) + 16 * q
         }
-        y = wrap(it, P + 32 * q, y, maxW - 32 * q, 38 * q, paint) + 16 * q
+        if (yc > yFin) yFin = yc
       }
+      y = yFin
       if (items.length) y -= 16 * q
       return y
     }
@@ -535,13 +577,18 @@ export default function PiezasPage() {
 
     const chH = 62
     const chY = P * 0.82
-    chip(tipo === 'venta' ? 'EN VENTA' : 'TEMPORADA 2027', P, chY, chH, BRASS, '#fff', null)
-    ctx.font = '600 ' + chH * 0.4 + 'px Inter, sans-serif'
-    ls(chH * 0.075)
-    const t2 = 'DUEÑO DIRECTO'
-    const w2 = ctx.measureText(t2).width + chH * 1.04
-    ls(0)
-    chip(t2, W - P - w2, chY, chH, null, '#fff', 'rgba(255,255,255,.75)')
+    const t1 = chipIzq.trim()
+    if (t1) chip(t1, P, chY, chH, BRASS, '#fff', null)
+
+    const t2 = chipDer.trim()
+    if (t2) {
+      // Se mide antes para poder alinearlo contra el margen derecho
+      ctx.font = '600 ' + chH * 0.4 + 'px Inter, sans-serif'
+      ls(chH * 0.075)
+      const w2 = ctx.measureText(t2).width + chH * 1.04
+      ls(0)
+      chip(t2, W - P - w2, chY, chH, null, '#fff', 'rgba(255,255,255,.75)')
+    }
 
     ctx.fillStyle = BRASS
     ctx.fillRect(0, photoH, W, 10)
@@ -560,7 +607,7 @@ export default function PiezasPage() {
     ctx.fillStyle = CREAM
     ctx.font = '600 37px Inter, sans-serif'
     ctx.fillText(contacto || 'WhatsApp 11 0000-0000', P, H - barH + 92)
-  }, [imgs, formato, tipo, volanta, titulo, ficha, precio, sufijo, precio2, destacados, contacto])
+  }, [imgs, formato, tipo, volanta, titulo, ficha, precio, sufijo, precio2, destacados, contacto, chipIzq, chipDer])
 
   useEffect(() => { dibujar() }, [dibujar])
 
@@ -785,6 +832,26 @@ export default function PiezasPage() {
 
           {/* Campos */}
           <div className="bg-white rounded-xl p-4 shadow-sm mb-4 space-y-3">
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className={label}>Etiqueta izquierda</label>
+                <input
+                  className={input}
+                  value={chipIzq}
+                  onChange={(e) => setChipIzq(e.target.value)}
+                  placeholder="Vacío = sin etiqueta"
+                />
+              </div>
+              <div className="flex-1">
+                <label className={label}>Etiqueta derecha</label>
+                <input
+                  className={input}
+                  value={chipDer}
+                  onChange={(e) => setChipDer(e.target.value)}
+                  placeholder="Vacío = sin etiqueta"
+                />
+              </div>
+            </div>
             <div>
               <label className={label}>Volanta</label>
               <input className={input} value={volanta} onChange={(e) => setVolanta(e.target.value)} />
