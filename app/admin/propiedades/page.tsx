@@ -99,6 +99,9 @@ const formatMonto = (monto: number) => {
   return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto)
 }
 
+// Tope de fotos por propiedad (la landing y las piezas se adaptan solas)
+const MAX_IMAGENES = 10
+
 const initialForm = {
   nombre: '',
   lote: '',
@@ -287,8 +290,8 @@ function PropiedadesContent() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    if (form.imagenes.length >= 6) {
-      alert('Máximo 6 imágenes permitidas')
+    if (form.imagenes.length >= MAX_IMAGENES) {
+      alert(`Máximo ${MAX_IMAGENES} imágenes permitidas`)
       return
     }
 
@@ -1380,7 +1383,7 @@ function PropiedadesContent() {
           {/* Upload de imágenes */}
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-costa-navy">
-              Imágenes ({form.imagenes.length}/6)
+              Imágenes ({form.imagenes.length}/{MAX_IMAGENES})
             </label>
 
             {/* Grid de imágenes - más compacto */}
@@ -1417,7 +1420,7 @@ function PropiedadesContent() {
             )}
 
             {/* Botón de subir */}
-            {form.imagenes.length < 6 && (
+            {form.imagenes.length < MAX_IMAGENES && (
               <label className="flex items-center justify-center gap-2 w-full h-12 border border-dashed border-costa-gris/50 rounded cursor-pointer hover:border-costa-navy hover:bg-costa-beige/50 transition-colors">
                 <Upload size={14} className="text-costa-gris" />
                 <span className="text-xs text-costa-gris">
