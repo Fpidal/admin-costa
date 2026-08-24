@@ -14,8 +14,8 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 
 ### Panel de Administración
 - **Dashboard**: Resumen de reservas, ingresos y ocupación
-- **Propiedades**: CRUD completo con fotos (hasta 16), amenities, precios y toggle de publicación
-- **Piezas gráficas**: Generador de avisos de venta y alquiler para redes (post 4:5 y story 9:16)
+- **Propiedades**: CRUD completo con fotos (hasta 16), amenities, precio de alquiler y de venta, y toggle de publicación
+- **Piezas gráficas**: Generador de avisos de venta y alquiler (post 4:5, story 9:16 y ficha A4 en PDF)
 - **Calendario de Precios**: Sistema de reglas de precio por temporada con prioridades
 - **Reservas**: Gestión de reservas con generación de PDF de contrato
 - **Calendario de Reservas**: Vista mensual con indicadores de feriados
@@ -43,8 +43,10 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 
 ### Piezas Gráficas
 - **Generación por propiedad**: Los textos, amenities y fotos salen de la ficha; se edita solo lo que haga falta
-- **Dos formatos**: Post 4:5 (1080×1350) y Story 9:16 (1080×1920), descarga en PNG a 2×
-- **Composición 70/30**: El 70% de la pieza son fotos — portada grande más una fila de hasta 3 secundarias
+- **Tres formatos**: Post 4:5 (1080×1350), Story 9:16 (1080×1920) y Ficha A4 de venta (1080×1527)
+- **Ficha A4**: Pensada para mandar por WhatsApp o mail e imprimir. Portada + fila de datos duros (m² cubiertos, lote, dormitorios, baños, plantas), grilla de 6 fotos parejas y la descripción a dos columnas. Exporta en PNG y en **PDF A4**
+- **Fotos**: Hasta 7 elegibles — la ficha usa portada + 6 en grilla; el post y el story se quedan con las primeras 4
+- **Composición 70/30** (post y story): El 70% de la pieza son fotos — portada grande más una fila de hasta 3 secundarias
 - **Encuadre por foto**: Recorte vertical arriba / centro / abajo para corregir cuando el corte se come el techo o la pileta
 - **Barra de amenities**: Hasta 7 iconos elegibles de un set de 15 (dormitorios, baños, huéspedes, pileta, cochera, parrilla, fogonero, jardín, golf, aire, wifi, playa, superficie, calefacción, grupo electrógeno), con texto editable y reordenables
 - **Barra de contacto**: Logo de WhatsApp junto al teléfono y logo de Costa Esmeralda en la esquina opuesta (`public/logo-costa-esmeralda.png`, opcional: si falta, la pieza sale sin él)

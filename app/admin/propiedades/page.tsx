@@ -29,6 +29,7 @@ interface Propiedad {
   plantas: number
   cochera: boolean
   precio_alquiler: number
+  precio_venta: number
   estado: string
   descripcion: string
   imagen_url: string | null
@@ -116,6 +117,7 @@ const initialForm = {
   plantas: 1,
   cochera: false,
   precio_alquiler: 0,
+  precio_venta: 0,
   estado: 'disponible',
   descripcion: '',
   imagenes: [] as string[],
@@ -252,6 +254,7 @@ function PropiedadesContent() {
         plantas: propiedad.plantas || 1,
         cochera: propiedad.cochera || false,
         precio_alquiler: propiedad.precio_alquiler || 0,
+        precio_venta: propiedad.precio_venta || 0,
         estado: propiedad.estado || 'disponible',
         descripcion: propiedad.descripcion || '',
         imagenes: propiedad.imagenes || (propiedad.imagen_url ? [propiedad.imagen_url] : []),
@@ -350,6 +353,7 @@ function PropiedadesContent() {
       plantas: Number(form.plantas),
       cochera: form.cochera,
       precio_alquiler: Number(form.precio_alquiler),
+      precio_venta: Number(form.precio_venta) || null,
       estado: form.estado,
       descripcion: form.descripcion,
       imagenes: form.imagenes,
@@ -1324,6 +1328,14 @@ function PropiedadesContent() {
                   />
                 </div>
               )}
+              <div>
+                <label className="block text-sm text-gray-600 mb-1">Precio de venta (US$)</label>
+                <InputNumber
+                  value={form.precio_venta}
+                  onChange={(val) => setForm({ ...form, precio_venta: val })}
+                />
+                <p className="text-[11px] text-gray-400 mt-1">Vacío o 0 = no está en venta</p>
+              </div>
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Estado</label>
                 <select

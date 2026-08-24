@@ -12,8 +12,16 @@
 - **Símbolo de moneda en cuerpo menor** que la cifra
 - **Hasta 7 iconos** por pieza y más aire entre volanta y título
 
+### Ficha A4 de Venta
+- **Nuevo formato** junto a Post y Story: 1080×1527 (proporción A4), pensado para WhatsApp, mail e impresión
+- **Otra estructura**: la portada pesa 27% en vez de 70%, y mandan la fila de datos duros, la grilla de 6 fotos parejas y el texto a dos columnas
+- **Se llena sola desde la ficha**: los m², el lote y las plantas salen de las columnas de la propiedad, y la descripción se parte en dos columnas por sus títulos en mayúscula (salteando FICHA TÉCNICA, cuyos números ya van en la fila de arriba)
+- **Exportación a PDF A4** además de PNG, con jsPDF en import dinámico
+- **Tope de fotos de 4 a 7**: la ficha usa portada + 6; el post y el story siguen con 4
+
 ### Propiedades
 - Tope de fotos por propiedad de 10 a 16
+- **Nueva columna `precio_venta`** (migración `sql/17-precio-venta.sql`): antes solo existía `precio_alquiler`, así que el precio de venta había que escribirlo a mano en cada pieza y no quedaba guardado en la ficha
 
 ---
 

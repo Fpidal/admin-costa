@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
-import { Download, Image as ImageIcon, Loader2, Save } from 'lucide-react'
+import { Download, FileText, Image as ImageIcon, Loader2, Save } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
 /* Tipos                                                               */
@@ -21,6 +21,7 @@ interface Propiedad {
   plantas: number
   cochera: boolean
   precio_alquiler: number
+  precio_venta: number | null
   imagen_url: string | null
   imagenes: string[] | null
   pileta: boolean
@@ -35,16 +36,32 @@ interface Propiedad {
   lavadero: boolean
   lavavajillas: boolean
   metros_cubiertos: number
+  metros_semicubiertos: number
   metros_lote: number
+  camas: number
+  descripcion: string | null
+  direccion: string | null
 }
 
 type Tipo = 'venta' | 'alquiler'
-type Formato = 'post' | 'story'
+type Formato = 'post' | 'story' | 'ficha'
 
 // Icono elegido para la barra inferior: clave del set + texto editable
 interface IconoElegido {
   k: string
   t: string
+}
+
+// Ficha A4: cada número de la fila de datos duros (valor + etiqueta)
+interface DatoDuro {
+  v: string
+  l: string
+}
+
+// Ficha A4: bloque de texto a dos columnas (título + cuerpo)
+interface BloqueTexto {
+  t: string
+  c: string
 }
 
 // Snapshot de los campos editables que se graba por (propiedad, tipo)
@@ -63,6 +80,9 @@ interface DatosAviso {
   fotos: string[] // URLs elegidas, en orden (la primera es la portada)
   iconos?: IconoElegido[] // reemplazan a los destacados con viñetas
   encuadres?: number[] // recorte vertical de cada foto: 0 arriba, .5 centro, 1 abajo
+  datos?: DatoDuro[] // solo ficha A4
+  bloques?: BloqueTexto[] // solo ficha A4
+  subtitulo?: string // solo ficha A4: barrio, lote y terreno bajo el título
 }
 
 /* ------------------------------------------------------------------ */
@@ -102,12 +122,17 @@ const ICONOS: { k: string; nombre: string; d: string }[] = [
 const ICONO_POR_K = Object.fromEntries(ICONOS.map((i) => [i.k, i]))
 const MAX_ICONOS = 7
 
-// Burbuja de WhatsApp para la barra de contacto: círculo verde con la cola
-// abajo a la izquierda y el tubo del teléfono calado en el color de la barra.
+// Fotos que se pueden elegir: la ficha A4 usa portada + 6 en grilla; el post y
+// el story se quedan con las primeras 4 (con más quedan estampillas ilegibles)
+const MAX_FOTOS = 7
+const fotosDelFormato = (f: Formato) => (f === 'ficha' ? MAX_FOTOS : 4)
+
 // Logo de Costa Esmeralda: va en la esquina derecha de la barra de contacto.
 // Es opcional — si el archivo no está, la barra se dibuja sin él.
 const LOGO_CE = '/logo-costa-esmeralda.png'
 
+// Burbuja de WhatsApp para la barra de contacto: círculo verde con la cola
+// abajo a la izquierda y el tubo del teléfono calado en el color de la barra.
 const WA_VERDE = '#25D366'
 const WA_BURBUJA =
   'M12 1.6a10.4 10.4 0 0 0-8.9 15.8L1.6 22.4l5.2-1.4A10.4 10.4 0 1 0 12 1.6'
@@ -189,6 +214,70 @@ function iconosDe(p: Propiedad, tipo: Tipo): IconoElegido[] {
   return d.slice(0, MAX_ICONOS)
 }
 
+/* ---------- presets de la ficha A4 ---------- */
+
+const num = (n: number) => (n || 0).toLocaleString('es-AR')
+
+// La fila de números: es lo primero que mira un comprador
+function datosDe(p: Propiedad): DatoDuro[] {
+  const d: DatoDuro[] = []
+  if (p.metros_cubiertos) d.push({ v: num(p.metros_cubiertos), l: 'm² cubiertos' })
+  if (p.metros_semicubiertos) d.push({ v: num(p.metros_semicubiertos), l: 'm² semicubiertos' })
+  if (p.metros_lote) d.push({ v: num(p.metros_lote), l: 'm² de lote' })
+  if (p.habitaciones) d.push({ v: String(p.habitaciones), l: 'dormitorios' })
+  if (p.banos) d.push({ v: String(p.banos) + (p.toilette ? ' + 1' : ''), l: p.toilette ? 'baños y toilette' : 'baños' })
+  if (p.plantas) d.push({ v: String(p.plantas), l: p.plantas === 1 ? 'planta' : 'plantas' })
+  if (p.camas) d.push({ v: String(p.camas), l: 'camas' })
+  return d.slice(0, 6)
+}
+
+function subtituloDe(p: Propiedad) {
+  const barrio = p.nombre?.split('-')[0]?.trim() || p.nombre
+  return [
+    p.direccion?.trim() || `Barrio ${barrio}`,
+    p.lote ? `Lote ${p.lote}` : '',
+    p.metros_lote ? `${num(p.metros_lote)} m² de terreno` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+// La descripción suele venir con secciones en mayúscula (FICHA TÉCNICA,
+// DISTRIBUCIÓN, EXTERIOR). Se parte por esos títulos y se saltea la ficha
+// técnica, porque esos números ya salen en la fila de datos duros.
+function bloquesDe(p: Propiedad): BloqueTexto[] {
+  const texto = (p.descripcion || '').trim()
+  if (!texto) return [{ t: 'LA PROPIEDAD', c: '' }, { t: 'EXTERIOR', c: '' }]
+
+  const lineas = texto.split('\n')
+  const secciones: BloqueTexto[] = []
+  let actual: BloqueTexto | null = null
+  for (const raw of lineas) {
+    const l = raw.trim()
+    if (!l) continue
+    // Título de sección: corto, sin punto final y en mayúsculas
+    const esTitulo = l.length < 40 && l === l.toUpperCase() && /[A-ZÁÉÍÓÚÑ]/.test(l)
+    if (esTitulo) {
+      actual = { t: l, c: '' }
+      secciones.push(actual)
+    } else if (actual) {
+      actual.c += (actual.c ? ' ' : '') + l.replace(/^[-·•]\s*/, '')
+    }
+  }
+
+  const utiles = secciones.filter((s) => s.c && !/FICHA\s*T[EÉ]CNICA/i.test(s.t))
+  if (utiles.length >= 2) return utiles.slice(0, 2)
+  if (utiles.length === 1) return [utiles[0], { t: 'EXTERIOR', c: '' }]
+
+  // Sin secciones reconocibles: se parte el texto al medio por párrafos
+  const parrafos = texto.split(/\n\s*\n/).map((s) => s.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  const corte = Math.ceil(parrafos.length / 2)
+  return [
+    { t: 'LA PROPIEDAD', c: parrafos.slice(0, corte).join(' ') },
+    { t: 'EXTERIOR', c: parrafos.slice(corte).join(' ') },
+  ]
+}
+
 function cargarImagen(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image()
@@ -216,6 +305,7 @@ export default function PiezasPage() {
   // Avisos grabados: clave `${propId}:${tipo}` -> campos
   const [avisosGuardados, setAvisosGuardados] = useState<Record<string, DatosAviso>>({})
   const [guardando, setGuardando] = useState(false)
+  const [exportandoPDF, setExportandoPDF] = useState(false)
   const [guardadoMsg, setGuardadoMsg] = useState('')
 
   const [tipo, setTipo] = useState<Tipo>('alquiler')
@@ -241,6 +331,10 @@ export default function PiezasPage() {
   const [destacados, setDestacados] = useState('')
   const [iconos, setIconos] = useState<IconoElegido[]>([])
   const [contacto, setContacto] = useState('')
+  // Campos exclusivos de la ficha A4
+  const [subtitulo, setSubtitulo] = useState('')
+  const [datos, setDatos] = useState<DatoDuro[]>([])
+  const [bloques, setBloques] = useState<BloqueTexto[]>([])
   const [chipIzq, setChipIzq] = useState('')
   const [chipDer, setChipDer] = useState(CHIP_DER_DEFAULT)
 
@@ -261,12 +355,15 @@ export default function PiezasPage() {
     setIconos(iconosDe(p, t))
     setChipIzq(chipIzqDe(t))
     setChipDer(CHIP_DER_DEFAULT)
+    setSubtitulo(subtituloDe(p))
+    setDatos(datosDe(p))
+    setBloques(bloquesDe(p))
     if (t === 'alquiler') {
       setPrecio(p.precio_alquiler ? money(p.precio_alquiler) : 'US$ ')
       setSufijo('/ noche')
       setPrecio2('Consult\u00e1 enero completo, febrero y fines de semana largos')
     } else {
-      setPrecio('US$ ')
+      setPrecio(p.precio_venta ? money(p.precio_venta) : 'US$ ')
       setSufijo('')
       setPrecio2('Permuta y financiaci\u00f3n directa del propietario')
     }
@@ -285,6 +382,10 @@ export default function PiezasPage() {
     // desde la ficha para que la pieza no salga sin la fila de amenities.
     setIconos(d.iconos?.length ? d.iconos.slice(0, MAX_ICONOS) : p ? iconosDe(p, t) : [])
     setContacto(d.contacto ?? '')
+    // Ídem para los campos de la ficha A4, que no existían en avisos viejos
+    setSubtitulo(d.subtitulo ?? (p ? subtituloDe(p) : ''))
+    setDatos(d.datos?.length ? d.datos : p ? datosDe(p) : [])
+    setBloques(d.bloques?.length ? d.bloques : p ? bloquesDe(p) : [])
     // Los avisos grabados antes de que los chips fueran editables no traen
     // estos campos: en ese caso se usan las etiquetas por defecto.
     setChipIzq(d.chipIzq ?? chipIzqDe(t))
@@ -294,7 +395,7 @@ export default function PiezasPage() {
 
   // Carga en el canvas una lista explícita de URLs (usada para restaurar lo grabado)
   const cargarFotosDesde = useCallback(async (urls: string[], enc?: number[]) => {
-    const lista = (urls || []).slice(0, 4)
+    const lista = (urls || []).slice(0, MAX_FOTOS)
     setSrcs(lista)
     setImgs([])
     setFotosBloqueadas(false)
@@ -315,7 +416,7 @@ export default function PiezasPage() {
       const urls = [
         ...(p.imagen_url ? [p.imagen_url] : []),
         ...((p.imagenes || []).filter((u) => u && u !== p.imagen_url)),
-      ].slice(0, 4)
+      ].slice(0, MAX_FOTOS)
       return cargarFotosDesde(urls)
     },
     [cargarFotosDesde],
@@ -355,7 +456,7 @@ export default function PiezasPage() {
     if (!sel || !userId) return
     setGuardando(true)
     setGuardadoMsg('')
-    const datos: DatosAviso = {
+    const aviso: DatosAviso = {
       volanta,
       titulo,
       ficha,
@@ -370,13 +471,16 @@ export default function PiezasPage() {
       fotos: srcs,
       iconos,
       encuadres,
+      datos,
+      bloques,
+      subtitulo,
     }
     const { error } = await supabase.from('piezas_avisos').upsert(
       {
         user_id: userId,
         propiedad_id: sel.id,
         tipo,
-        datos,
+        datos: aviso,
         updated_at: new Date().toISOString(),
       },
       { onConflict: 'user_id,propiedad_id,tipo' },
@@ -386,7 +490,7 @@ export default function PiezasPage() {
       setGuardadoMsg('No se pudo guardar: ' + error.message)
       return
     }
-    setAvisosGuardados((prev) => ({ ...prev, [`${sel.id}:${tipo}`]: datos }))
+    setAvisosGuardados((prev) => ({ ...prev, [`${sel.id}:${tipo}`]: aviso }))
     setGuardadoMsg(`Cambios de ${tipo} guardados ✓`)
   }
 
@@ -459,14 +563,15 @@ export default function PiezasPage() {
     if (!ctx) return
 
     const W = 1080
-    const H = formato === 'post' ? 1350 : 1920
+    // La ficha usa proporción A4 (1:1,414) para que imprima y exporte a PDF
+    const H = formato === 'post' ? 1350 : formato === 'story' ? 1920 : 1527
     cv.width = W
     cv.height = H
     const S = 1
     const P = W * 0.078
-    const barH = formato === 'post' ? 104 : 118
+    const barH = formato === 'post' ? 104 : formato === 'story' ? 118 : 104
     // Alto de la barra de amenities (0 si no hay iconos elegidos)
-    const iconH = iconos.length ? (formato === 'post' ? 134 : 152) : 0
+    const iconH = iconos.length ? (formato === 'post' ? 134 : formato === 'story' ? 152 : 118) : 0
 
     const ls = (px: number) => {
       try {
@@ -609,6 +714,284 @@ export default function PiezasPage() {
       return Math.max(yl, yr)
     }
 
+    /* barra de amenities: reemplaza a los destacados con viñetas */
+    const barraAmenities = () => {
+      if (!iconH) return
+      const barY = H - barH - iconH
+      ctx.strokeStyle = '#E3DACA'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(0, barY)
+      ctx.lineTo(W, barY)
+      ctx.stroke()
+
+      const n = iconos.length
+      const zona = W - P * 1.2
+      const colW = zona / n
+      const size = formato === 'story' ? 54 : formato === 'post' ? 48 : 44
+      const fs = formato === 'story' ? 22 : formato === 'post' ? 19.5 : 17.5
+      const iy = barY + (formato === 'story' ? 23 : formato === 'post' ? 18 : 16)
+
+      ctx.textAlign = 'center'
+      for (let i = 0; i < n; i++) {
+        const def = ICONO_POR_K[iconos[i].k]
+        const cx = P * 0.6 + colW * (i + 0.5)
+
+        if (def) {
+          ctx.save()
+          ctx.translate(cx - size / 2, iy)
+          ctx.scale(size / 24, size / 24)
+          ctx.strokeStyle = BRASS
+          ctx.lineWidth = (2.3 * 24) / size
+          ctx.lineCap = 'round'
+          ctx.lineJoin = 'round'
+          ctx.stroke(new Path2D(def.d))
+          ctx.restore()
+        }
+
+        // El texto va a dos líneas como máximo para que no se pisen las columnas
+        ctx.fillStyle = '#3A4A43'
+        ctx.font = '500 ' + fs + 'px Inter, sans-serif'
+        const palabras = iconos[i].t.trim().split(' ')
+        const lineas: string[] = []
+        let ln = ''
+        for (const p2 of palabras) {
+          const s = ln ? ln + ' ' + p2 : p2
+          if (ctx.measureText(s).width > colW - 12 && ln) {
+            lineas.push(ln)
+            ln = p2
+          } else ln = s
+        }
+        if (ln) lineas.push(ln)
+        const ty = iy + size + fs + 6
+        for (let l = 0; l < Math.min(lineas.length, 2); l++) {
+          ctx.fillText(lineas[l], cx, ty + l * (fs + 5))
+        }
+      }
+      ctx.textAlign = 'left'
+    }
+
+    /* barra de contacto: WhatsApp + teléfono a la izquierda, logo a la derecha */
+    const barraContacto = () => {
+    ctx.fillStyle = INK
+    ctx.fillRect(0, H - barH, W, barH)
+    ctx.fillStyle = BRASS
+    ctx.fillRect(0, H - barH, W, 7)
+
+    // Logo de WhatsApp a la izquierda, con el texto corrido a su derecha
+    const wa = formato === 'story' ? 60 : 54
+    const waY = H - barH + (barH - wa) / 2 + 3
+    ctx.save()
+    ctx.translate(P, waY)
+    ctx.scale(wa / 24, wa / 24)
+    ctx.fillStyle = WA_VERDE
+    ctx.fill(new Path2D(WA_BURBUJA))
+    ctx.fillStyle = INK
+    ctx.fill(new Path2D(WA_TUBO))
+    ctx.restore()
+
+    const tx = P + wa + 22
+    ctx.fillStyle = 'rgba(246,241,231,.62)'
+    ctx.font = '600 19px Inter, sans-serif'
+    ls(3.6)
+    ctx.fillText(tipo === 'venta' ? 'CONSULTAS Y VISITAS' : 'RESERVAS Y CONSULTAS', tx, H - barH + 48)
+    ls(0)
+    ctx.fillStyle = CREAM
+    ctx.font = '600 35px Inter, sans-serif'
+    ctx.fillText(contacto || 'WhatsApp 11 0000-0000', tx, H - barH + 88)
+
+    // Logo en la esquina opuesta al teléfono, escalado a lo alto de la barra
+    if (logo && logo.width && logo.height) {
+      const maxAlto = barH - 42
+      const maxAncho = 230
+      const r = Math.min(maxAlto / logo.height, maxAncho / logo.width)
+      const lw = logo.width * r
+      const lh = logo.height * r
+      ctx.drawImage(logo, W - P - lw, H - barH + 7 + (barH - 7 - lh) / 2, lw, lh)
+    }
+    }
+
+    /* ---------------- Ficha A4 de venta ----------------
+       Otra estructura: la portada pesa menos y mandan los datos duros, la
+       grilla de fotos parejas y el texto de distribución. */
+    if (formato === 'ficha') {
+      ctx.fillStyle = CREAM
+      ctx.fillRect(0, 0, W, H)
+
+      const usadas = imgs.slice(0, MAX_FOTOS)
+      const portadaH = 418
+
+      if (usadas.length) {
+        cover(usadas[0], 0, 0, W, portadaH, encuadres[0] ?? 0.5)
+      } else {
+        const g = ctx.createLinearGradient(0, 0, W, portadaH)
+        g.addColorStop(0, '#243330')
+        g.addColorStop(1, '#3E524B')
+        ctx.fillStyle = g
+        ctx.fillRect(0, 0, W, portadaH)
+        ctx.fillStyle = 'rgba(246,241,231,.55)'
+        ctx.textAlign = 'center'
+        ctx.font = '400 32px Inter, sans-serif'
+        ctx.fillText('Sin fotos cargadas en la propiedad', W / 2, portadaH / 2)
+        ctx.textAlign = 'left'
+      }
+
+      const gv = ctx.createLinearGradient(0, 0, 0, 200)
+      gv.addColorStop(0, 'rgba(10,18,15,.6)')
+      gv.addColorStop(1, 'rgba(10,18,15,0)')
+      ctx.fillStyle = gv
+      ctx.fillRect(0, 0, W, 200)
+
+      const chH = 58
+      if (chipIzq.trim()) chip(chipIzq.trim(), P, 52, chH, BRASS, '#fff', null)
+      if (chipDer.trim()) {
+        ctx.font = '600 ' + chH * 0.4 + 'px Inter, sans-serif'
+        ls(chH * 0.075)
+        const w2 = ctx.measureText(chipDer.trim()).width + chH * 1.04
+        ls(0)
+        chip(chipDer.trim(), W - P - w2, 52, chH, null, '#fff', 'rgba(255,255,255,.75)')
+      }
+
+      ctx.fillStyle = BRASS
+      ctx.fillRect(0, portadaH, W, 9)
+
+      /* cabecera: título y ubicación a la izquierda, precio a la derecha */
+      const colPrecio = 330
+      const colTexto = W - P * 2 - colPrecio - 26
+      let y = portadaH + 9 + 44
+
+      if (volanta.trim()) {
+        ctx.fillStyle = MUT
+        ctx.font = '600 19px Inter, sans-serif'
+        ls(3.2)
+        ctx.fillText(volanta.replace(/[·\s]+$/, ''), P, y)
+        ls(0)
+        y += 38
+      }
+
+      ctx.fillStyle = INK
+      ctx.font = '600 43px "Playfair Display", Georgia, serif'
+      y = wrap(titulo, P, y, colTexto, 49, true, 2)
+
+      if (subtitulo.trim()) {
+        y += 8
+        ctx.fillStyle = MUT
+        ctx.font = '400 21px Inter, sans-serif'
+        y = wrap(subtitulo, P, y, colTexto, 29, true, 1)
+      }
+
+      // Precio, alineado al margen derecho
+      if (precio.trim()) {
+        ctx.textAlign = 'right'
+        let yp = portadaH + 9 + 62
+        const m = precio.trim().match(/^(US\$|USD|AR\$|\$)\s*(.+)$/)
+        const moneda = m ? m[1] : ''
+        const cifra = m ? m[2] : precio
+        ctx.font = '700 52px Inter, sans-serif'
+        ls(-1.4)
+        ctx.fillStyle = INK
+        ctx.fillText(cifra, W - P, yp)
+        const anchoCifra = ctx.measureText(cifra).width
+        ls(0)
+        if (moneda) {
+          ctx.font = '700 28px Inter, sans-serif'
+          ctx.fillText(moneda, W - P - anchoCifra - 9, yp)
+        }
+        yp += 32
+        if (precio2.trim()) {
+          ctx.font = '500 19px Inter, sans-serif'
+          ctx.fillStyle = BRASS
+          yp = wrap(precio2, W - P, yp, colPrecio, 26, true, 2)
+        }
+        ctx.textAlign = 'left'
+        if (yp > y) y = yp
+      }
+
+      /* fila de datos duros */
+      if (datos.length) {
+        y += 18
+        ctx.strokeStyle = '#DED5C4'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(P, y)
+        ctx.lineTo(W - P, y)
+        ctx.stroke()
+
+        const colW = (W - P * 2) / datos.length
+        ctx.textAlign = 'center'
+        for (let i = 0; i < datos.length; i++) {
+          const cx = P + colW * (i + 0.5)
+          ctx.fillStyle = INK
+          ctx.font = '700 31px Inter, sans-serif'
+          ctx.fillText(datos[i].v, cx, y + 48)
+          ctx.fillStyle = MUT
+          ctx.font = '400 16px Inter, sans-serif'
+          ctx.fillText(datos[i].l, cx, y + 72)
+          if (i < datos.length - 1) {
+            ctx.strokeStyle = '#E3DACA'
+            ctx.lineWidth = 1
+            ctx.beginPath()
+            ctx.moveTo(P + colW * (i + 1), y + 16)
+            ctx.lineTo(P + colW * (i + 1), y + 74)
+            ctx.stroke()
+          }
+        }
+        ctx.textAlign = 'left'
+        y += 90
+        ctx.strokeStyle = '#DED5C4'
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.moveTo(P, y)
+        ctx.lineTo(W - P, y)
+        ctx.stroke()
+      }
+
+      /* grilla de fotos parejas: acá no hay jerarquía, es un recorrido */
+      const resto = usadas.slice(1)
+      if (resto.length) {
+        y += 18
+        const gap = 8
+        const cols = 3
+        const filas = Math.ceil(resto.length / cols)
+        const gw = (W - P * 2 - gap * (cols - 1)) / cols
+        const gh = filas >= 2 ? 156 : 200
+        for (let i = 0; i < resto.length; i++) {
+          const cx = P + (i % cols) * (gw + gap)
+          const cy = y + Math.floor(i / cols) * (gh + gap)
+          cover(resto[i], cx, cy, gw, gh, encuadres[i + 1] ?? 0.5)
+        }
+        y += filas * gh + (filas - 1) * gap
+      }
+
+      /* dos columnas de texto: lo que el comprador pregunta por WhatsApp */
+      const conTexto = bloques.filter((b) => b.c.trim())
+      if (conTexto.length) {
+        y += 24
+        const gapCol = 34
+        const cw = (W - P * 2 - gapCol) / Math.min(conTexto.length, 2)
+        const tope = H - barH - iconH - 22
+        for (let i = 0; i < Math.min(conTexto.length, 2); i++) {
+          const cx = P + i * (cw + gapCol)
+          let cy = y
+          ctx.fillStyle = BRASS
+          ctx.font = '600 16px Inter, sans-serif'
+          ls(3)
+          ctx.fillText(conTexto[i].t.toUpperCase(), cx, cy)
+          ls(0)
+          cy += 28
+          ctx.fillStyle = '#3A4A43'
+          ctx.font = '400 17.5px Inter, sans-serif'
+          // Se corta en la línea que llegaría a la barra de amenities
+          const maxLineas = Math.max(1, Math.floor((tope - cy) / 25))
+          wrap(conTexto[i].c, cx, cy, cw, 25, true, maxLineas)
+        }
+      }
+
+      barraAmenities()
+      barraContacto()
+      return
+    }
+
     /* encaje: la foto apunta al 70%, y solo cede si el texto queda ilegible */
     // zonaY es la base de la volanta, así que el padding arriba la incluye.
     // El +22 compensa que block() mide hasta la línea siguiente, no hasta el
@@ -701,99 +1084,9 @@ export default function PiezasPage() {
 
     block(topY, k, true)
 
-    /* barra de amenities: reemplaza a los destacados con viñetas */
-    if (iconH) {
-      const barY = H - barH - iconH
-      ctx.strokeStyle = '#E3DACA'
-      ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.moveTo(0, barY)
-      ctx.lineTo(W, barY)
-      ctx.stroke()
-
-      const n = iconos.length
-      const zona = W - P * 1.2
-      const colW = zona / n
-      const size = formato === 'post' ? 48 : 54
-      const fs = formato === 'post' ? 19.5 : 22
-      const iy = barY + (formato === 'post' ? 18 : 23)
-
-      ctx.textAlign = 'center'
-      for (let i = 0; i < n; i++) {
-        const def = ICONO_POR_K[iconos[i].k]
-        const cx = P * 0.6 + colW * (i + 0.5)
-
-        if (def) {
-          ctx.save()
-          ctx.translate(cx - size / 2, iy)
-          ctx.scale(size / 24, size / 24)
-          ctx.strokeStyle = BRASS
-          ctx.lineWidth = (2.3 * 24) / size
-          ctx.lineCap = 'round'
-          ctx.lineJoin = 'round'
-          ctx.stroke(new Path2D(def.d))
-          ctx.restore()
-        }
-
-        // El texto va a dos líneas como máximo para que no se pisen las columnas
-        ctx.fillStyle = '#3A4A43'
-        ctx.font = '500 ' + fs + 'px Inter, sans-serif'
-        const palabras = iconos[i].t.trim().split(' ')
-        const lineas: string[] = []
-        let ln = ''
-        for (const p2 of palabras) {
-          const s = ln ? ln + ' ' + p2 : p2
-          if (ctx.measureText(s).width > colW - 12 && ln) {
-            lineas.push(ln)
-            ln = p2
-          } else ln = s
-        }
-        if (ln) lineas.push(ln)
-        const ty = iy + size + fs + 6
-        for (let l = 0; l < Math.min(lineas.length, 2); l++) {
-          ctx.fillText(lineas[l], cx, ty + l * (fs + 5))
-        }
-      }
-      ctx.textAlign = 'left'
-    }
-
-    ctx.fillStyle = INK
-    ctx.fillRect(0, H - barH, W, barH)
-    ctx.fillStyle = BRASS
-    ctx.fillRect(0, H - barH, W, 7)
-
-    // Logo de WhatsApp a la izquierda, con el texto corrido a su derecha
-    const wa = formato === 'post' ? 54 : 60
-    const waY = H - barH + (barH - wa) / 2 + 3
-    ctx.save()
-    ctx.translate(P, waY)
-    ctx.scale(wa / 24, wa / 24)
-    ctx.fillStyle = WA_VERDE
-    ctx.fill(new Path2D(WA_BURBUJA))
-    ctx.fillStyle = INK
-    ctx.fill(new Path2D(WA_TUBO))
-    ctx.restore()
-
-    const tx = P + wa + 22
-    ctx.fillStyle = 'rgba(246,241,231,.62)'
-    ctx.font = '600 19px Inter, sans-serif'
-    ls(3.6)
-    ctx.fillText(tipo === 'venta' ? 'CONSULTAS Y VISITAS' : 'RESERVAS Y CONSULTAS', tx, H - barH + 48)
-    ls(0)
-    ctx.fillStyle = CREAM
-    ctx.font = '600 35px Inter, sans-serif'
-    ctx.fillText(contacto || 'WhatsApp 11 0000-0000', tx, H - barH + 88)
-
-    // Logo en la esquina opuesta al teléfono, escalado a lo alto de la barra
-    if (logo && logo.width && logo.height) {
-      const maxAlto = barH - 42
-      const maxAncho = 230
-      const r = Math.min(maxAlto / logo.height, maxAncho / logo.width)
-      const lw = logo.width * r
-      const lh = logo.height * r
-      ctx.drawImage(logo, W - P - lw, H - barH + 7 + (barH - 7 - lh) / 2, lw, lh)
-    }
-  }, [imgs, encuadres, logo, formato, tipo, volanta, titulo, ficha, precio, sufijo, precio2, iconos, contacto, chipIzq, chipDer])
+    barraAmenities()
+    barraContacto()
+  }, [imgs, encuadres, logo, formato, tipo, volanta, titulo, ficha, precio, sufijo, precio2, iconos, contacto, chipIzq, chipDer, subtitulo, datos, bloques])
 
   useEffect(() => { dibujar() }, [dibujar])
 
@@ -818,6 +1111,38 @@ export default function PiezasPage() {
     }
   }
 
+  // La ficha se manda por mail o se imprime, así que además del PNG va en PDF.
+  // jsPDF se importa acá para no cargarlo en quienes solo bajan el PNG.
+  const descargarPDF = async () => {
+    const cv = canvasRef.current
+    if (!cv) return
+    setExportandoPDF(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const tmp = document.createElement('canvas')
+      tmp.width = cv.width * 2
+      tmp.height = cv.height * 2
+      const c = tmp.getContext('2d')
+      if (!c) return
+      c.imageSmoothingQuality = 'high'
+      c.drawImage(cv, 0, 0, tmp.width, tmp.height)
+
+      // La pieza se centra en la hoja respetando su proporción
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+      const hojaW = 210
+      const hojaH = 297
+      const r = Math.min(hojaW / cv.width, hojaH / cv.height)
+      const w = cv.width * r
+      const h = cv.height * r
+      pdf.addImage(tmp.toDataURL('image/jpeg', 0.92), 'JPEG', (hojaW - w) / 2, (hojaH - h) / 2, w, h)
+      pdf.save(`${(sel?.nombre || 'ficha').replace(/\s+/g, '-').toLowerCase()}-${tipo}.pdf`)
+    } catch {
+      alert('No se pudo exportar el PDF: alguna foto no permite descarga por CORS. Probá con otra imagen.')
+    } finally {
+      setExportandoPDF(false)
+    }
+  }
+
   const hacerPortada = (i: number) => {
     if (i === 0) return
     const alFrente = <T,>(c: T[]) => { const x = [...c]; const [m] = x.splice(i, 1); x.unshift(m); return x }
@@ -831,12 +1156,12 @@ export default function PiezasPage() {
     setSrcs(sinEl)
     setEncuadres(sinEl)
   }
-  // Suma una foto de la propiedad a la selección (máximo 4)
+  // Suma una foto de la propiedad a la selección
   const agregar = async (url: string) => {
-    if (srcs.length >= 4 || srcs.includes(url)) return
+    if (srcs.length >= MAX_FOTOS || srcs.includes(url)) return
     const img = await cargarImagen(url)
-    setSrcs((prev) => (prev.length >= 4 || prev.includes(url) ? prev : [...prev, url]))
-    setEncuadres((prev) => (prev.length >= 4 ? prev : [...prev, 0.5]))
+    setSrcs((prev) => (prev.length >= MAX_FOTOS || prev.includes(url) ? prev : [...prev, url]))
+    setEncuadres((prev) => (prev.length >= MAX_FOTOS ? prev : [...prev, 0.5]))
     if (img) setImgs((prev) => [...prev, img])
     else setFotosBloqueadas(true)
   }
@@ -960,6 +1285,9 @@ export default function PiezasPage() {
           <div className="flex gap-2">
             <button onClick={() => setFormato('post')} className={`${seg} ${formato === 'post' ? segOn : segOff}`}>Post 4:5</button>
             <button onClick={() => setFormato('story')} className={`${seg} ${formato === 'story' ? segOn : segOff}`}>Story 9:16</button>
+            <button onClick={() => setFormato('ficha')} className={`${seg} ${formato === 'ficha' ? segOn : segOff}`} title="Ficha A4 para mandar por WhatsApp o imprimir">
+              Ficha A4
+            </button>
           </div>
         </div>
       </div>
@@ -980,6 +1308,13 @@ export default function PiezasPage() {
             <p className={label}>
               <ImageIcon size={12} className="inline mr-1 -mt-0.5" /> Fotos de la propiedad
             </p>
+            {srcs.length > fotosDelFormato(formato) && (
+              <p className="text-[11px] text-costa-gris mb-2 -mt-1">
+                {formato === 'ficha'
+                  ? `La ficha usa las primeras ${MAX_FOTOS}: portada + 6 en grilla.`
+                  : `Este formato usa las primeras 4 — las atenuadas solo salen en la Ficha A4.`}
+              </p>
+            )}
             {cargandoFotos ? (
               <div className="text-sm text-costa-gris flex items-center gap-2 py-4">
                 <Loader2 className="animate-spin" size={15} /> Cargando fotos...
@@ -991,7 +1326,7 @@ export default function PiezasPage() {
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 {srcs.map((s, i) => (
-                  <div key={s + i}>
+                  <div key={s + i} className={i >= fotosDelFormato(formato) ? 'opacity-40' : ''}>
                     <div className="relative rounded-lg overflow-hidden group" style={{ paddingTop: '92%' }}>
                       <div
                         className="absolute inset-0 bg-cover"
@@ -1040,17 +1375,17 @@ export default function PiezasPage() {
             {fotosDisponibles.length > 0 && (
               <div className="mt-3 border-t border-costa-beige pt-3">
                 <p className="text-[11px] text-costa-gris mb-2">
-                  {srcs.length >= 4
-                    ? 'Ya hay 4 fotos en la pieza. Quitá alguna (×) para poder sumar otra.'
-                    : 'Más fotos de la propiedad — tocá para sumarlas (máximo 4):'}
+                  {srcs.length >= MAX_FOTOS
+                    ? `Ya hay ${MAX_FOTOS} fotos elegidas. Quitá alguna (×) para poder sumar otra.`
+                    : `Más fotos de la propiedad — tocá para sumarlas (máximo ${MAX_FOTOS}):`}
                 </p>
                 <div className="grid grid-cols-6 gap-2">
                   {fotosDisponibles.map((u, i) => (
                     <button
                       key={u + i}
                       onClick={() => agregar(u)}
-                      disabled={srcs.length >= 4}
-                      title={srcs.length >= 4 ? 'Máximo 4 fotos' : 'Agregar a la pieza'}
+                      disabled={srcs.length >= MAX_FOTOS}
+                      title={srcs.length >= MAX_FOTOS ? `Máximo ${MAX_FOTOS} fotos` : 'Agregar a la pieza'}
                       className="relative rounded-lg overflow-hidden group disabled:opacity-40 disabled:cursor-not-allowed"
                       style={{ paddingTop: '92%' }}
                     >
@@ -1070,6 +1405,79 @@ export default function PiezasPage() {
               </p>
             )}
           </div>
+
+          {/* Campos exclusivos de la ficha A4 */}
+          {formato === 'ficha' && (
+            <div className="bg-white rounded-xl p-4 shadow-sm mb-4 space-y-4">
+              <div className="flex gap-2 items-start bg-costa-olivo/10 rounded-lg p-3 text-[13px] text-costa-olivo">
+                <span className="mt-0.5">✓</span>
+                <div>
+                  <b>Los datos y el texto salen de la ficha de la propiedad.</b> La descripción se parte
+                  en dos columnas por sus títulos en mayúscula, salteando la ficha técnica porque esos
+                  números ya van en la fila de arriba.
+                </div>
+              </div>
+
+              <div>
+                <label className={label}>Ubicación (debajo del título)</label>
+                <input className={input} value={subtitulo} onChange={(e) => setSubtitulo(e.target.value)} />
+              </div>
+
+              <div>
+                <p className={label}>Datos duros — {datos.length} de 6</p>
+                <div className="space-y-2">
+                  {datos.map((d, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        className={`${input} w-28 flex-shrink-0 font-semibold`}
+                        value={d.v}
+                        onChange={(e) => setDatos((prev) => prev.map((x, j) => (j === i ? { ...x, v: e.target.value } : x)))}
+                      />
+                      <input
+                        className={input}
+                        value={d.l}
+                        onChange={(e) => setDatos((prev) => prev.map((x, j) => (j === i ? { ...x, l: e.target.value } : x)))}
+                      />
+                      <button
+                        onClick={() => setDatos((prev) => prev.filter((_, j) => j !== i))}
+                        className="px-2 py-1 text-costa-gris hover:text-costa-coral"
+                        title="Quitar"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {datos.length < 6 && (
+                  <button
+                    onClick={() => setDatos((prev) => [...prev, { v: '', l: '' }])}
+                    className="mt-2 text-xs text-costa-navy hover:underline"
+                  >
+                    + Agregar dato
+                  </button>
+                )}
+              </div>
+
+              {bloques.slice(0, 2).map((b, i) => (
+                <div key={i}>
+                  <label className={label}>Columna {i + 1}</label>
+                  <input
+                    className={`${input} mb-2`}
+                    value={b.t}
+                    placeholder="Título de la columna"
+                    onChange={(e) => setBloques((prev) => prev.map((x, j) => (j === i ? { ...x, t: e.target.value } : x)))}
+                  />
+                  <textarea
+                    className={input}
+                    rows={4}
+                    value={b.c}
+                    placeholder="Vacío = no se dibuja esta columna"
+                    onChange={(e) => setBloques((prev) => prev.map((x, j) => (j === i ? { ...x, c: e.target.value } : x)))}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Iconos de amenities */}
           <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
@@ -1230,6 +1638,18 @@ export default function PiezasPage() {
           >
             <Download size={17} /> Descargar PNG
           </button>
+
+          {formato === 'ficha' && (
+            <button
+              onClick={descargarPDF}
+              disabled={exportandoPDF}
+              className="w-full py-3 mt-2 bg-white border-2 border-costa-navy text-costa-navy rounded-lg font-semibold hover:bg-costa-beige-light transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+            >
+              {exportandoPDF ? <Loader2 className="animate-spin" size={17} /> : <FileText size={17} />}
+              Descargar PDF (A4)
+            </button>
+          )}
+
           <p className="text-xs text-costa-gris mt-2 text-center">
             Se descarga a 2× de resolución. El bloque de texto se ajusta solo al espacio disponible.
           </p>
