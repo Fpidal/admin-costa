@@ -100,10 +100,14 @@ const ICONOS: { k: string; nombre: string; d: string }[] = [
 ]
 
 const ICONO_POR_K = Object.fromEntries(ICONOS.map((i) => [i.k, i]))
-const MAX_ICONOS = 6
+const MAX_ICONOS = 7
 
 // Burbuja de WhatsApp para la barra de contacto: círculo verde con la cola
 // abajo a la izquierda y el tubo del teléfono calado en el color de la barra.
+// Logo de Costa Esmeralda: va en la esquina derecha de la barra de contacto.
+// Es opcional — si el archivo no está, la barra se dibuja sin él.
+const LOGO_CE = '/logo-costa-esmeralda.png'
+
 const WA_VERDE = '#25D366'
 const WA_BURBUJA =
   'M12 1.6a10.4 10.4 0 0 0-8.9 15.8L1.6 22.4l5.2-1.4A10.4 10.4 0 1 0 12 1.6'
@@ -223,6 +227,9 @@ export default function PiezasPage() {
   const [fotosBloqueadas, setFotosBloqueadas] = useState(false)
   // Recorte vertical de cada foto (0 arriba · .5 centro · 1 abajo)
   const [encuadres, setEncuadres] = useState<number[]>([])
+  // Logo de Costa Esmeralda para la barra de contacto (opcional: si el archivo
+  // no está en /public la pieza se dibuja igual, sin logo)
+  const [logo, setLogo] = useState<HTMLImageElement | null>(null)
 
   // Campos editables
   const [volanta, setVolanta] = useState('')
@@ -239,6 +246,10 @@ export default function PiezasPage() {
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const sel = propiedades.find((p) => p.id === selId) || null
+
+  useEffect(() => {
+    void cargarImagen(LOGO_CE).then(setLogo)
+  }, [])
 
   /* ---------- presets y fotos (se llaman desde los handlers) ---------- */
   const aplicarTextos = useCallback((p: Propiedad, t: Tipo) => {
@@ -542,9 +553,9 @@ export default function PiezasPage() {
         ls(4 * q)
         // Acotada a su columna: si se dibujara a todo el ancho se metería
         // por debajo del precio
-        yl = wrap(volanta.replace(/[·\s]+$/, ''), P, yl, colTexto, 30 * q, paint, 2)
+        yl = wrap(volanta.replace(/[·\s]+$/, ''), P, yl, colTexto, 27 * q, paint, 2)
         ls(0)
-        yl += 12 * q
+        yl += 34 * q
       }
 
       ctx.fillStyle = INK
@@ -602,7 +613,7 @@ export default function PiezasPage() {
     // zonaY es la base de la volanta, así que el padding arriba la incluye.
     // El +22 compensa que block() mide hasta la línea siguiente, no hasta el
     // borde visual del último renglón.
-    const padTop = formato === 'post' ? 44 : 52
+    const padTop = formato === 'post' ? 36 : 44
     const kMax = formato === 'post' ? 1.0 : 1.18
     const encajar = (f: number) => {
       const zy = H * f + 10 + padTop
@@ -772,7 +783,17 @@ export default function PiezasPage() {
     ctx.fillStyle = CREAM
     ctx.font = '600 35px Inter, sans-serif'
     ctx.fillText(contacto || 'WhatsApp 11 0000-0000', tx, H - barH + 88)
-  }, [imgs, encuadres, formato, tipo, volanta, titulo, ficha, precio, sufijo, precio2, iconos, contacto, chipIzq, chipDer])
+
+    // Logo en la esquina opuesta al teléfono, escalado a lo alto de la barra
+    if (logo && logo.width && logo.height) {
+      const maxAlto = barH - 42
+      const maxAncho = 230
+      const r = Math.min(maxAlto / logo.height, maxAncho / logo.width)
+      const lw = logo.width * r
+      const lh = logo.height * r
+      ctx.drawImage(logo, W - P - lw, H - barH + 7 + (barH - 7 - lh) / 2, lw, lh)
+    }
+  }, [imgs, encuadres, logo, formato, tipo, volanta, titulo, ficha, precio, sufijo, precio2, iconos, contacto, chipIzq, chipDer])
 
   useEffect(() => { dibujar() }, [dibujar])
 

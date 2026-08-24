@@ -8,8 +8,9 @@
 - **Encuadre por foto**: Botones arriba / centro / abajo para elegir qué parte se conserva al recortar. Antes siempre centraba sin forma de corregirlo
 - **Barra de iconos**: Reemplaza a los destacados con viñetas. Hasta 6 de un set de 15, dibujados como paths SVG sobre el canvas (sin librerías nuevas)
 - **Título a la izquierda, precio a la derecha**: Entra en la mitad de alto que apilado, que es lo que libera el 70% para las fotos
-- **Logo de WhatsApp** en la barra de contacto
+- **Logo de WhatsApp** en la barra de contacto, y logo de Costa Esmeralda en la esquina opuesta
 - **Símbolo de moneda en cuerpo menor** que la cifra
+- **Hasta 7 iconos** por pieza y más aire entre volanta y título
 
 ### Propiedades
 - Tope de fotos por propiedad de 10 a 16
