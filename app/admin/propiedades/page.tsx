@@ -100,7 +100,7 @@ const formatMonto = (monto: number) => {
 }
 
 // Tope de fotos por propiedad (la landing y las piezas se adaptan solas)
-const MAX_IMAGENES = 10
+const MAX_IMAGENES = 16
 
 const initialForm = {
   nombre: '',

@@ -14,7 +14,8 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 
 ### Panel de Administración
 - **Dashboard**: Resumen de reservas, ingresos y ocupación
-- **Propiedades**: CRUD completo con fotos, amenities, precios y toggle de publicación
+- **Propiedades**: CRUD completo con fotos (hasta 16), amenities, precios y toggle de publicación
+- **Piezas gráficas**: Generador de avisos de venta y alquiler para redes (post 4:5 y story 9:16)
 - **Calendario de Precios**: Sistema de reglas de precio por temporada con prioridades
 - **Reservas**: Gestión de reservas con generación de PDF de contrato
 - **Calendario de Reservas**: Vista mensual con indicadores de feriados
@@ -39,6 +40,19 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Fines de semana largos**: Detección automática de puentes de 3+ días
 - **Feriados personalizados**: CRUD para agregar/editar feriados que se corren
 - **Integración visual**: Indicadores de feriados en calendarios de precios y reservas
+
+### Piezas Gráficas
+- **Generación por propiedad**: Los textos, amenities y fotos salen de la ficha; se edita solo lo que haga falta
+- **Dos formatos**: Post 4:5 (1080×1350) y Story 9:16 (1080×1920), descarga en PNG a 2×
+- **Composición 70/30**: El 70% de la pieza son fotos — portada grande más una fila de hasta 3 secundarias
+- **Encuadre por foto**: Recorte vertical arriba / centro / abajo para corregir cuando el corte se come el techo o la pileta
+- **Barra de amenities**: Hasta 6 iconos elegibles de un set de 15 (dormitorios, baños, huéspedes, pileta, cochera, parrilla, fogonero, jardín, golf, aire, wifi, playa, superficie, calefacción, grupo electrógeno), con texto editable y reordenables
+- **Ajuste automático**: La tipografía se adapta al espacio disponible; con títulos largos la foto cede hasta un piso del 64%
+- **Guardado por propiedad y tipo**: Cada aviso (venta / alquiler) conserva textos, fotos, encuadres e iconos en `piezas_avisos`
+
+### Mensajería Interna
+- Campanita de mensajes en el sidebar con contador de no leídos
+- Envío de mensajes entre usuarios del sistema desde el panel de Usuarios
 
 ### Sistema de Usuarios
 

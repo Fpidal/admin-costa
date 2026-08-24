@@ -41,6 +41,12 @@ interface Propiedad {
 type Tipo = 'venta' | 'alquiler'
 type Formato = 'post' | 'story'
 
+// Icono elegido para la barra inferior: clave del set + texto editable
+interface IconoElegido {
+  k: string
+  t: string
+}
+
 // Snapshot de los campos editables que se graba por (propiedad, tipo)
 interface DatosAviso {
   volanta: string
@@ -55,6 +61,8 @@ interface DatosAviso {
   chipDer: string
   formato: Formato
   fotos: string[] // URLs elegidas, en orden (la primera es la portada)
+  iconos?: IconoElegido[] // reemplazan a los destacados con viñetas
+  encuadres?: number[] // recorte vertical de cada foto: 0 arriba, .5 centro, 1 abajo
 }
 
 /* ------------------------------------------------------------------ */
@@ -65,6 +73,42 @@ const INK = '#14201C'
 const CREAM = '#F6F1E7'
 const BRASS = '#B08D4F'
 const MUT = '#6B7A72'
+
+/* ------------------------------------------------------------------ */
+/* Iconos de la barra inferior                                         */
+/* ------------------------------------------------------------------ */
+
+// Cada icono es un path SVG en un lienzo de 24x24 que se dibuja con Path2D
+// sobre el canvas: así queda nítido en cualquier tamaño y no suma librerías.
+const ICONOS: { k: string; nombre: string; d: string }[] = [
+  { k: 'dorm', nombre: 'Dormitorios', d: 'M2 9V6.5A2.5 2.5 0 0 1 4.5 4h15A2.5 2.5 0 0 1 22 6.5V9M2 11v8M22 11v8M2 15h20M6 9V8.2A1.2 1.2 0 0 1 7.2 7h3.1a1.2 1.2 0 0 1 1.2 1.2V9M12.5 9V8.2A1.2 1.2 0 0 1 13.7 7h3.1A1.2 1.2 0 0 1 18 8.2V9' },
+  { k: 'bano', nombre: 'Baños', d: 'M3 12.5h18V15a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5zM6.5 12.5V5.4A2.4 2.4 0 0 1 8.9 3h.7a2.4 2.4 0 0 1 2.4 2.4M9.6 5.4h2.4M7 20.2 5.8 22.4M17 20.2l1.2 2.2' },
+  { k: 'huesp', nombre: 'Huéspedes', d: 'M9 11.2a3.6 3.6 0 1 0 0-7.2 3.6 3.6 0 0 0 0 7.2M2.4 20.4a6.6 6.6 0 0 1 13.2 0M16.4 6.4a3.2 3.2 0 0 1 0 5.6M18.4 20.4a5.8 5.8 0 0 0-3.2-5.2' },
+  { k: 'pileta', nombre: 'Pileta', d: 'M2 16.4c1.6 0 2.2-1.1 3.7-1.1s2.1 1.1 3.7 1.1 2.2-1.1 3.7-1.1 2.1 1.1 3.7 1.1 2.2-1.1 3.2-1.1M2 20.4c1.6 0 2.2-1.1 3.7-1.1s2.1 1.1 3.7 1.1 2.2-1.1 3.7-1.1 2.1 1.1 3.7 1.1 2.2-1.1 3.2-1.1M7 15V5.2a2.2 2.2 0 0 1 4.4 0M15.4 15V5.2a2.2 2.2 0 0 1 4.4 0M7 9.4h8.4' },
+  // Parrilla como grill (tapa + patas) para que no se confunda con el fogón
+  { k: 'parrilla', nombre: 'Parrilla', d: 'M3.4 12.4h17.2M5 12.4a7 7 0 0 1 14 0M6.4 12.4 8 18.4h8l1.6-6M8.6 18.4 7 22M15.4 18.4 17 22M9.4 8.6c0-1.2 1.2-1.4 1.2-2.6M13.4 8.6c0-1.2 1.2-1.4 1.2-2.6' },
+  { k: 'fogon', nombre: 'Fogonero', d: 'M12 2.6c0 2.6 0 5-1.2 5-.7 0-1.3-.7-1.5-1.6-.6.8-1 1.7-1 2.8a3.7 3.7 0 0 0 7.4 0c0-3.2-3.7-6.2-3.7-6.2M3.6 20.2l16.8-3.8M3.6 16.4l16.8 3.8' },
+  { k: 'cochera', nombre: 'Cochera', d: 'M4.4 15.4h15.2M5.4 15.4l1.7-5.3a2.1 2.1 0 0 1 2-1.5h6.6a2.1 2.1 0 0 1 2 1.5l1.7 5.3v4.2h-2.6V17.6H8v2h-2.6zM7.6 15.6h.1M16.4 15.6h.1' },
+  { k: 'jardin', nombre: 'Jardín', d: 'M8 21v-5.6M8 15.4 4.2 10.6h2.4L4.4 5.6h7.2L9.4 10.6h2.4zM17 21v-7.4M17 13.6a4.3 4.3 0 1 0 0-8.6 4.3 4.3 0 0 0 0 8.6' },
+  { k: 'golf', nombre: 'Vista al golf', d: 'M11.4 19.6V3l7.4 3.8-7.4 3.8M8 21.6h8.6M9.4 18.4a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2' },
+  { k: 'aire', nombre: 'Aire acondicionado', d: 'M3 6.4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6.2H3zM5 9.2h14M6.6 12.6v2.2M12 12.6v4.4M17.4 12.6v2.2' },
+  { k: 'wifi', nombre: 'Wi-Fi', d: 'M5 12.6a10 10 0 0 1 14 0M8.6 16.2a5 5 0 0 1 6.8 0M2 9.2a15 15 0 0 1 20 0M12 20.4h.1' },
+  { k: 'playa', nombre: 'Playa', d: 'M12 3.4c4.7 0 8.6 3.5 8.6 7.8H3.4c0-4.3 3.9-7.8 8.6-7.8M12 11.2v9.4M12 20.6a2.4 2.4 0 0 1-2.4-2.4' },
+  { k: 'metros', nombre: 'Superficie', d: 'M3.4 3.4h17.2v17.2H3.4zM3.4 8.6h2.8M3.4 14h2.8M8.6 3.4v2.8M14 3.4v2.8M17.8 20.6v-2.8M8.6 20.6v-2.8' },
+  { k: 'calef', nombre: 'Calefacción', d: 'M8 21V8.6M12 21V8.6M16 21V8.6M4.6 8.6h14.8a1.6 1.6 0 0 0 0-3.2H4.6a1.6 1.6 0 0 0 0 3.2' },
+  { k: 'grupo', nombre: 'Grupo electrógeno', d: 'M13.4 2.6 4.6 13.4h6.2L10.2 21.4 19 10.6h-6.2z' },
+]
+
+const ICONO_POR_K = Object.fromEntries(ICONOS.map((i) => [i.k, i]))
+const MAX_ICONOS = 6
+
+// Burbuja de WhatsApp para la barra de contacto: círculo verde con la cola
+// abajo a la izquierda y el tubo del teléfono calado en el color de la barra.
+const WA_VERDE = '#25D366'
+const WA_BURBUJA =
+  'M12 1.6a10.4 10.4 0 0 0-8.9 15.8L1.6 22.4l5.2-1.4A10.4 10.4 0 1 0 12 1.6'
+const WA_TUBO =
+  'M17.2 14.6c-.3-.15-1.7-.83-1.96-.93-.26-.1-.45-.14-.64.15-.19.28-.73.92-.9 1.11-.16.19-.33.21-.62.07a7.9 7.9 0 0 1-2.3-1.42 8.6 8.6 0 0 1-1.6-1.98c-.16-.29-.02-.44.13-.59.13-.13.29-.34.43-.51.15-.18.19-.3.29-.49.1-.2.05-.37-.02-.51-.07-.15-.64-1.55-.88-2.12-.23-.55-.47-.48-.64-.49h-.55c-.19 0-.5.07-.76.36-.26.28-1 .97-1 2.37s1.02 2.75 1.17 2.94c.14.19 2.01 3.07 4.87 4.3.68.3 1.21.47 1.62.6.68.22 1.3.19 1.79.11.55-.08 1.7-.69 1.94-1.36.24-.67.24-1.24.17-1.36-.07-.12-.26-.19-.55-.33'
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -121,6 +165,26 @@ function destacadosDe(p: Propiedad, tipo: Tipo) {
   return d.slice(0, 10).join(' · ')
 }
 
+// Iconos sugeridos según la ficha. Se puede editar todo después, pero el orden
+// arranca por lo que más se mira en un aviso: capacidad primero, extras después.
+function iconosDe(p: Propiedad, tipo: Tipo): IconoElegido[] {
+  const d: IconoElegido[] = []
+  if (p.habitaciones) d.push({ k: 'dorm', t: `${p.habitaciones} dormitorios` })
+  if (p.banos) d.push({ k: 'bano', t: `${p.banos} baños${p.toilette ? ' + toilette' : ''}` })
+  if (tipo === 'alquiler' && p.capacidad) d.push({ k: 'huesp', t: `Hasta ${p.capacidad} huéspedes` })
+  if (tipo === 'venta' && p.metros_cubiertos) d.push({ k: 'metros', t: `${p.metros_cubiertos} m² cubiertos` })
+  if (p.pileta || p.pileta_climatizada) {
+    d.push({ k: 'pileta', t: p.pileta_climatizada ? 'Pileta climatizada' : 'Pileta' })
+  }
+  if (p.cochera) d.push({ k: 'cochera', t: 'Cochera' })
+  if (p.parrilla) d.push({ k: 'parrilla', t: 'Parrilla' })
+  if (p.fogonero) d.push({ k: 'fogon', t: 'Fogonero' })
+  if (p.aire_acondicionado) d.push({ k: 'aire', t: 'Aire acondicionado' })
+  if (p.wifi) d.push({ k: 'wifi', t: 'Wi-Fi' })
+  if (p.grupo_electrogeno) d.push({ k: 'grupo', t: 'Grupo electrógeno' })
+  return d.slice(0, MAX_ICONOS)
+}
+
 function cargarImagen(src: string): Promise<HTMLImageElement | null> {
   return new Promise((resolve) => {
     const img = new Image()
@@ -157,6 +221,8 @@ export default function PiezasPage() {
   const [srcs, setSrcs] = useState<string[]>([])
   const [cargandoFotos, setCargandoFotos] = useState(false)
   const [fotosBloqueadas, setFotosBloqueadas] = useState(false)
+  // Recorte vertical de cada foto (0 arriba · .5 centro · 1 abajo)
+  const [encuadres, setEncuadres] = useState<number[]>([])
 
   // Campos editables
   const [volanta, setVolanta] = useState('')
@@ -166,6 +232,7 @@ export default function PiezasPage() {
   const [sufijo, setSufijo] = useState('')
   const [precio2, setPrecio2] = useState('')
   const [destacados, setDestacados] = useState('')
+  const [iconos, setIconos] = useState<IconoElegido[]>([])
   const [contacto, setContacto] = useState('')
   const [chipIzq, setChipIzq] = useState('')
   const [chipDer, setChipDer] = useState(CHIP_DER_DEFAULT)
@@ -180,6 +247,7 @@ export default function PiezasPage() {
     setTitulo(p.nombre?.replace(/\s*-\s*Lote.*$/i, '').trim() || p.nombre)
     setFicha(fichaDe(p, t))
     setDestacados(destacadosDe(p, t))
+    setIconos(iconosDe(p, t))
     setChipIzq(chipIzqDe(t))
     setChipDer(CHIP_DER_DEFAULT)
     if (t === 'alquiler') {
@@ -194,7 +262,7 @@ export default function PiezasPage() {
   }, [])
 
   // Restaura en los inputs un aviso previamente grabado
-  const aplicarGuardado = useCallback((d: DatosAviso, t: Tipo) => {
+  const aplicarGuardado = useCallback((d: DatosAviso, t: Tipo, p?: Propiedad) => {
     setVolanta(d.volanta ?? '')
     setTitulo(d.titulo ?? '')
     setFicha(d.ficha ?? '')
@@ -202,6 +270,9 @@ export default function PiezasPage() {
     setSufijo(d.sufijo ?? '')
     setPrecio2(d.precio2 ?? '')
     setDestacados(d.destacados ?? '')
+    // Los avisos grabados antes de la barra de iconos no la traen: se sugiere
+    // desde la ficha para que la pieza no salga sin la fila de amenities.
+    setIconos(d.iconos?.length ? d.iconos.slice(0, MAX_ICONOS) : p ? iconosDe(p, t) : [])
     setContacto(d.contacto ?? '')
     // Los avisos grabados antes de que los chips fueran editables no traen
     // estos campos: en ese caso se usan las etiquetas por defecto.
@@ -211,11 +282,12 @@ export default function PiezasPage() {
   }, [])
 
   // Carga en el canvas una lista explícita de URLs (usada para restaurar lo grabado)
-  const cargarFotosDesde = useCallback(async (urls: string[]) => {
+  const cargarFotosDesde = useCallback(async (urls: string[], enc?: number[]) => {
     const lista = (urls || []).slice(0, 4)
     setSrcs(lista)
     setImgs([])
     setFotosBloqueadas(false)
+    setEncuadres(lista.map((_, i) => enc?.[i] ?? 0.5))
     if (!lista.length) return
 
     setCargandoFotos(true)
@@ -243,8 +315,8 @@ export default function PiezasPage() {
     setGuardadoMsg('')
     const g = avisosGuardados[`${p.id}:${tipo}`]
     if (g) {
-      aplicarGuardado(g, tipo)
-      if (g.fotos?.length) void cargarFotosDesde(g.fotos)
+      aplicarGuardado(g, tipo, p)
+      if (g.fotos?.length) void cargarFotosDesde(g.fotos, g.encuadres)
       else void cargarFotos(p)
     } else {
       aplicarTextos(p, tipo)
@@ -258,9 +330,9 @@ export default function PiezasPage() {
     if (sel) {
       const g = avisosGuardados[`${sel.id}:${t}`]
       if (g) {
-        aplicarGuardado(g, t)
+        aplicarGuardado(g, t, sel)
         // Si el tipo tiene fotos grabadas se restauran; si no, se dejan las actuales
-        if (g.fotos?.length) void cargarFotosDesde(g.fotos)
+        if (g.fotos?.length) void cargarFotosDesde(g.fotos, g.encuadres)
       } else {
         aplicarTextos(sel, t)
       }
@@ -285,6 +357,8 @@ export default function PiezasPage() {
       chipDer,
       formato,
       fotos: srcs,
+      iconos,
+      encuadres,
     }
     const { error } = await supabase.from('piezas_avisos').upsert(
       {
@@ -354,8 +428,8 @@ export default function PiezasPage() {
       if (p0) {
         const g = mapa[`${p0.id}:alquiler`]
         if (g) {
-          aplicarGuardado(g, 'alquiler')
-          if (g.fotos?.length) void cargarFotosDesde(g.fotos)
+          aplicarGuardado(g, 'alquiler', p0)
+          if (g.fotos?.length) void cargarFotosDesde(g.fotos, g.encuadres)
           else void cargarFotos(p0)
         } else {
           aplicarTextos(p0, 'alquiler')
@@ -379,14 +453,17 @@ export default function PiezasPage() {
     cv.height = H
     const S = 1
     const P = W * 0.078
-    const barH = 118
+    const barH = formato === 'post' ? 104 : 118
+    // Alto de la barra de amenities (0 si no hay iconos elegidos)
+    const iconH = iconos.length ? (formato === 'post' ? 134 : 152) : 0
 
     const ls = (px: number) => {
       try {
         ;(ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = px + 'px'
       } catch {}
     }
-    const cover = (im: HTMLImageElement, x: number, y: number, w: number, h: number) => {
+    // pos: recorte vertical cuando la foto sobra de alto (0 arriba, .5 centro, 1 abajo)
+    const cover = (im: HTMLImageElement, x: number, y: number, w: number, h: number, pos = 0.5) => {
       const r = Math.max(w / im.width, h / im.height)
       const nw = im.width * r
       const nh = im.height * r
@@ -394,23 +471,34 @@ export default function PiezasPage() {
       ctx.beginPath()
       ctx.rect(x, y, w, h)
       ctx.clip()
-      ctx.drawImage(im, x + (w - nw) / 2, y + (h - nh) / 2, nw, nh)
+      ctx.drawImage(im, x + (w - nw) / 2, y + (h - nh) * pos, nw, nh)
       ctx.restore()
     }
-    const wrap = (t: string, x: number, y: number, maxW: number, lh: number, paint: boolean) => {
+    const wrap = (t: string, x: number, y: number, maxW: number, lh: number, paint: boolean, maxLineas = 0) => {
       const ws = t.split(' ')
+      const lineas: string[] = []
       let line = ''
-      let yy = y
       for (const w of ws) {
         const s = line ? line + ' ' + w : w
         if (ctx.measureText(s).width > maxW && line) {
-          if (paint) ctx.fillText(line, x, yy)
+          lineas.push(line)
           line = w
-          yy += lh
         } else line = s
       }
-      if (line) {
-        if (paint) ctx.fillText(line, x, yy)
+      if (line) lineas.push(line)
+
+      // Con tope de líneas la última se recorta con puntos suspensivos
+      let salida = lineas
+      if (maxLineas && lineas.length > maxLineas) {
+        salida = lineas.slice(0, maxLineas)
+        let ult = salida[maxLineas - 1]
+        while (ult && ctx.measureText(ult + '…').width > maxW) ult = ult.slice(0, -1).trimEnd()
+        salida[maxLineas - 1] = ult + '…'
+      }
+
+      let yy = y
+      for (const l of salida) {
+        if (paint) ctx.fillText(l, x, yy)
         yy += lh
       }
       return yy
@@ -433,111 +521,114 @@ export default function PiezasPage() {
       return w
     }
 
-    /* bloque de texto */
+    /* bloque de texto: título a la izquierda, precio a la derecha.
+       En dos columnas entra en la mitad de alto que apilado, que es lo que
+       deja libre el 70% para las fotos. */
     const block = (topY: number, k: number, paint: boolean) => {
       const maxW = W - P * 2
-      let y = topY
       const q = S * k
+      const hayPrecio = !!precio.trim()
+      const gapCol = 40 * q
+      // El story es más angosto de columna: se le da menos lugar al precio para
+      // que al título no le queden cuatro renglones
+      const colPrecio = hayPrecio ? maxW * (formato === 'post' ? 0.38 : 0.34) : 0
+      const colTexto = hayPrecio ? maxW - colPrecio - gapCol : maxW
 
-      ctx.fillStyle = MUT
-      ctx.font = '600 ' + 22 * q + 'px Inter, sans-serif'
-      ls(4 * q)
-      if (paint) ctx.fillText(volanta.replace(/[·\s]+$/, ''), P, y)
-      ls(0)
-      y += 118 * q
+      /* columna izquierda */
+      let yl = topY
+      if (volanta.trim()) {
+        ctx.fillStyle = MUT
+        ctx.font = '600 ' + 21 * q + 'px Inter, sans-serif'
+        ls(4 * q)
+        // Acotada a su columna: si se dibujara a todo el ancho se metería
+        // por debajo del precio
+        yl = wrap(volanta.replace(/[·\s]+$/, ''), P, yl, colTexto, 30 * q, paint, 2)
+        ls(0)
+        yl += 12 * q
+      }
 
       ctx.fillStyle = INK
-      ctx.font = '600 ' + 72 * q + 'px "Playfair Display", Georgia, serif'
-      y = wrap(titulo, P, y, maxW, 80 * q, paint)
-      y += 24 * q
+      ctx.font = '600 ' + 44 * q + 'px "Playfair Display", Georgia, serif'
+      yl = wrap(titulo, P, yl, colTexto, 50 * q, paint)
 
-      ctx.fillStyle = MUT
-      ctx.font = '400 ' + 27 * q + 'px Inter, sans-serif'
-      y = wrap(ficha, P, y, maxW, 39 * q, paint)
-      y += 28 * q
-
-      if (paint) {
-        ctx.strokeStyle = '#DED5C4'
-        ctx.lineWidth = 2
-        ctx.beginPath()
-        ctx.moveTo(P, y)
-        ctx.lineTo(W - P, y)
-        ctx.stroke()
+      // La ficha repite lo que ya dicen los iconos: solo se dibuja si no hay
+      if (!iconos.length && ficha.trim()) {
+        yl += 16 * q
+        ctx.fillStyle = MUT
+        ctx.font = '400 ' + 26 * q + 'px Inter, sans-serif'
+        yl = wrap(ficha, P, yl, colTexto, 37 * q, paint)
       }
-      y += 90 * q
 
-      ctx.font = '700 ' + 86 * q + 'px Inter, sans-serif'
-      ls(-1.6 * q)
-      if (paint) { ctx.fillStyle = INK; ctx.fillText(precio, P, y) }
-      const pw = ctx.measureText(precio).width
-      ls(0)
-      if (sufijo.trim() && tipo !== 'venta') {
-        ctx.font = '400 ' + 33 * q + 'px Inter, sans-serif'
-        if (paint) { ctx.fillStyle = MUT; ctx.fillText(' ' + sufijo, P + pw + 11 * q, y) }
-      }
-      y += 66 * q
+      /* columna derecha */
+      let yr = topY
+      if (hayPrecio) {
+        ctx.textAlign = 'right'
+        yr += 14 * q
+        // El símbolo de moneda va más chico que la cifra: si va al mismo cuerpo
+        // se come la mitad del ancho de la columna
+        const m = precio.trim().match(/^(US\$|USD|AR\$|\$)\s*(.+)$/)
+        const moneda = m ? m[1] : ''
+        const cifra = m ? m[2] : precio
 
-      if (precio2.trim()) {
-        ctx.font = '500 ' + 25 * q + 'px Inter, sans-serif'
-        if (paint) ctx.fillStyle = BRASS
-        y = wrap(precio2, P, y, maxW, 35 * q, paint)
-      }
-      y += 54 * q
-
-      // Destacados en dos columnas: entra el doble de ítems en el mismo alto.
-      // Con un solo ítem no tiene sentido partir, va a todo el ancho.
-      const items = destacados.split('·').map((s) => s.trim()).filter(Boolean)
-      ctx.font = '400 ' + 26 * q + 'px Inter, sans-serif'
-
-      const gapCol = 34 * q
-      const dosCols = items.length > 1
-      const colW = dosCols ? (maxW - gapCol) / 2 : maxW
-      const corte = Math.ceil(items.length / 2)
-      const columnas = dosCols ? [items.slice(0, corte), items.slice(corte)] : [items]
-
-      const yIni = y
-      let yFin = y
-      for (let c = 0; c < columnas.length; c++) {
-        const x = P + c * (colW + gapCol)
-        let yc = yIni
-        for (const it of columnas[c]) {
-          if (paint) {
-            ctx.fillStyle = BRASS
-            ctx.beginPath()
-            ctx.arc(x + 7 * q, yc - 9 * q, 6 * q, 0, 7)
-            ctx.fill()
-            ctx.fillStyle = '#3A4A43'
-          }
-          yc = wrap(it, x + 32 * q, yc, colW - 32 * q, 38 * q, paint) + 16 * q
+        ctx.font = '700 ' + 53 * q + 'px Inter, sans-serif'
+        ls(-1.6 * q)
+        if (paint) { ctx.fillStyle = INK; ctx.fillText(cifra, W - P, yr) }
+        const anchoCifra = ctx.measureText(cifra).width
+        ls(0)
+        if (moneda) {
+          ctx.font = '700 ' + 30 * q + 'px Inter, sans-serif'
+          if (paint) ctx.fillText(moneda, W - P - anchoCifra - 10 * q, yr)
         }
-        if (yc > yFin) yFin = yc
+        yr += 32 * q
+
+        if (sufijo.trim() && tipo !== 'venta') {
+          ctx.font = '400 ' + 26 * q + 'px Inter, sans-serif'
+          if (paint) { ctx.fillStyle = MUT; ctx.fillText(sufijo, W - P, yr) }
+          yr += 34 * q
+        }
+
+        if (precio2.trim()) {
+          ctx.font = '500 ' + 21 * q + 'px Inter, sans-serif'
+          if (paint) ctx.fillStyle = BRASS
+          yr = wrap(precio2, W - P, yr, colPrecio, 29 * q, paint)
+        }
+        ctx.textAlign = 'left'
       }
-      y = yFin
-      if (items.length) y -= 16 * q
-      return y
+
+      return Math.max(yl, yr)
     }
 
-    /* encaje: primero achica la foto, después la tipografía */
-    const fracMax = formato === 'post' ? 0.585 : 0.645
-    const fracMin = formato === 'post' ? 0.4 : 0.47
-    let frac = fracMin
-    for (let f = fracMax; f >= fracMin - 0.0001; f -= 0.004) {
-      const ph = H * f
-      const ty = ph + 10 + P * 0.92
-      const av = H - barH - ty - P * 0.5
-      if (block(ty, 0.93, false) - ty <= av) { frac = f; break }
+    /* encaje: la foto apunta al 70%, y solo cede si el texto queda ilegible */
+    // zonaY es la base de la volanta, así que el padding arriba la incluye.
+    // El +22 compensa que block() mide hasta la línea siguiente, no hasta el
+    // borde visual del último renglón.
+    const padTop = formato === 'post' ? 44 : 52
+    const kMax = formato === 'post' ? 1.0 : 1.18
+    const encajar = (f: number) => {
+      const zy = H * f + 10 + padTop
+      const av = H - barH - iconH - zy + 22
+      let lo = 0.5
+      let hi = kMax
+      for (let i = 0; i < 22; i++) {
+        const m = (lo + hi) / 2
+        if (block(zy, m, false) - zy > av) hi = m
+        else lo = m
+      }
+      return { zonaY: zy, avail: av, k: lo }
+    }
+
+    // Con títulos o volantas largas el 70% deja el texto muy chico: ahí se le
+    // devuelven unos puntos a la tipografía, hasta un piso del 64% de foto.
+    let enc = encajar(0.7)
+    let frac = 0.7
+    while (enc.k < 0.82 && frac > 0.641) {
+      frac -= 0.01
+      enc = encajar(frac)
     }
     const photoH = H * frac
-    const topY = photoH + 10 + P * 0.92
-    const avail = H - barH - topY - P * 0.5
-    let lo = 0.7
-    let hi = 1.0
-    for (let i = 0; i < 22; i++) {
-      const m = (lo + hi) / 2
-      if (block(topY, m, false) - topY > avail) hi = m
-      else lo = m
-    }
-    const k = lo
+    const { zonaY, avail, k } = enc
+    // Si el texto no llena la franja, se centra en vez de quedar pegado arriba
+    const topY = zonaY + Math.max(0, (avail - (block(zonaY, k, false) - zonaY)) / 2)
 
     /* fondo + fotos */
     ctx.fillStyle = CREAM
@@ -557,16 +648,20 @@ export default function PiezasPage() {
       ctx.fillText('Sin fotos cargadas en la propiedad', W / 2, photoH / 2)
       ctx.textAlign = 'left'
     } else if (n === 1) {
-      cover(imgs[0], 0, 0, W, photoH)
+      cover(imgs[0], 0, 0, W, photoH, encuadres[0] ?? 0.5)
     } else {
+      // La portada se lleva 3/4 del bloque: con esa proporción (~1,5:1) una foto
+      // de celular entra casi entera en vez de quedar en franja panorámica.
       const gap = 9
-      heroH = photoH * 0.635 - gap / 2
-      cover(imgs[0], 0, 0, W, heroH)
+      heroH = photoH * 0.75 - gap / 2
+      cover(imgs[0], 0, 0, W, heroH, encuadres[0] ?? 0.5)
       const sy = heroH + gap
       const sh = photoH - heroH - gap
       const m = n - 1
       const w = (W - gap * (m - 1)) / m
-      for (let i = 0; i < m; i++) cover(imgs[i + 1], i * (w + gap), sy, w, sh)
+      for (let i = 0; i < m; i++) {
+        cover(imgs[i + 1], i * (w + gap), sy, w, sh, encuadres[i + 1] ?? 0.5)
+      }
     }
 
     const gv = ctx.createLinearGradient(0, 0, 0, heroH * 0.4)
@@ -595,19 +690,89 @@ export default function PiezasPage() {
 
     block(topY, k, true)
 
+    /* barra de amenities: reemplaza a los destacados con viñetas */
+    if (iconH) {
+      const barY = H - barH - iconH
+      ctx.strokeStyle = '#E3DACA'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(0, barY)
+      ctx.lineTo(W, barY)
+      ctx.stroke()
+
+      const n = iconos.length
+      const zona = W - P * 1.2
+      const colW = zona / n
+      const size = formato === 'post' ? 48 : 54
+      const fs = formato === 'post' ? 19.5 : 22
+      const iy = barY + (formato === 'post' ? 18 : 23)
+
+      ctx.textAlign = 'center'
+      for (let i = 0; i < n; i++) {
+        const def = ICONO_POR_K[iconos[i].k]
+        const cx = P * 0.6 + colW * (i + 0.5)
+
+        if (def) {
+          ctx.save()
+          ctx.translate(cx - size / 2, iy)
+          ctx.scale(size / 24, size / 24)
+          ctx.strokeStyle = BRASS
+          ctx.lineWidth = (2.3 * 24) / size
+          ctx.lineCap = 'round'
+          ctx.lineJoin = 'round'
+          ctx.stroke(new Path2D(def.d))
+          ctx.restore()
+        }
+
+        // El texto va a dos líneas como máximo para que no se pisen las columnas
+        ctx.fillStyle = '#3A4A43'
+        ctx.font = '500 ' + fs + 'px Inter, sans-serif'
+        const palabras = iconos[i].t.trim().split(' ')
+        const lineas: string[] = []
+        let ln = ''
+        for (const p2 of palabras) {
+          const s = ln ? ln + ' ' + p2 : p2
+          if (ctx.measureText(s).width > colW - 12 && ln) {
+            lineas.push(ln)
+            ln = p2
+          } else ln = s
+        }
+        if (ln) lineas.push(ln)
+        const ty = iy + size + fs + 6
+        for (let l = 0; l < Math.min(lineas.length, 2); l++) {
+          ctx.fillText(lineas[l], cx, ty + l * (fs + 5))
+        }
+      }
+      ctx.textAlign = 'left'
+    }
+
     ctx.fillStyle = INK
     ctx.fillRect(0, H - barH, W, barH)
     ctx.fillStyle = BRASS
     ctx.fillRect(0, H - barH, W, 7)
+
+    // Logo de WhatsApp a la izquierda, con el texto corrido a su derecha
+    const wa = formato === 'post' ? 54 : 60
+    const waY = H - barH + (barH - wa) / 2 + 3
+    ctx.save()
+    ctx.translate(P, waY)
+    ctx.scale(wa / 24, wa / 24)
+    ctx.fillStyle = WA_VERDE
+    ctx.fill(new Path2D(WA_BURBUJA))
+    ctx.fillStyle = INK
+    ctx.fill(new Path2D(WA_TUBO))
+    ctx.restore()
+
+    const tx = P + wa + 22
     ctx.fillStyle = 'rgba(246,241,231,.62)'
-    ctx.font = '600 20px Inter, sans-serif'
+    ctx.font = '600 19px Inter, sans-serif'
     ls(3.6)
-    ctx.fillText(tipo === 'venta' ? 'CONSULTAS Y VISITAS' : 'RESERVAS Y CONSULTAS', P, H - barH + 50)
+    ctx.fillText(tipo === 'venta' ? 'CONSULTAS Y VISITAS' : 'RESERVAS Y CONSULTAS', tx, H - barH + 48)
     ls(0)
     ctx.fillStyle = CREAM
-    ctx.font = '600 37px Inter, sans-serif'
-    ctx.fillText(contacto || 'WhatsApp 11 0000-0000', P, H - barH + 92)
-  }, [imgs, formato, tipo, volanta, titulo, ficha, precio, sufijo, precio2, destacados, contacto, chipIzq, chipDer])
+    ctx.font = '600 35px Inter, sans-serif'
+    ctx.fillText(contacto || 'WhatsApp 11 0000-0000', tx, H - barH + 88)
+  }, [imgs, encuadres, formato, tipo, volanta, titulo, ficha, precio, sufijo, precio2, iconos, contacto, chipIzq, chipDer])
 
   useEffect(() => { dibujar() }, [dibujar])
 
@@ -634,20 +799,50 @@ export default function PiezasPage() {
 
   const hacerPortada = (i: number) => {
     if (i === 0) return
-    setImgs((prev) => { const c = [...prev]; const [m] = c.splice(i, 1); c.unshift(m); return c })
-    setSrcs((prev) => { const c = [...prev]; const [m] = c.splice(i, 1); c.unshift(m); return c })
+    const alFrente = <T,>(c: T[]) => { const x = [...c]; const [m] = x.splice(i, 1); x.unshift(m); return x }
+    setImgs(alFrente)
+    setSrcs(alFrente)
+    setEncuadres(alFrente)
   }
   const quitar = (i: number) => {
-    setImgs((prev) => prev.filter((_, j) => j !== i))
-    setSrcs((prev) => prev.filter((_, j) => j !== i))
+    const sinEl = <T,>(c: T[]) => c.filter((_, j) => j !== i)
+    setImgs(sinEl)
+    setSrcs(sinEl)
+    setEncuadres(sinEl)
   }
   // Suma una foto de la propiedad a la selección (máximo 4)
   const agregar = async (url: string) => {
     if (srcs.length >= 4 || srcs.includes(url)) return
     const img = await cargarImagen(url)
     setSrcs((prev) => (prev.length >= 4 || prev.includes(url) ? prev : [...prev, url]))
+    setEncuadres((prev) => (prev.length >= 4 ? prev : [...prev, 0.5]))
     if (img) setImgs((prev) => [...prev, img])
     else setFotosBloqueadas(true)
+  }
+  // Mueve el recorte de una foto: útil cuando el cover corta el techo o la pileta
+  const moverEncuadre = (i: number, pos: number) => {
+    setEncuadres((prev) => prev.map((v, j) => (j === i ? pos : v)))
+  }
+
+  /* ---------- iconos ---------- */
+  const toggleIcono = (k: string) => {
+    setIconos((prev) => {
+      if (prev.some((x) => x.k === k)) return prev.filter((x) => x.k !== k)
+      if (prev.length >= MAX_ICONOS) return prev
+      return [...prev, { k, t: ICONO_POR_K[k]?.nombre || k }]
+    })
+  }
+  const editarIcono = (k: string, t: string) => {
+    setIconos((prev) => prev.map((x) => (x.k === k ? { ...x, t } : x)))
+  }
+  const moverIcono = (i: number, dir: -1 | 1) => {
+    setIconos((prev) => {
+      const j = i + dir
+      if (j < 0 || j >= prev.length) return prev
+      const c = [...prev]
+      ;[c[i], c[j]] = [c[j], c[i]]
+      return c
+    })
   }
 
   /* ---------- UI ---------- */
@@ -775,22 +970,47 @@ export default function PiezasPage() {
             ) : (
               <div className="grid grid-cols-4 gap-2">
                 {srcs.map((s, i) => (
-                  <div key={s + i} className="relative rounded-lg overflow-hidden group" style={{ paddingTop: '92%' }}>
-                    <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${s})` }} />
-                    <button
-                      onClick={() => hacerPortada(i)}
-                      className={`absolute bottom-0 inset-x-0 text-[9px] font-bold tracking-wider py-1 ${
-                        i === 0 ? 'bg-costa-coral text-white' : 'bg-costa-navy/75 text-white/85 hover:bg-costa-coral'
-                      }`}
-                    >
-                      {i === 0 ? 'PORTADA' : 'USAR'}
-                    </button>
-                    <button
-                      onClick={() => quitar(i)}
-                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-costa-navy/75 text-white text-xs leading-none hover:bg-costa-coral"
-                    >
-                      ×
-                    </button>
+                  <div key={s + i}>
+                    <div className="relative rounded-lg overflow-hidden group" style={{ paddingTop: '92%' }}>
+                      <div
+                        className="absolute inset-0 bg-cover"
+                        style={{
+                          backgroundImage: `url(${s})`,
+                          backgroundPosition: `center ${(encuadres[i] ?? 0.5) * 100}%`,
+                        }}
+                      />
+                      <button
+                        onClick={() => hacerPortada(i)}
+                        className={`absolute bottom-0 inset-x-0 text-[9px] font-bold tracking-wider py-1 ${
+                          i === 0 ? 'bg-costa-coral text-white' : 'bg-costa-navy/75 text-white/85 hover:bg-costa-coral'
+                        }`}
+                      >
+                        {i === 0 ? 'PORTADA' : 'USAR'}
+                      </button>
+                      <button
+                        onClick={() => quitar(i)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-costa-navy/75 text-white text-xs leading-none hover:bg-costa-coral"
+                      >
+                        ×
+                      </button>
+                    </div>
+                    {/* Encuadre: qué parte de la foto se conserva al recortarla */}
+                    <div className="flex mt-1 rounded-md overflow-hidden border border-costa-beige">
+                      {([['↑', 0], ['•', 0.5], ['↓', 1]] as const).map(([txt, pos]) => (
+                        <button
+                          key={pos}
+                          onClick={() => moverEncuadre(i, pos)}
+                          title={pos === 0 ? 'Encuadrar arriba' : pos === 1 ? 'Encuadrar abajo' : 'Centrar'}
+                          className={`flex-1 text-[11px] leading-none py-1 transition-colors ${
+                            (encuadres[i] ?? 0.5) === pos
+                              ? 'bg-costa-navy text-white'
+                              : 'bg-white text-costa-gris hover:bg-costa-beige-light'
+                          }`}
+                        >
+                          {txt}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -827,6 +1047,80 @@ export default function PiezasPage() {
               <p className="text-xs text-costa-coral mt-2">
                 Algunas fotos no se pudieron cargar para la pieza. Verificá que el bucket de Supabase sea público.
               </p>
+            )}
+          </div>
+
+          {/* Iconos de amenities */}
+          <div className="bg-white rounded-xl p-4 shadow-sm mb-4">
+            <p className={label}>
+              Iconos de la pieza — {iconos.length} de {MAX_ICONOS}
+            </p>
+            <div className="flex gap-2 flex-wrap mb-3">
+              {ICONOS.map((ic) => {
+                const on = iconos.some((x) => x.k === ic.k)
+                const lleno = iconos.length >= MAX_ICONOS
+                return (
+                  <button
+                    key={ic.k}
+                    onClick={() => toggleIcono(ic.k)}
+                    disabled={!on && lleno}
+                    title={!on && lleno ? `Máximo ${MAX_ICONOS} iconos` : ic.nombre}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs transition-colors disabled:opacity-35 disabled:cursor-not-allowed ${
+                      on
+                        ? 'bg-costa-navy text-white border-costa-navy'
+                        : 'bg-white text-costa-gris border-costa-beige hover:border-costa-navy/40'
+                    }`}
+                  >
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+                      <path d={ic.d} />
+                    </svg>
+                    {ic.nombre}
+                  </button>
+                )
+              })}
+            </div>
+
+            {iconos.length === 0 ? (
+              <p className="text-[11px] text-costa-gris">
+                Sin iconos la pieza muestra la ficha debajo del título, como antes.
+              </p>
+            ) : (
+              <div className="space-y-2 border-t border-costa-beige pt-3">
+                <p className="text-[11px] text-costa-gris">
+                  Editá el texto de cada uno y ordenalos como van a salir en la pieza:
+                </p>
+                {iconos.map((it, i) => (
+                  <div key={it.k} className="flex items-center gap-2">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={BRASS} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                      <path d={ICONO_POR_K[it.k]?.d} />
+                    </svg>
+                    <input className={input} value={it.t} onChange={(e) => editarIcono(it.k, e.target.value)} />
+                    <button
+                      onClick={() => moverIcono(i, -1)}
+                      disabled={i === 0}
+                      className="px-2 py-1 text-costa-gris hover:text-costa-navy disabled:opacity-25"
+                      title="Mover a la izquierda"
+                    >
+                      ←
+                    </button>
+                    <button
+                      onClick={() => moverIcono(i, 1)}
+                      disabled={i === iconos.length - 1}
+                      className="px-2 py-1 text-costa-gris hover:text-costa-navy disabled:opacity-25"
+                      title="Mover a la derecha"
+                    >
+                      →
+                    </button>
+                    <button
+                      onClick={() => toggleIcono(it.k)}
+                      className="px-2 py-1 text-costa-gris hover:text-costa-coral"
+                      title="Quitar"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
 
@@ -879,10 +1173,6 @@ export default function PiezasPage() {
             <div>
               <label className={label}>Línea secundaria</label>
               <input className={input} value={precio2} onChange={(e) => setPrecio2(e.target.value)} />
-            </div>
-            <div>
-              <label className={label}>Destacados (separá con · )</label>
-              <textarea className={input} rows={3} value={destacados} onChange={(e) => setDestacados(e.target.value)} />
             </div>
             <div>
               <label className={label}>Contacto</label>

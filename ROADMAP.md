@@ -1,5 +1,21 @@
 # Admin Costa - Hoja de Ruta
 
+## Actualizaciones Recientes (Agosto 2026)
+
+### Piezas Gráficas - Rediseño 70/30
+- **Fotos al 70% de la pieza**: Antes el bloque de fotos se achicaba hasta el 40% para hacerle lugar al texto; ahora manda la foto y la tipografía se ajusta sola
+- **Portada más grande**: Se lleva el 75% del bloque de fotos (antes 63,5%). Pasa de una franja 3,14:1 a 1,5:1, con lo que de una foto de celular 4:3 se ve el 87% en vez del 42%
+- **Encuadre por foto**: Botones arriba / centro / abajo para elegir qué parte se conserva al recortar. Antes siempre centraba sin forma de corregirlo
+- **Barra de iconos**: Reemplaza a los destacados con viñetas. Hasta 6 de un set de 15, dibujados como paths SVG sobre el canvas (sin librerías nuevas)
+- **Título a la izquierda, precio a la derecha**: Entra en la mitad de alto que apilado, que es lo que libera el 70% para las fotos
+- **Logo de WhatsApp** en la barra de contacto
+- **Símbolo de moneda en cuerpo menor** que la cifra
+
+### Propiedades
+- Tope de fotos por propiedad de 10 a 16
+
+---
+
 ## Actualizaciones Recientes (Enero 2026)
 
 ### Gestión de Cobros - Reestructuración Completa
