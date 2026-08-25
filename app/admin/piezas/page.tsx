@@ -108,13 +108,22 @@ const ICONOS: { k: string; nombre: string; d: string }[] = [
   // Parrilla como grill (tapa + patas) para que no se confunda con el fogón
   { k: 'parrilla', nombre: 'Parrilla', d: 'M3.4 12.4h17.2M5 12.4a7 7 0 0 1 14 0M6.4 12.4 8 18.4h8l1.6-6M8.6 18.4 7 22M15.4 18.4 17 22M9.4 8.6c0-1.2 1.2-1.4 1.2-2.6M13.4 8.6c0-1.2 1.2-1.4 1.2-2.6' },
   { k: 'fogon', nombre: 'Fogonero', d: 'M12 2.6c0 2.6 0 5-1.2 5-.7 0-1.3-.7-1.5-1.6-.6.8-1 1.7-1 2.8a3.7 3.7 0 0 0 7.4 0c0-3.2-3.7-6.2-3.7-6.2M3.6 20.2l16.8-3.8M3.6 16.4l16.8 3.8' },
-  { k: 'cochera', nombre: 'Cochera', d: 'M4.4 15.4h15.2M5.4 15.4l1.7-5.3a2.1 2.1 0 0 1 2-1.5h6.6a2.1 2.1 0 0 1 2 1.5l1.7 5.3v4.2h-2.6V17.6H8v2h-2.6zM7.6 15.6h.1M16.4 15.6h.1' },
+  // Cochera: auto bajo el techo del garage, como en las fichas de los portales
+  { k: 'cochera', nombre: 'Cochera', d: 'M2.6 9.4 12 4.2l9.4 5.2M6 15.4h12M6.8 15.4l1.2-3.4a1.5 1.5 0 0 1 1.4-1h5.2a1.5 1.5 0 0 1 1.4 1l1.2 3.4v3h-1.8v-1.4H8.6v1.4H6.8zM8.8 15.6h.1M15.2 15.6h.1' },
   { k: 'jardin', nombre: 'Jardín', d: 'M8 21v-5.6M8 15.4 4.2 10.6h2.4L4.4 5.6h7.2L9.4 10.6h2.4zM17 21v-7.4M17 13.6a4.3 4.3 0 1 0 0-8.6 4.3 4.3 0 0 0 0 8.6' },
   { k: 'golf', nombre: 'Vista al golf', d: 'M11.4 19.6V3l7.4 3.8-7.4 3.8M8 21.6h8.6M9.4 18.4a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2' },
   { k: 'aire', nombre: 'Aire acondicionado', d: 'M3 6.4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6.2H3zM5 9.2h14M6.6 12.6v2.2M12 12.6v4.4M17.4 12.6v2.2' },
   { k: 'wifi', nombre: 'Wi-Fi', d: 'M5 12.6a10 10 0 0 1 14 0M8.6 16.2a5 5 0 0 1 6.8 0M2 9.2a15 15 0 0 1 20 0M12 20.4h.1' },
   { k: 'playa', nombre: 'Playa', d: 'M12 3.4c4.7 0 8.6 3.5 8.6 7.8H3.4c0-4.3 3.9-7.8 8.6-7.8M12 11.2v9.4M12 20.6a2.4 2.4 0 0 1-2.4-2.4' },
-  { k: 'metros', nombre: 'Superficie', d: 'M3.4 3.4h17.2v17.2H3.4zM3.4 8.6h2.8M3.4 14h2.8M8.6 3.4v2.8M14 3.4v2.8M17.8 20.6v-2.8M8.6 20.6v-2.8' },
+  // Superficie cubierta: el cuadrado con la diagonal, como en los portales
+  { k: 'metros', nombre: 'Superficie cubierta', d: 'M4 4h16v16H4zM15.4 8.6 8.6 15.4M15.4 8.6h-4M15.4 8.6v4M8.6 15.4h4M8.6 15.4v-4' },
+  // Ambientes: la puerta, igual que en las fichas de Zonaprop y Argenprop
+  { k: 'ambientes', nombre: 'Ambientes', d: 'M7.4 2.8h9.2v18.4H7.4zM7.4 21.2h9.2M14 12.4v1.4' },
+  // Superficie total del lote: la regla con la flecha de medición
+  { k: 'terreno', nombre: 'Superficie del lote', d: 'M6.6 3.4h4.8v17.2H6.6zM6.6 7h2.4M6.6 10.4h2.4M6.6 13.8h2.4M6.6 17.2h2.4M16.4 4.6v14.8M14.4 6.6l2-2 2 2M14.4 17.4l2 2 2-2' },
+  { k: 'antiguedad', nombre: 'Antigüedad', d: 'M4.4 5.6h15.2v14.8H4.4zM4.4 10h15.2M8.6 3.4v4M15.4 3.4v4' },
+  { k: 'orientacion', nombre: 'Orientación', d: 'M12 21.4a9.4 9.4 0 1 0 0-18.8 9.4 9.4 0 0 0 0 18.8M15.2 8.8l-2 4.4-4.4 2 2-4.4z' },
+  { k: 'luminoso', nombre: 'Luminosidad', d: 'M12 16.6a4.6 4.6 0 1 0 0-9.2 4.6 4.6 0 0 0 0 9.2M12 1.8v2.6M12 19.6v2.6M4.8 4.8l1.8 1.8M17.4 17.4l1.8 1.8M1.8 12h2.6M19.6 12h2.6M4.8 19.2l1.8-1.8M17.4 6.6l1.8-1.8' },
   { k: 'calef', nombre: 'Calefacción', d: 'M8 21V8.6M12 21V8.6M16 21V8.6M4.6 8.6h14.8a1.6 1.6 0 0 0 0-3.2H4.6a1.6 1.6 0 0 0 0 3.2' },
   { k: 'grupo', nombre: 'Grupo electrógeno', d: 'M13.4 2.6 4.6 13.4h6.2L10.2 21.4 19 10.6h-6.2z' },
 ]
@@ -198,10 +207,27 @@ function destacadosDe(p: Propiedad, tipo: Tipo) {
 // arranca por lo que más se mira en un aviso: capacidad primero, extras después.
 function iconosDe(p: Propiedad, tipo: Tipo): IconoElegido[] {
   const d: IconoElegido[] = []
+
+  if (tipo === 'venta') {
+    // En venta lo que se compara son las superficies y los ambientes,
+    // no la capacidad de huéspedes
+    if (p.metros_cubiertos) d.push({ k: 'metros', t: `${num(p.metros_cubiertos)} m² cubiertos` })
+    if (p.metros_lote) d.push({ k: 'terreno', t: `${num(p.metros_lote)} m² de terreno` })
+    // Convención local: los ambientes son los dormitorios más el living comedor
+    if (p.habitaciones) d.push({ k: 'ambientes', t: `${p.habitaciones + 1} ambientes` })
+    if (p.habitaciones) d.push({ k: 'dorm', t: `${p.habitaciones} dormitorios` })
+    if (p.banos) d.push({ k: 'bano', t: `${p.banos} baños${p.toilette ? ' + toilette' : ''}` })
+    if (p.cochera) d.push({ k: 'cochera', t: 'Cochera' })
+    if (p.pileta || p.pileta_climatizada) {
+      d.push({ k: 'pileta', t: p.pileta_climatizada ? 'Pileta climatizada' : 'Pileta' })
+    }
+    if (p.parrilla) d.push({ k: 'parrilla', t: 'Parrilla' })
+    return d.slice(0, MAX_ICONOS)
+  }
+
   if (p.habitaciones) d.push({ k: 'dorm', t: `${p.habitaciones} dormitorios` })
   if (p.banos) d.push({ k: 'bano', t: `${p.banos} baños${p.toilette ? ' + toilette' : ''}` })
-  if (tipo === 'alquiler' && p.capacidad) d.push({ k: 'huesp', t: `Hasta ${p.capacidad} huéspedes` })
-  if (tipo === 'venta' && p.metros_cubiertos) d.push({ k: 'metros', t: `${p.metros_cubiertos} m² cubiertos` })
+  if (p.capacidad) d.push({ k: 'huesp', t: `Hasta ${p.capacidad} huéspedes` })
   if (p.pileta || p.pileta_climatizada) {
     d.push({ k: 'pileta', t: p.pileta_climatizada ? 'Pileta climatizada' : 'Pileta' })
   }
@@ -218,16 +244,32 @@ function iconosDe(p: Propiedad, tipo: Tipo): IconoElegido[] {
 
 const num = (n: number) => (n || 0).toLocaleString('es-AR')
 
+// Catálogo de datos duros: cada uno sabe cómo se llama y de dónde sale su
+// valor, así al sumar uno nuevo aparece completo en vez de en blanco.
+const CAMPOS_DATO: { l: string; valor: (p: Propiedad) => string }[] = [
+  { l: 'm² cubiertos', valor: (p) => (p.metros_cubiertos ? num(p.metros_cubiertos) : '') },
+  { l: 'm² semicubiertos', valor: (p) => (p.metros_semicubiertos ? num(p.metros_semicubiertos) : '') },
+  { l: 'm² de lote', valor: (p) => (p.metros_lote ? num(p.metros_lote) : '') },
+  { l: 'ambientes', valor: (p) => (p.habitaciones ? String(p.habitaciones + 1) : '') },
+  { l: 'dormitorios', valor: (p) => (p.habitaciones ? String(p.habitaciones) : '') },
+  { l: 'baños', valor: (p) => (p.banos ? String(p.banos) + (p.toilette ? ' + 1' : '') : '') },
+  { l: 'plantas', valor: (p) => (p.plantas ? String(p.plantas) : '') },
+  { l: 'camas', valor: (p) => (p.camas ? String(p.camas) : '') },
+  { l: 'huéspedes', valor: (p) => (p.capacidad ? String(p.capacidad) : '') },
+  { l: 'cocheras', valor: (p) => (p.cochera ? '1' : '') },
+  { l: 'años', valor: () => '' },
+]
+
 // La fila de números: es lo primero que mira un comprador
 function datosDe(p: Propiedad): DatoDuro[] {
   const d: DatoDuro[] = []
-  if (p.metros_cubiertos) d.push({ v: num(p.metros_cubiertos), l: 'm² cubiertos' })
-  if (p.metros_semicubiertos) d.push({ v: num(p.metros_semicubiertos), l: 'm² semicubiertos' })
-  if (p.metros_lote) d.push({ v: num(p.metros_lote), l: 'm² de lote' })
-  if (p.habitaciones) d.push({ v: String(p.habitaciones), l: 'dormitorios' })
-  if (p.banos) d.push({ v: String(p.banos) + (p.toilette ? ' + 1' : ''), l: p.toilette ? 'baños y toilette' : 'baños' })
-  if (p.plantas) d.push({ v: String(p.plantas), l: p.plantas === 1 ? 'planta' : 'plantas' })
-  if (p.camas) d.push({ v: String(p.camas), l: 'camas' })
+  const tomar = (l: string) => {
+    const c = CAMPOS_DATO.find((x) => x.l === l)
+    const v = c?.valor(p) || ''
+    if (v) d.push({ v, l: l === 'baños' && p.toilette ? 'baños y toilette' : l })
+  }
+  ;['m² cubiertos', 'm² semicubiertos', 'm² de lote', 'dormitorios', 'baños', 'plantas'].forEach(tomar)
+  if (d.length < 6) tomar('camas')
   return d.slice(0, 6)
 }
 
@@ -866,7 +908,8 @@ export default function PiezasPage() {
         ls(3.2)
         ctx.fillText(volanta.replace(/[·\s]+$/, ''), P, y)
         ls(0)
-        y += 38
+        // El título es de 43px: con menos aire su ascendente casi toca la volanta
+        y += 50
       }
 
       ctx.fillStyle = INK
@@ -874,7 +917,7 @@ export default function PiezasPage() {
       y = wrap(titulo, P, y, colTexto, 49, true, 2)
 
       if (subtitulo.trim()) {
-        y += 8
+        y += 2
         ctx.fillStyle = MUT
         ctx.font = '400 21px Inter, sans-serif'
         y = wrap(subtitulo, P, y, colTexto, 29, true, 1)
@@ -909,7 +952,7 @@ export default function PiezasPage() {
 
       /* fila de datos duros */
       if (datos.length) {
-        y += 18
+        y += 12
         ctx.strokeStyle = '#DED5C4'
         ctx.lineWidth = 2
         ctx.beginPath()
@@ -937,7 +980,7 @@ export default function PiezasPage() {
           }
         }
         ctx.textAlign = 'left'
-        y += 90
+        y += 84
         ctx.strokeStyle = '#DED5C4'
         ctx.lineWidth = 2
         ctx.beginPath()
@@ -954,7 +997,7 @@ export default function PiezasPage() {
         const cols = 3
         const filas = Math.ceil(resto.length / cols)
         const gw = (W - P * 2 - gap * (cols - 1)) / cols
-        const gh = filas >= 2 ? 156 : 200
+        const gh = filas >= 2 ? 168 : 210
         for (let i = 0; i < resto.length; i++) {
           const cx = P + (i % cols) * (gw + gap)
           const cy = y + Math.floor(i / cols) * (gh + gap)
@@ -966,10 +1009,10 @@ export default function PiezasPage() {
       /* dos columnas de texto: lo que el comprador pregunta por WhatsApp */
       const conTexto = bloques.filter((b) => b.c.trim())
       if (conTexto.length) {
-        y += 24
+        y += 18
         const gapCol = 34
         const cw = (W - P * 2 - gapCol) / Math.min(conTexto.length, 2)
-        const tope = H - barH - iconH - 22
+        const tope = H - barH - iconH - 14
         for (let i = 0; i < Math.min(conTexto.length, 2); i++) {
           const cx = P + i * (cw + gapCol)
           let cy = y
@@ -978,12 +1021,12 @@ export default function PiezasPage() {
           ls(3)
           ctx.fillText(conTexto[i].t.toUpperCase(), cx, cy)
           ls(0)
-          cy += 28
+          cy += 27
           ctx.fillStyle = '#3A4A43'
-          ctx.font = '400 17.5px Inter, sans-serif'
+          ctx.font = '400 16.5px Inter, sans-serif'
           // Se corta en la línea que llegaría a la barra de amenities
-          const maxLineas = Math.max(1, Math.floor((tope - cy) / 25))
-          wrap(conTexto[i].c, cx, cy, cw, 25, true, maxLineas)
+          const maxLineas = Math.max(1, Math.floor((tope - cy) / 23))
+          wrap(conTexto[i].c, cx, cy, cw, 23, true, maxLineas)
         }
       }
 
@@ -1196,7 +1239,8 @@ export default function PiezasPage() {
   const segOn = 'bg-costa-navy text-white border-costa-navy'
   const segOff = 'bg-white text-costa-gris border-costa-beige hover:border-costa-navy/40'
   const label = 'block text-[11px] font-semibold tracking-wider uppercase text-costa-gris mb-2'
-  const input = 'w-full px-3 py-2 border border-costa-beige rounded-lg text-sm text-costa-navy bg-costa-beige-light focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all'
+  const inputBase = 'px-3 py-2 border border-costa-beige rounded-lg text-sm text-costa-navy bg-costa-beige-light focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all'
+  const input = 'w-full ' + inputBase
 
   // Todas las fotos de la propiedad, y las que todavía no están en la selección
   const fotosPropiedad = sel
@@ -1425,17 +1469,26 @@ export default function PiezasPage() {
 
               <div>
                 <p className={label}>Datos duros — {datos.length} de 6</p>
+                <div className="flex gap-2 mb-1 text-[10px] font-semibold tracking-wider uppercase text-costa-gris">
+                  <span className="w-24 flex-shrink-0 text-center">Valor</span>
+                  <span className="flex-1">Qué es (sale debajo del número)</span>
+                  <span className="w-7" />
+                </div>
                 <div className="space-y-2">
                   {datos.map((d, i) => (
                     <div key={i} className="flex items-center gap-2">
+                      {/* El valor va angosto y la etiqueta se lleva el resto:
+                          sin w-full en la clase base, que si no compite con w-28 */}
                       <input
-                        className={`${input} w-28 flex-shrink-0 font-semibold`}
+                        className={`${inputBase} w-24 flex-shrink-0 font-semibold text-center`}
                         value={d.v}
+                        placeholder="200"
                         onChange={(e) => setDatos((prev) => prev.map((x, j) => (j === i ? { ...x, v: e.target.value } : x)))}
                       />
                       <input
-                        className={input}
+                        className={`${inputBase} flex-1 min-w-0`}
                         value={d.l}
+                        placeholder="m² cubiertos"
                         onChange={(e) => setDatos((prev) => prev.map((x, j) => (j === i ? { ...x, l: e.target.value } : x)))}
                       />
                       <button
@@ -1449,12 +1502,27 @@ export default function PiezasPage() {
                   ))}
                 </div>
                 {datos.length < 6 && (
-                  <button
-                    onClick={() => setDatos((prev) => [...prev, { v: '', l: '' }])}
-                    className="mt-2 text-xs text-costa-navy hover:underline"
-                  >
-                    + Agregar dato
-                  </button>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-xs text-costa-gris">Agregar:</span>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const c = CAMPOS_DATO.find((x) => x.l === e.target.value)
+                        if (!c) return
+                        // Se suma con su valor ya tomado de la ficha, no en blanco
+                        setDatos((prev) => [...prev, { v: sel ? c.valor(sel) : '', l: c.l }])
+                      }}
+                      className={`${inputBase} w-56`}
+                    >
+                      <option value="">Elegí un dato...</option>
+                      {CAMPOS_DATO.filter((c) => !datos.some((d) => d.l.startsWith(c.l))).map((c) => (
+                        <option key={c.l} value={c.l}>
+                          {c.l}
+                          {sel && c.valor(sel) ? ` (${c.valor(sel)})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 )}
               </div>
 
@@ -1523,11 +1591,15 @@ export default function PiezasPage() {
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={BRASS} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                       <path d={ICONO_POR_K[it.k]?.d} />
                     </svg>
-                    <input className={input} value={it.t} onChange={(e) => editarIcono(it.k, e.target.value)} />
+                    <input
+                      className={`${inputBase} flex-1 min-w-0`}
+                      value={it.t}
+                      onChange={(e) => editarIcono(it.k, e.target.value)}
+                    />
                     <button
                       onClick={() => moverIcono(i, -1)}
                       disabled={i === 0}
-                      className="px-2 py-1 text-costa-gris hover:text-costa-navy disabled:opacity-25"
+                      className="px-2 py-1 flex-shrink-0 text-costa-gris hover:text-costa-navy disabled:opacity-25"
                       title="Mover a la izquierda"
                     >
                       ←
@@ -1535,14 +1607,14 @@ export default function PiezasPage() {
                     <button
                       onClick={() => moverIcono(i, 1)}
                       disabled={i === iconos.length - 1}
-                      className="px-2 py-1 text-costa-gris hover:text-costa-navy disabled:opacity-25"
+                      className="px-2 py-1 flex-shrink-0 text-costa-gris hover:text-costa-navy disabled:opacity-25"
                       title="Mover a la derecha"
                     >
                       →
                     </button>
                     <button
                       onClick={() => toggleIcono(it.k)}
-                      className="px-2 py-1 text-costa-gris hover:text-costa-coral"
+                      className="px-2 py-1 flex-shrink-0 text-costa-gris hover:text-costa-coral"
                       title="Quitar"
                     >
                       ×

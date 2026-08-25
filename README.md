@@ -48,7 +48,8 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Fotos**: Hasta 7 elegibles — la ficha usa portada + 6 en grilla; el post y el story se quedan con las primeras 4
 - **Composición 70/30** (post y story): El 70% de la pieza son fotos — portada grande más una fila de hasta 3 secundarias
 - **Encuadre por foto**: Recorte vertical arriba / centro / abajo para corregir cuando el corte se come el techo o la pileta
-- **Barra de amenities**: Hasta 7 iconos elegibles de un set de 15 (dormitorios, baños, huéspedes, pileta, cochera, parrilla, fogonero, jardín, golf, aire, wifi, playa, superficie, calefacción, grupo electrógeno), con texto editable y reordenables
+- **Barra de amenities**: Hasta 7 iconos elegibles de un set de 20, con texto editable y reordenables. La preselección depende del tipo de aviso: en venta arranca con superficies, lote y ambientes; en alquiler con dormitorios, baños y capacidad
+- **Datos duros de la ficha**: Se eligen de un catálogo (m² cubiertos, semicubiertos, de lote, ambientes, dormitorios, baños, plantas, camas, huéspedes, cocheras, años) y se suman con el valor ya tomado de la propiedad
 - **Barra de contacto**: Logo de WhatsApp junto al teléfono y logo de Costa Esmeralda en la esquina opuesta (`public/logo-costa-esmeralda.png`, opcional: si falta, la pieza sale sin él)
 - **Ajuste automático**: La tipografía se adapta al espacio disponible; con títulos largos la foto cede hasta un piso del 64%
 - **Guardado por propiedad y tipo**: Cada aviso (venta / alquiler) conserva textos, fotos, encuadres e iconos en `piezas_avisos`

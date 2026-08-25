@@ -19,6 +19,14 @@
 - **Exportación a PDF A4** además de PNG, con jsPDF en import dinámico
 - **Tope de fotos de 4 a 7**: la ficha usa portada + 6; el post y el story siguen con 4
 
+### Ajustes sobre la Ficha (post-uso)
+- **Iconos según el tipo de aviso**: en venta la preselección arranca por superficie cubierta, superficie del lote y ambientes, que es lo que compara un comprador; el alquiler sigue con dormitorios, baños y capacidad
+- **Set de iconos a 20**: nuevos Ambientes, Superficie del lote, Antigüedad, Orientación y Luminosidad; rediseñados Superficie cubierta (se confundía con el lote) y Cochera, tomando como referencia las fichas de los portales inmobiliarios
+- **Datos duros con catálogo**: el botón "+ Agregar dato" sumaba una fila en blanco y había que adivinar qué escribir. Ahora es un desplegable que muestra cada dato con el valor que ya tiene la propiedad, y se suma completo. Se agregaron encabezados de columna
+- **Fix de alineación**: la clase base de los inputs traía `w-full` y competía con el ancho fijo del campo de valor, así que este se estiraba a todo el ancho y la etiqueta quedaba aplastada contra el borde con la × afuera del panel. Mismo problema en la fila de iconos
+- **Espaciado de la cabecera**: la volanta quedaba pegada al título (38px entre bases, con un título de 43px son ~6px de aire real) y el subtítulo de ubicación quedaba más separado que ella, cuando forma bloque con el título. Ahora 50px arriba y 2px abajo
+- **Fotos más grandes**: de 156 a 168px de alto, con el espacio ganado al compactar la fila de datos duros
+
 ### Propiedades
 - Tope de fotos por propiedad de 10 a 16
 - **Nueva columna `precio_venta`** (migración `sql/17-precio-venta.sql`): antes solo existía `precio_alquiler`, así que el precio de venta había que escribirlo a mano en cada pieza y no quedaba guardado en la ficha
