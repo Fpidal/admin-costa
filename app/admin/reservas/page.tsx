@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock, MoreHorizontal } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
@@ -124,6 +124,9 @@ const monedas = [
 // cantidad de personas que vino en la reserva.
 const MAX_PERSONAS_CONTRATO = 8
 
+// Teléfono que se muestra en el contrato y en el detalle de reserva
+const TELEFONO_CONTACTO = '11 6879 2207'
+
 const estadoVariant = {
   'confirmada': 'success',
   'pendiente': 'warning',
@@ -159,6 +162,11 @@ const parseFechaLocal = (fecha: string) => {
 
 const formatFecha = (fecha: string) => {
   return parseFechaLocal(fecha).toLocaleDateString('es-AR')
+}
+
+// Supabase devuelve los `time` como HH:MM:SS; en pantalla y en los PDF va HH:MM
+const formatHora = (hora: string | null | undefined, porDefecto: string) => {
+  return (hora || porDefecto).slice(0, 5)
 }
 
 const calcularNoches = (checkIn: string, checkOut: string) => {
@@ -217,6 +225,8 @@ function ReservasContent() {
   const [editingAcompIdx, setEditingAcompIdx] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [expandedReservas, setExpandedReservas] = useState<Set<string>>(new Set())
+  // Menú de acciones abierto en la tabla (id de la reserva)
+  const [menuAbierto, setMenuAbierto] = useState<number | null>(null)
   const [precioSugerido, setPrecioSugerido] = useState<{ precio: number; total: number; noches: number } | null>(null)
   const [cargandoPrecio, setCargandoPrecio] = useState(false)
 
@@ -309,8 +319,8 @@ function ReservasContent() {
         inquilino_id: reserva.inquilino_id?.toString() || '',
         check_in: reserva.fecha_inicio || '',
         check_out: reserva.fecha_fin || '',
-        horario_ingreso: reserva.horario_ingreso || '14:00',
-        horario_salida: reserva.horario_salida || '10:00',
+        horario_ingreso: formatHora(reserva.horario_ingreso, '14:00'),
+        horario_salida: formatHora(reserva.horario_salida, '10:00'),
         cantidad_personas: reserva.cantidad_personas || 1,
         moneda: reserva.moneda || 'ARS',
         precio_noche: reserva.monto_usd || reserva.precio_noche || 0,
@@ -526,12 +536,13 @@ function ReservasContent() {
     const azulPrincipal = { r: 30, g: 58, b: 95 }  // costa-navy #1e3a5f
     const celesteClaro = { r: 245, g: 235, b: 224 }  // costa-beige #f5ebe0
 
-    // Datos de la propiedad
+    // Datos de la propiedad: el barrio y el lote salen de la ficha, no de un if
     const nombrePropiedad = reserva.propiedades?.nombre || 'Propiedad'
-    const esGolf = nombrePropiedad.toLowerCase().includes('golf')
-    const contacto = esGolf
-      ? { direccion: 'Golf 234, Costa Esmeralda', tel: '+54 11 1234-5678' }
-      : { direccion: 'Deportiva 9, Costa Esmeralda', tel: '+54 11 1234-5678' }
+    const loteProp = reserva.propiedades?.lote?.trim()
+    const contacto = {
+      direccion: `${nombrePropiedad}${loteProp ? `, Lote ${loteProp}` : ''}, Costa Esmeralda`,
+      tel: TELEFONO_CONTACTO,
+    }
 
     // Número de detalle - usar últimos 6 caracteres del UUID
     const idCorto = String(reserva.id).slice(-6).toUpperCase()
@@ -579,7 +590,8 @@ function ReservasContent() {
     doc.text(reserva.inquilinos?.nombre || '-', 20, y)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
-    doc.text(`${reserva.inquilinos?.email || '-'} | ${reserva.inquilinos?.telefono || '-'}`, 20, y + 5)
+    const datosContacto = [reserva.inquilinos?.email, reserva.inquilinos?.telefono].filter(Boolean).join(' | ')
+    doc.text(datosContacto || '-', 20, y + 5)
 
     y += 18
 
@@ -601,12 +613,12 @@ function ReservasContent() {
     // Fila 1
     doc.text('Check-in:', 20, y)
     doc.setFont('helvetica', 'bold')
-    doc.text(`${formatFecha(reserva.fecha_inicio)} - ${reserva.horario_ingreso || '14:00'} hs`, 45, y)
+    doc.text(`${formatFecha(reserva.fecha_inicio)} - ${formatHora(reserva.horario_ingreso, '14:00')} hs`, 45, y)
 
     doc.setFont('helvetica', 'normal')
     doc.text('Check-out:', 110, y)
     doc.setFont('helvetica', 'bold')
-    doc.text(`${formatFecha(reserva.fecha_fin)} - ${reserva.horario_salida || '10:00'} hs`, 135, y)
+    doc.text(`${formatFecha(reserva.fecha_fin)} - ${formatHora(reserva.horario_salida, '10:00')} hs`, 135, y)
 
     y += 6
     doc.setFont('helvetica', 'normal')
@@ -628,8 +640,37 @@ function ReservasContent() {
     y += 12
 
     // ===== DETALLE DE MONTOS (con borde) =====
+    // El alquiler, la limpieza y el lavadero pueden estar en monedas distintas:
+    // si coinciden se suma un total; si no, se muestra una línea por moneda.
+    const monedaLimpieza = reserva.moneda_limpieza || 'ARS'
+    const monedaLavadero = reserva.moneda_lavadero || 'ARS'
+    const simboloDe = (m: string) => (m === 'USD' ? 'U$D' : '$')
+    const importe = (n: number, m: string) => `${simboloDe(m)} ${(n || 0).toLocaleString('es-AR')}`
+
+    const conceptos: { label: string; monto: number; moneda: string }[] = [
+      { label: `Alquiler · ${noches} noche${noches !== 1 ? 's' : ''} × ${importe(reserva.precio_noche || 0, moneda)}`, monto: total, moneda },
+    ]
+    if (reserva.limpieza_final > 0) {
+      conceptos.push({ label: 'Limpieza final', monto: reserva.limpieza_final, moneda: monedaLimpieza })
+    }
+    if (reserva.monto_lavadero > 0) {
+      conceptos.push({ label: 'Lavadero', monto: reserva.monto_lavadero, moneda: monedaLavadero })
+    }
+
+    const totalPorMoneda: Record<string, number> = {}
+    for (const c of conceptos) totalPorMoneda[c.moneda] = (totalPorMoneda[c.moneda] || 0) + c.monto
+    const monedasTotal = Object.keys(totalPorMoneda)
+
+    // La seña descuenta de su propia moneda
+    const senaMonto = reserva.sena || 0
+    const saldoPorMoneda: Record<string, number> = { ...totalPorMoneda }
+    if (senaMonto) saldoPorMoneda[moneda] = (saldoPorMoneda[moneda] || 0) - senaMonto
+    const monedasSaldo = Object.keys(saldoPorMoneda).filter(m => saldoPorMoneda[m] !== 0 || monedasTotal.includes(m))
+
     const montosStartY = y - 3
-    const montosHeight = 55 + (reserva.deposito && reserva.deposito > 0 ? 6 : 0)
+    const hayDeposito = !!(reserva.deposito && reserva.deposito > 0)
+    const montosHeight =
+      12 + conceptos.length * 6 + 6 + monedasTotal.length * 6 + 6 + monedasSaldo.length * 8 + 6 + (hayDeposito ? 8 : 0)
 
     // Borde del cuadro
     doc.setDrawColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
@@ -647,46 +688,66 @@ function ReservasContent() {
     y += 12
     doc.setTextColor(60, 60, 60)
     doc.setFontSize(9)
-
-    // Líneas de detalle
     doc.setFont('helvetica', 'normal')
-    doc.text(`Precio por noche (${simbolo})`, 20, y)
-    doc.text(`${simbolo} ${(reserva.precio_noche || 0).toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
 
-    y += 6
-    doc.text(`Total ${noches} noche${noches !== 1 ? 's' : ''}`, 20, y)
-    doc.text(`${simbolo} ${total.toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
-
-    if (reserva.deposito && reserva.deposito > 0) {
+    for (const c of conceptos) {
+      doc.text(c.label, 20, y)
+      doc.text(importe(c.monto, c.moneda), pageWidth - 20, y, { align: 'right' })
       y += 6
-      doc.text('Depósito', 20, y)
-      doc.text(`${simbolo} ${reserva.deposito.toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
     }
 
-    y += 6
     doc.setDrawColor(200, 200, 200)
-    doc.line(20, y, pageWidth - 20, y)
+    doc.line(20, y - 2, pageWidth - 20, y - 2)
+    y += 2
 
-    y += 6
+    doc.setFont('helvetica', 'bold')
+    for (const m of monedasTotal) {
+      doc.text(monedasTotal.length > 1 ? `Total (${simboloDe(m)})` : 'Total', 20, y)
+      doc.text(importe(totalPorMoneda[m], m), pageWidth - 20, y, { align: 'right' })
+      y += 6
+    }
+
+    // La seña va aparte, después del total
+    doc.setFont('helvetica', 'normal')
     doc.text('Seña pagada', 20, y)
-    doc.text(`- ${simbolo} ${(reserva.sena || 0).toLocaleString('es-AR')}`, pageWidth - 20, y, { align: 'right' })
-
+    doc.text(`- ${importe(senaMonto, moneda)}`, pageWidth - 20, y, { align: 'right' })
     y += 8
-    // Fila de TOTAL con fondo celeste
-    doc.setFillColor(celesteClaro.r, celesteClaro.g, celesteClaro.b)
-    doc.rect(16, y - 4, pageWidth - 32, 10, 'F')
 
-    doc.setTextColor(60, 60, 60)
+    // Saldo pendiente, con fondo celeste
+    const altoSaldo = 2 + monedasSaldo.length * 8
+    doc.setFillColor(celesteClaro.r, celesteClaro.g, celesteClaro.b)
+    doc.rect(16, y - 4, pageWidth - 32, altoSaldo, 'F')
+
     doc.setFontSize(10)
     doc.setFont('helvetica', 'bold')
-    doc.text('SALDO PENDIENTE', 20, y + 2)
-    doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
-    doc.text(`${simbolo} ${saldo.toLocaleString('es-AR')}`, pageWidth - 20, y + 2, { align: 'right' })
+    let ySaldo = y + 2
+    for (const m of monedasSaldo) {
+      doc.setTextColor(60, 60, 60)
+      doc.text(monedasSaldo.length > 1 ? `SALDO PENDIENTE (${simboloDe(m)})` : 'SALDO PENDIENTE', 20, ySaldo)
+      doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+      doc.text(importe(saldoPorMoneda[m], m), pageWidth - 20, ySaldo, { align: 'right' })
+      ySaldo += 8
+    }
+    y = ySaldo
 
-    y += 18
+    // El depósito no integra el total: es garantía y se devuelve
+    if (hayDeposito) {
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(120, 120, 120)
+      doc.text('Depósito en garantía (no integra el total, se devuelve al finalizar)', 20, y)
+      doc.text(importe(reserva.deposito, 'USD'), pageWidth - 20, y, { align: 'right' })
+      y += 6
+    }
+
+    y += 12
+
+    // Los bloques del medio no pueden invadir las condiciones, que van ancladas
+    // al pie: lo que no entra se omite en vez de superponerse
+    const TOPE_MEDIO = 168
 
     // ===== ACOMPAÑANTES =====
-    if (reserva.acompanantes && reserva.acompanantes.length > 0) {
+    if (reserva.acompanantes && reserva.acompanantes.length > 0 && y < TOPE_MEDIO) {
       doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
@@ -698,6 +759,7 @@ function ReservasContent() {
       doc.setFontSize(9)
 
       reserva.acompanantes.forEach((acomp, idx) => {
+        if (y > TOPE_MEDIO) return
         const nombre = `${acomp.nombre} ${acomp.apellido}`.trim()
         const doc_edad = [acomp.documento, acomp.edad ? `${acomp.edad} años` : ''].filter(Boolean).join(' - ')
         doc.text(`${idx + 1}. ${nombre}${doc_edad ? ` (${doc_edad})` : ''}`, 25, y)
@@ -709,10 +771,8 @@ function ReservasContent() {
     // ===== SERVICIOS =====
     const servicios = []
     if (reserva.ropa_blanca) servicios.push('Ropa blanca incluida')
-    if (reserva.monto_lavadero && reserva.monto_lavadero > 0) servicios.push(`Lavadero: $ ${reserva.monto_lavadero.toLocaleString('es-AR')}`)
-    if (reserva.limpieza_final && reserva.limpieza_final > 0) servicios.push(`Limpieza final: $ ${reserva.limpieza_final.toLocaleString('es-AR')}`)
 
-    if (servicios.length > 0) {
+    if (servicios.length > 0 && y < TOPE_MEDIO) {
       doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
@@ -729,7 +789,7 @@ function ReservasContent() {
     }
 
     // ===== NOTAS =====
-    if (reserva.notas) {
+    if (reserva.notas && y < TOPE_MEDIO) {
       doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
@@ -744,7 +804,8 @@ function ReservasContent() {
     }
 
     // ===== CONDICIONES DEL ALQUILER =====
-    y = Math.max(y + 5, 175)
+    // Fijo: los dos bloques más el link ocupan ~96 mm y el pie va en 280
+    y = 178
     doc.setFillColor(250, 250, 250)
     doc.rect(15, y - 3, pageWidth - 30, 32, 'F')
 
@@ -833,7 +894,7 @@ function ReservasContent() {
     const locador = {
       nombre: 'Rosa María Martín D.',
       domicilio: 'Av. Italia 4500',
-      telefono: '11 6879 2207'
+      telefono: TELEFONO_CONTACTO
     }
 
     const locatario = {
@@ -864,7 +925,7 @@ function ReservasContent() {
       { num: '2', title: 'Destino', content:
         `Uso exclusivo como vivienda temporaria de descanso, para un máximo de ${MAX_PERSONAS_CONTRATO} personas. Se prohíbe subalquilar, sobre-ocupar, cambiar el destino o realizar fiestas/eventos. El locatario debe cumplir el Reglamento de Convivencia de Costa Esmeralda y solicitar autorización para ingresar animales.` },
       { num: '3', title: 'Plazo', content:
-        `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${reserva.horario_ingreso || '16:00'} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${reserva.horario_salida || '10:00'} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.` },
+        `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${formatHora(reserva.horario_ingreso, '16:00')} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${formatHora(reserva.horario_salida, '10:00')} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.` },
       { num: '4', title: 'Precio y pago', content:
         `Total: USD ${total.toLocaleString('es-AR')}. Reserva: USD ${(reserva.sena || 0).toLocaleString('es-AR')} antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })} (transferencia). Saldo: USD ${saldo.toLocaleString('es-AR')} al ingresar (efectivo). Incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza de piscina semanal, TV, Internet, vigilancia y electricidad hasta 120 kWh. ${reserva.ropa_blanca ? 'Incluye ropa blanca.' : 'No incluye ropa blanca.'} Falta de suministro de servicios no es responsabilidad del locador.` },
       { num: '5', title: 'Depósito', content:
@@ -1181,12 +1242,26 @@ function ReservasContent() {
                 <tbody className="divide-y divide-costa-beige">
                   {reservas.filter(r => r.estado !== 'cerrada').map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-                    const total = noches * (reserva.precio_noche || 0)
-                    const cobradoAlquiler = cobros
-                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
-                      .reduce((acc, c) => acc + (c.monto || 0), 0)
-                    const saldo = total - cobradoAlquiler
                     const moneda = reserva.moneda || 'ARS'
+                    // El total incluye los servicios, para que el saldo sea el real.
+                    // Si están en otra moneda se muestra una línea por moneda.
+                    const totalPorMoneda: Record<string, number> = {}
+                    const sumar = (m: string, v: number) => { if (v) totalPorMoneda[m] = (totalPorMoneda[m] || 0) + v }
+                    sumar(moneda, noches * (reserva.precio_noche || 0))
+                    sumar(reserva.moneda_limpieza || 'ARS', reserva.limpieza_final || 0)
+                    sumar(reserva.moneda_lavadero || 'ARS', reserva.monto_lavadero || 0)
+
+                    // Cuenta todo lo cobrado menos el depósito, que es garantía
+                    const cobradoPorMoneda: Record<string, number> = {}
+                    for (const c of cobros.filter(c => c.reserva_id === reserva.id && c.aplicar_a !== 'deposito')) {
+                      const v = c.concepto === 'devolucion_sena' ? -(c.monto || 0) : (c.monto || 0)
+                      cobradoPorMoneda[c.moneda] = (cobradoPorMoneda[c.moneda] || 0) + v
+                    }
+
+                    const monedasFila = Array.from(new Set([...Object.keys(totalPorMoneda), ...Object.keys(cobradoPorMoneda)])).sort()
+                    const saldoPorMoneda: Record<string, number> = {}
+                    for (const m of monedasFila) saldoPorMoneda[m] = (totalPorMoneda[m] || 0) - (cobradoPorMoneda[m] || 0)
+                    const haySaldo = monedasFila.some(m => Math.round(saldoPorMoneda[m]) > 0)
                     return (
                       <tr key={reserva.id} className="hover:bg-costa-beige/30">
                         <td className="px-3 py-2">
@@ -1204,15 +1279,23 @@ function ReservasContent() {
                         <td className="px-2 py-2 text-center text-costa-navy text-sm">
                           {reserva.cantidad_personas || 1}
                         </td>
-                        <td className="px-2 py-2 text-right font-semibold text-costa-navy text-sm">
-                          <FormatMontoStyled monto={total} moneda={moneda} />
+                        <td className="px-2 py-2 text-right font-semibold text-costa-navy text-sm whitespace-nowrap">
+                          {monedasFila.filter(m => totalPorMoneda[m]).map(m => (
+                            <span key={m} className="block"><FormatMontoStyled monto={totalPorMoneda[m]} moneda={m} /></span>
+                          ))}
                         </td>
-                        <td className="px-2 py-2 text-right text-costa-olivo text-sm">
-                          <FormatMontoStyled monto={cobradoAlquiler} moneda={moneda} />
+                        <td className="px-2 py-2 text-right text-costa-olivo text-sm whitespace-nowrap">
+                          {monedasFila.some(m => cobradoPorMoneda[m])
+                            ? monedasFila.filter(m => cobradoPorMoneda[m]).map(m => (
+                                <span key={m} className="block"><FormatMontoStyled monto={cobradoPorMoneda[m]} moneda={m} /></span>
+                              ))
+                            : <span className="text-costa-gris">-</span>}
                         </td>
-                        <td className="px-2 py-2 text-right text-sm">
-                          <span className={saldo > 0 ? 'font-semibold text-amber-600' : 'text-costa-olivo'}>
-                            <FormatMontoStyled monto={saldo} moneda={moneda} />
+                        <td className="px-2 py-2 text-right text-sm whitespace-nowrap">
+                          <span className={haySaldo ? 'font-semibold text-amber-600' : 'text-costa-olivo'}>
+                            {monedasFila.filter(m => saldoPorMoneda[m]).map(m => (
+                              <span key={m} className="block"><FormatMontoStyled monto={saldoPorMoneda[m]} moneda={m} /></span>
+                            ))}
                           </span>
                         </td>
                         <td className="px-2 py-2">
@@ -1221,22 +1304,59 @@ function ReservasContent() {
                           </Badge>
                         </td>
                         <td className="px-2 py-2 text-right">
-                          <div className="flex justify-end gap-0.5">
-                            {reserva.estado === 'confirmada' && (
-                              <>
-                                <Button variant="ghost" size="sm" onClick={() => generarContratoPDF(reserva)} title="Generar Contrato PDF">
-                                  <FileSignature size={14} className="text-costa-olivo" />
-                                </Button>
-                                <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Generar Detalle PDF">
-                                  <FileText size={14} className="text-costa-navy" />
-                                </Button>
-                              </>
-                            )}
+                          {/* Cinco iconos partían la fila en dos: queda visible la
+                              acción principal y el resto va a un menú con texto */}
+                          <div className="flex justify-end items-center gap-1 whitespace-nowrap">
                             <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
-                              <Button variant="ghost" size="sm" title="Gestión de cobros"><Wallet size={14} className="text-costa-olivo" /></Button>
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-olivo border border-costa-olivo/30 hover:bg-costa-olivo/10 transition-colors">
+                                <Wallet size={13} /> Cobros
+                              </span>
                             </Link>
-                            <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={14} /></Button>
-                            <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
+                            <div className="relative">
+                              <button
+                                onClick={() => setMenuAbierto(menuAbierto === reserva.id ? null : reserva.id)}
+                                className="px-2 py-1 rounded text-costa-gris hover:bg-costa-beige transition-colors"
+                                title="Más acciones"
+                              >
+                                <MoreHorizontal size={16} />
+                              </button>
+                              {menuAbierto === reserva.id && (
+                                <>
+                                  <div className="fixed inset-0 z-10" onClick={() => setMenuAbierto(null)} />
+                                  <div className="absolute right-0 top-full mt-1 z-20 w-48 bg-white rounded-lg shadow-lg border border-costa-beige py-1 text-left">
+                                    {reserva.estado === 'confirmada' && (
+                                      <>
+                                        <button
+                                          onClick={() => { setMenuAbierto(null); generarContratoPDF(reserva) }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-costa-navy hover:bg-costa-beige/50"
+                                        >
+                                          <FileSignature size={14} className="text-costa-olivo" /> Contrato PDF
+                                        </button>
+                                        <button
+                                          onClick={() => { setMenuAbierto(null); generarReciboPDF(reserva) }}
+                                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-costa-navy hover:bg-costa-beige/50"
+                                        >
+                                          <FileText size={14} className="text-costa-navy" /> Detalle de reserva PDF
+                                        </button>
+                                        <div className="border-t border-costa-beige my-1" />
+                                      </>
+                                    )}
+                                    <button
+                                      onClick={() => { setMenuAbierto(null); openModal(reserva) }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-costa-navy hover:bg-costa-beige/50"
+                                    >
+                                      <Pencil size={14} /> Editar reserva
+                                    </button>
+                                    <button
+                                      onClick={() => { setMenuAbierto(null); handleDelete(reserva.id) }}
+                                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-costa-coral hover:bg-costa-coral/10"
+                                    >
+                                      <Trash2 size={14} /> Eliminar
+                                    </button>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </td>
                       </tr>
