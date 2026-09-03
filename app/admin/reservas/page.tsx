@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock, MoreHorizontal } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
@@ -225,8 +225,6 @@ function ReservasContent() {
   const [editingAcompIdx, setEditingAcompIdx] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [expandedReservas, setExpandedReservas] = useState<Set<string>>(new Set())
-  // Menú de acciones abierto en la tabla (id de la reserva)
-  const [menuAbierto, setMenuAbierto] = useState<number | null>(null)
   const [precioSugerido, setPrecioSugerido] = useState<{ precio: number; total: number; noches: number } | null>(null)
   const [cargandoPrecio, setCargandoPrecio] = useState(false)
 
@@ -1236,11 +1234,9 @@ function ReservasContent() {
                     <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Cobrado</th>
                     <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Saldo</th>
                     <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Estado</th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-costa-beige">
-                  {reservas.filter(r => r.estado !== 'cerrada').map((reserva) => {
+                {reservas.filter(r => r.estado !== 'cerrada').map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     const moneda = reserva.moneda || 'ARS'
                     // El total incluye los servicios, para que el saldo sea el real.
@@ -1263,7 +1259,8 @@ function ReservasContent() {
                     for (const m of monedasFila) saldoPorMoneda[m] = (totalPorMoneda[m] || 0) - (cobradoPorMoneda[m] || 0)
                     const haySaldo = monedasFila.some(m => Math.round(saldoPorMoneda[m]) > 0)
                     return (
-                      <tr key={reserva.id} className="hover:bg-costa-beige/30">
+                    <tbody key={reserva.id} className="border-b border-costa-beige last:border-b-0 hover:bg-costa-beige/30">
+                      <tr>
                         <td className="px-3 py-2">
                           <span className="font-medium text-costa-navy text-sm">{reserva.propiedades?.nombre || '-'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}</span>
                         </td>
@@ -1303,66 +1300,52 @@ function ReservasContent() {
                             {reserva.estado}
                           </Badge>
                         </td>
-                        <td className="px-2 py-2 text-right">
-                          {/* Cinco iconos partían la fila en dos: queda visible la
-                              acción principal y el resto va a un menú con texto */}
-                          <div className="flex justify-end items-center gap-1 whitespace-nowrap">
+                      </tr>
+                      {/* Las acciones van en una fila propia: cinco botones en la
+                          misma fila la partían en dos, y el menú desplegable
+                          quedaba recortado por el overflow del contenedor */}
+                      <tr>
+                        <td colSpan={8} className="px-3 pb-2 pt-0">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-olivo border border-costa-olivo/30 hover:bg-costa-olivo/10 transition-colors">
                                 <Wallet size={13} /> Cobros
                               </span>
                             </Link>
-                            <div className="relative">
-                              <button
-                                onClick={() => setMenuAbierto(menuAbierto === reserva.id ? null : reserva.id)}
-                                className="px-2 py-1 rounded text-costa-gris hover:bg-costa-beige transition-colors"
-                                title="Más acciones"
-                              >
-                                <MoreHorizontal size={16} />
-                              </button>
-                              {menuAbierto === reserva.id && (
-                                <>
-                                  <div className="fixed inset-0 z-10" onClick={() => setMenuAbierto(null)} />
-                                  <div className="absolute right-0 top-full mt-1 z-20 w-48 bg-white rounded-lg shadow-lg border border-costa-beige py-1 text-left">
-                                    {reserva.estado === 'confirmada' && (
-                                      <>
-                                        <button
-                                          onClick={() => { setMenuAbierto(null); generarContratoPDF(reserva) }}
-                                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-costa-navy hover:bg-costa-beige/50"
-                                        >
-                                          <FileSignature size={14} className="text-costa-olivo" /> Contrato PDF
-                                        </button>
-                                        <button
-                                          onClick={() => { setMenuAbierto(null); generarReciboPDF(reserva) }}
-                                          className="w-full flex items-center gap-2 px-3 py-2 text-xs text-costa-navy hover:bg-costa-beige/50"
-                                        >
-                                          <FileText size={14} className="text-costa-navy" /> Detalle de reserva PDF
-                                        </button>
-                                        <div className="border-t border-costa-beige my-1" />
-                                      </>
-                                    )}
-                                    <button
-                                      onClick={() => { setMenuAbierto(null); openModal(reserva) }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-costa-navy hover:bg-costa-beige/50"
-                                    >
-                                      <Pencil size={14} /> Editar reserva
-                                    </button>
-                                    <button
-                                      onClick={() => { setMenuAbierto(null); handleDelete(reserva.id) }}
-                                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-costa-coral hover:bg-costa-coral/10"
-                                    >
-                                      <Trash2 size={14} /> Eliminar
-                                    </button>
-                                  </div>
-                                </>
-                              )}
-                            </div>
+                            {reserva.estado === 'confirmada' && (
+                              <>
+                                <button
+                                  onClick={() => generarContratoPDF(reserva)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
+                                >
+                                  <FileSignature size={13} /> Contrato PDF
+                                </button>
+                                <button
+                                  onClick={() => generarReciboPDF(reserva)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
+                                >
+                                  <FileText size={13} /> Detalle PDF
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => openModal(reserva)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-gris border border-costa-gris/25 hover:bg-costa-beige transition-colors"
+                            >
+                              <Pencil size={13} /> Editar
+                            </button>
+                            <button
+                              onClick={() => handleDelete(reserva.id)}
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-coral border border-costa-coral/30 hover:bg-costa-coral/10 transition-colors"
+                            >
+                              <Trash2 size={13} /> Eliminar
+                            </button>
                           </div>
                         </td>
                       </tr>
-                    )
-                  })}
-                </tbody>
+                    </tbody>
+                  )
+                })}
               </table>
             </div>
           )}
