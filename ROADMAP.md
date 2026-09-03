@@ -1,5 +1,30 @@
 # Admin Costa - Hoja de Ruta
 
+## Actualizaciones Recientes (Septiembre 2026)
+
+### Contrato PDF
+- **Locadora**: sale a nombre de Rosa María Martín D., Av. Italia 4500, con teléfono de contacto, y firma como Locadora
+- **Barrio y lote**: se toman del campo `lote` de cada propiedad (Golf 1 → 234, Deportiva 1 → 9). Antes `barrioLote` repetía el nombre de la propiedad
+- **Ocupación máxima**: el punto Destino fija 8 personas como cláusula del contrato, en vez de reflejar la cantidad cargada en la reserva
+
+### Fix de fechas (bug)
+- `new Date('2027-02-01')` se parsea como medianoche **UTC**, así que en Argentina (UTC-3) caía el día anterior: una reserva del 1 al 15 de febrero salía en el contrato como 31 de enero al 14 de febrero
+- Se agregó parseo en horario local y se aplicó en el contrato, el listado de reservas y el módulo de cobros
+- El total de noches nunca estuvo mal: ambas fechas tenían el mismo desfase y se cancelaba
+
+### Reservas
+- **Precio por noche con decimales**: `InputNumber` usaba `parseInt` y descartaba las comas. Ahora acepta decimales vía prop opcional, sin cambiar el resto de los campos
+- **Moneda para limpieza final y lavadero**: antes se asumían siempre en pesos. Migración `sql/18-moneda-limpieza-lavadero.sql`
+
+### Cobros - Reestructuración a dos bloques
+- **De tres cuadros a dos**: "Alquiler y servicios" (alquiler + limpieza + lavadero) y "Depósito en garantía". El depósito va aparte porque entra y sale: es garantía, no ingreso de la reserva
+- **Subtotales por moneda**: como cada concepto puede pactarse en distinta moneda, se agrupa por moneda en vez de sumar montos heterogéneos
+- **Aplicar pago simplificado**: de cuatro opciones (alquiler, limpieza, lavadero, depósito) a dos (alquiler y servicios, depósito). Los cobros ya cargados como limpieza o lavadero siguen sumando al bloque de operación
+- **Comentario en el pago**: la columna `descripcion` ya existía en `cobros` pero no estaba en el formulario. Sirve para aclarar pagos que cubren varios conceptos
+- **Fix de moneda del depósito**: el cuadro lo mostraba en dólares mientras el campo de edición y el resumen lo tratan como pesos. Lo recibido ahora sale con la moneda real de cada cobro
+
+---
+
 ## Actualizaciones Recientes (Agosto 2026)
 
 ### Piezas Gráficas - Rediseño 70/30

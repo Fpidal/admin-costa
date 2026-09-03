@@ -56,6 +56,8 @@ interface Reserva {
   ropa_blanca: boolean
   limpieza_final: number
   monto_lavadero: number
+  moneda_limpieza: string
+  moneda_lavadero: string
   kw_inicial: number
   estado: string
   notas: string
@@ -118,6 +120,10 @@ const monedas = [
   { value: 'ARS', label: '$ Pesos' },
 ]
 
+// Tope de ocupación que fija el contrato. Es una cláusula del contrato, no la
+// cantidad de personas que vino en la reserva.
+const MAX_PERSONAS_CONTRATO = 8
+
 const estadoVariant = {
   'confirmada': 'success',
   'pendiente': 'warning',
@@ -143,14 +149,22 @@ const FormatMontoStyled = ({ monto, moneda = 'ARS' }: { monto: number, moneda?: 
   )
 }
 
+// 'YYYY-MM-DD' con new Date() se parsea como medianoche UTC, así que en
+// Argentina (UTC-3) cae el día anterior: el 1/2 salía como 31/1. Se arma la
+// fecha en horario local para que el día sea el que se cargó.
+const parseFechaLocal = (fecha: string) => {
+  const [a, m, d] = fecha.split('T')[0].split('-').map(Number)
+  return new Date(a, (m || 1) - 1, d || 1)
+}
+
 const formatFecha = (fecha: string) => {
-  return new Date(fecha).toLocaleDateString('es-AR')
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR')
 }
 
 const calcularNoches = (checkIn: string, checkOut: string) => {
   if (!checkIn || !checkOut) return 0
-  const inicio = new Date(checkIn)
-  const fin = new Date(checkOut)
+  const inicio = parseFechaLocal(checkIn)
+  const fin = parseFechaLocal(checkOut)
   return Math.max(0, Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24)))
 }
 
@@ -171,6 +185,8 @@ const initialForm = {
   ropa_blanca: false,
   limpieza_final: 0,
   monto_lavadero: 0,
+  moneda_limpieza: 'ARS',
+  moneda_lavadero: 'ARS',
   cobrar_luz: false,
   kw_inicial: 0,
   estado: 'pendiente',
@@ -305,6 +321,8 @@ function ReservasContent() {
         ropa_blanca: reserva.ropa_blanca || false,
         limpieza_final: reserva.limpieza_final || 0,
         monto_lavadero: reserva.monto_lavadero || 0,
+        moneda_limpieza: reserva.moneda_limpieza || 'ARS',
+        moneda_lavadero: reserva.moneda_lavadero || 'ARS',
         cobrar_luz: (reserva.kw_inicial || 0) > 0,
         kw_inicial: reserva.kw_inicial || 0,
         estado: reserva.estado || 'pendiente',
@@ -450,6 +468,8 @@ function ReservasContent() {
       ropa_blanca: form.ropa_blanca,
       limpieza_final: Number(form.limpieza_final),
       monto_lavadero: Number(form.monto_lavadero),
+      moneda_limpieza: form.moneda_limpieza,
+      moneda_lavadero: form.moneda_lavadero,
       kw_inicial: Number(form.kw_inicial),
       monto: monto,
       monto_usd: Number(form.precio_noche),
@@ -810,10 +830,11 @@ function ReservasContent() {
     const total = noches * (reserva.precio_noche || 0)
     const saldo = total - (reserva.sena || 0)
 
-    // Datos del locador (configurables)
+    // Datos de la locadora
     const locador = {
-      nombre: 'Francisco Pidal',
-      domicilio: 'Av. Libertador 1234, CABA'
+      nombre: 'Rosa María Martín D.',
+      domicilio: 'Av. Italia 4500',
+      telefono: '11 6879 2207'
     }
 
     // Datos del locatario
@@ -823,13 +844,15 @@ function ReservasContent() {
       domicilio: reserva.inquilinos?.domicilio || '-'
     }
 
-    // Datos de la propiedad
-    const propiedad = reserva.propiedades?.nombre || 'Propiedad'
-    const barrioLote = reserva.propiedades?.nombre || 'Barrio y Lote'
+    // Barrio y lote salen de la ficha de la propiedad (Golf 1 → Lote 234,
+    // Deportiva 1 → Lote 9), no del nombre repetido
+    const barrio = reserva.propiedades?.nombre || 'Propiedad'
+    const lote = reserva.propiedades?.lote?.trim()
+    const barrioLote = lote ? `${barrio}, Lote ${lote}` : barrio
 
     // Formato de fechas
     const formatFechaLarga = (fecha: string) => {
-      return new Date(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+      return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
     }
 
     let y = 20
@@ -853,7 +876,7 @@ function ReservasContent() {
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(10)
-    doc.text(`Locador: ${locador.nombre}, ${locador.domicilio}`, margin, y)
+    doc.text(`Locadora: ${locador.nombre}, ${locador.domicilio} — Tel. ${locador.telefono}`, margin, y)
     y += 5
     doc.text(`Locatario: ${locatario.nombre}, DNI ${locatario.dni}, ${locatario.domicilio}`, margin, y)
     y += 10
@@ -877,22 +900,22 @@ function ReservasContent() {
 
     // 1. Objeto
     addSection('1', 'Objeto',
-      `${locador.nombre} da en alquiler temporario su casa ubicada en Costa Esmeralda, Km 380 Ruta 11, ${barrioLote}, Partido de la Costa, Buenos Aires. Se entrega amueblada y en buen estado, con todo su equipamiento. El locatario dispone de 24 hs desde el ingreso para informar cualquier desperfecto.`)
+      `${locador.nombre} da en alquiler temporario su casa ubicada en Costa Esmeralda, Km 380 Ruta 11, Barrio ${barrioLote}, Partido de la Costa, Buenos Aires. Se entrega amueblada y en buen estado, con todo su equipamiento. El locatario dispone de 24 hs desde el ingreso para informar cualquier desperfecto.`)
 
     // 2. Destino
     addSection('2', 'Destino',
-      `Uso exclusivo como vivienda temporaria de descanso, para un máximo de ${reserva.cantidad_personas || 1} personas. Se prohíbe subalquilar, sobre-ocupar, cambiar el destino o realizar fiestas/eventos. El locatario debe cumplir el Reglamento de Convivencia de Costa Esmeralda y solicitar autorización para ingresar animales.`)
+      `Uso exclusivo como vivienda temporaria de descanso, para un máximo de ${MAX_PERSONAS_CONTRATO} personas. Se prohíbe subalquilar, sobre-ocupar, cambiar el destino o realizar fiestas/eventos. El locatario debe cumplir el Reglamento de Convivencia de Costa Esmeralda y solicitar autorización para ingresar animales.`)
 
     // 3. Plazo
     addSection('3', 'Plazo',
       `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${reserva.horario_ingreso || '16:00'} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${reserva.horario_salida || '10:00'} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.`)
 
     // 4. Precio y pago
-    const fechaLimiteSena = new Date(reserva.fecha_inicio)
+    const fechaLimiteSena = parseFechaLocal(reserva.fecha_inicio)
     fechaLimiteSena.setDate(fechaLimiteSena.getDate() - 15)
 
     addSection('4', 'Precio y pago',
-      `Total: USD ${total.toLocaleString('es-AR')}. Reserva: USD ${(reserva.sena || 0).toLocaleString('es-AR')} antes del ${formatFechaLarga(fechaLimiteSena.toISOString())} (transferencia). Saldo: USD ${saldo.toLocaleString('es-AR')} al ingresar (efectivo). Incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza de piscina semanal, TV, Internet, vigilancia y electricidad hasta 120 kWh. ${reserva.ropa_blanca ? 'Incluye ropa blanca.' : 'No incluye ropa blanca.'} Falta de suministro de servicios no es responsabilidad del locador.`)
+      `Total: USD ${total.toLocaleString('es-AR')}. Reserva: USD ${(reserva.sena || 0).toLocaleString('es-AR')} antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })} (transferencia). Saldo: USD ${saldo.toLocaleString('es-AR')} al ingresar (efectivo). Incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza de piscina semanal, TV, Internet, vigilancia y electricidad hasta 120 kWh. ${reserva.ropa_blanca ? 'Incluye ropa blanca.' : 'No incluye ropa blanca.'} Falta de suministro de servicios no es responsabilidad del locador.`)
 
     // 5. Depósito
     const depositoTexto = reserva.deposito_pesos
@@ -941,7 +964,7 @@ function ReservasContent() {
     doc.line(margin, y + 15, margin + 70, y + 15)
     doc.setFontSize(9)
     doc.setTextColor(60, 60, 60)
-    doc.text(`${locador.nombre} – Locador`, margin, y + 22)
+    doc.text(`${locador.nombre} – Locadora`, margin, y + 22)
 
     // Firma locatario
     doc.line(pageWidth - margin - 70, y + 15, pageWidth - margin, y + 15)
@@ -1513,8 +1536,8 @@ function ReservasContent() {
                                   <div>
                                     <p className="text-xs text-costa-gris">Limpieza final</p>
                                     <p className="text-costa-navy font-medium">
-                                      {formatMonto(reserva.limpieza_final || 0, 'ARS')}
-                                      {cotiz > 0 && (reserva.limpieza_final || 0) > 0 && (
+                                      {formatMonto(reserva.limpieza_final || 0, reserva.moneda_limpieza || 'ARS')}
+                                      {cotiz > 0 && (reserva.limpieza_final || 0) > 0 && (reserva.moneda_limpieza || 'ARS') === 'ARS' && (
                                         <span className="text-xs text-costa-gris font-normal ml-1">
                                           ({formatMonto((reserva.limpieza_final || 0) / cotiz, 'USD')})
                                         </span>
@@ -1524,8 +1547,8 @@ function ReservasContent() {
                                   <div>
                                     <p className="text-xs text-costa-gris">Lavadero</p>
                                     <p className="text-costa-navy font-medium">
-                                      {formatMonto(reserva.monto_lavadero || 0, 'ARS')}
-                                      {cotiz > 0 && (reserva.monto_lavadero || 0) > 0 && (
+                                      {formatMonto(reserva.monto_lavadero || 0, reserva.moneda_lavadero || 'ARS')}
+                                      {cotiz > 0 && (reserva.monto_lavadero || 0) > 0 && (reserva.moneda_lavadero || 'ARS') === 'ARS' && (
                                         <span className="text-xs text-costa-gris font-normal ml-1">
                                           ({formatMonto((reserva.monto_lavadero || 0) / cotiz, 'USD')})
                                         </span>
@@ -1637,7 +1660,7 @@ function ReservasContent() {
                 )}
               </label>
               <div className={precioSugerido && form.precio_noche === precioSugerido.precio ? 'opacity-60' : ''}>
-                <InputNumber value={form.precio_noche} onChange={(val) => setForm({ ...form, precio_noche: val })} />
+                <InputNumber value={form.precio_noche} onChange={(val) => setForm({ ...form, precio_noche: val })} decimales={2} />
               </div>
               {/* Precio sugerido del calendario */}
               {cargandoPrecio && (
@@ -1819,13 +1842,23 @@ function ReservasContent() {
               {form.limpieza_final > 0 && (
                 <div className="mt-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Monto ($)
+                    Monto
                     {form.limpieza_final === 150000 && (
                       <span className="text-xs text-gray-400 ml-2">(sugerido)</span>
                     )}
                   </label>
-                  <div className={form.limpieza_final === 150000 ? 'opacity-50' : ''}>
-                    <InputNumber value={form.limpieza_final} onChange={(val) => setForm({ ...form, limpieza_final: val })} />
+                  <div className="flex gap-2">
+                    <div className={`flex-1 ${form.limpieza_final === 150000 ? 'opacity-50' : ''}`}>
+                      <InputNumber value={form.limpieza_final} onChange={(val) => setForm({ ...form, limpieza_final: val })} />
+                    </div>
+                    <select
+                      value={form.moneda_limpieza}
+                      onChange={(e) => setForm({ ...form, moneda_limpieza: e.target.value })}
+                      className="w-24 px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="ARS">$</option>
+                      <option value="USD">U$D</option>
+                    </select>
                   </div>
                 </div>
               )}
@@ -1846,13 +1879,23 @@ function ReservasContent() {
               {form.monto_lavadero > 0 && (
                 <div className="mt-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Monto ($)
+                    Monto
                     {form.monto_lavadero === 100000 && (
                       <span className="text-xs text-gray-400 ml-2">(sugerido)</span>
                     )}
                   </label>
-                  <div className={form.monto_lavadero === 100000 ? 'opacity-50' : ''}>
-                    <InputNumber value={form.monto_lavadero} onChange={(val) => setForm({ ...form, monto_lavadero: val })} />
+                  <div className="flex gap-2">
+                    <div className={`flex-1 ${form.monto_lavadero === 100000 ? 'opacity-50' : ''}`}>
+                      <InputNumber value={form.monto_lavadero} onChange={(val) => setForm({ ...form, monto_lavadero: val })} />
+                    </div>
+                    <select
+                      value={form.moneda_lavadero}
+                      onChange={(e) => setForm({ ...form, moneda_lavadero: e.target.value })}
+                      className="w-24 px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="ARS">$</option>
+                      <option value="USD">U$D</option>
+                    </select>
                   </div>
                 </div>
               )}

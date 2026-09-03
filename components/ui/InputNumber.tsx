@@ -8,44 +8,84 @@ interface InputNumberProps {
   placeholder?: string
   className?: string
   disabled?: boolean
+  /** Decimales admitidos. 0 (por defecto) mantiene el comportamiento de enteros. */
+  decimales?: number
 }
 
-export function InputNumber({ value, onChange, placeholder, className = '', disabled = false }: InputNumberProps) {
+// Formato argentino: punto para miles, coma para decimales
+const formatear = (n: number, decimales: number) =>
+  n.toLocaleString('es-AR', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: decimales,
+  })
+
+// Revierte el formato para poder comparar contra el value que llega de afuera
+const aNumero = (texto: string) => {
+  const limpio = texto.replace(/\./g, '').replace(',', '.')
+  const n = parseFloat(limpio)
+  return isNaN(n) ? null : n
+}
+
+export function InputNumber({
+  value,
+  onChange,
+  placeholder,
+  className = '',
+  disabled = false,
+  decimales = 0,
+}: InputNumberProps) {
   const [displayValue, setDisplayValue] = useState('')
 
   useEffect(() => {
-    if (value !== undefined && value !== null && value !== '') {
-      const numValue = typeof value === 'string' ? parseFloat(value) : value
-      if (!isNaN(numValue)) {
-        setDisplayValue(numValue.toLocaleString('es-AR'))
-      } else {
-        setDisplayValue('')
-      }
-    } else {
+    const numValue = typeof value === 'string' ? parseFloat(value) : value
+    if (numValue === undefined || numValue === null || isNaN(numValue as number)) {
       setDisplayValue('')
+      return
     }
-  }, [value])
+    // Si lo que se está tipeando ya representa este número no se reformatea:
+    // de lo contrario, al escribir "229," la coma desaparecería sola
+    if (aNumero(displayValue) === numValue) return
+    setDisplayValue(formatear(numValue as number, decimales))
+  }, [value, decimales]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawValue = e.target.value.replace(/\./g, '').replace(/,/g, '')
+    if (!decimales) {
+      const rawValue = e.target.value.replace(/\./g, '').replace(/,/g, '')
+      if (rawValue === '') {
+        setDisplayValue('')
+        onChange(0)
+        return
+      }
+      const numValue = parseInt(rawValue, 10)
+      if (!isNaN(numValue)) {
+        setDisplayValue(numValue.toLocaleString('es-AR'))
+        onChange(numValue)
+      }
+      return
+    }
 
-    if (rawValue === '') {
+    // Con decimales se conserva la coma mientras se escribe
+    const limpio = e.target.value.replace(/\./g, '').replace(/[^\d,]/g, '')
+    if (limpio === '') {
       setDisplayValue('')
       onChange(0)
       return
     }
 
-    const numValue = parseInt(rawValue, 10)
-    if (!isNaN(numValue)) {
-      setDisplayValue(numValue.toLocaleString('es-AR'))
-      onChange(numValue)
-    }
+    const [entero, ...resto] = limpio.split(',')
+    const parteDecimal = resto.length ? ',' + resto.join('').slice(0, decimales) : ''
+    const enteroNum = parseInt(entero || '0', 10)
+    const enteroFmt = isNaN(enteroNum) ? '' : enteroNum.toLocaleString('es-AR')
+
+    setDisplayValue(enteroFmt + parteDecimal)
+    const num = parseFloat((entero || '0') + (resto.length ? '.' + resto.join('').slice(0, decimales) : ''))
+    if (!isNaN(num)) onChange(num)
   }
 
   return (
     <input
       type="text"
-      inputMode="numeric"
+      inputMode={decimales ? 'decimal' : 'numeric'}
       value={displayValue}
       onChange={handleChange}
       placeholder={placeholder}

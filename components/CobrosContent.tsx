@@ -19,6 +19,8 @@ interface Reserva {
   cantidad_personas: number
   precio_noche: number
   moneda: string
+  moneda_limpieza?: string
+  moneda_lavadero?: string
   deposito: number
   deposito_pesos: number
   sena: number
@@ -36,6 +38,7 @@ interface Cobro {
   fecha: string
   aplicar_a: string
   concepto: string
+  descripcion: string | null
   monto: number
   moneda: string
   medio_pago: string
@@ -58,11 +61,12 @@ interface Liquidacion {
   fecha_liquidacion: string
 }
 
+// El depósito es la única distinción que importa: entra como garantía y sale,
+// no computa como ingreso. Todo lo demás va al bloque de alquiler y servicios.
+// Los valores 'limpieza' y 'lavadero' quedan por los cobros ya cargados.
 const aplicarAOptions = [
-  { value: 'alquiler', label: 'Alquiler' },
-  { value: 'limpieza', label: 'Limpieza' },
-  { value: 'lavadero', label: 'Lavadero' },
-  { value: 'deposito', label: 'Depósito' },
+  { value: 'alquiler', label: 'Alquiler y servicios' },
+  { value: 'deposito', label: 'Depósito (garantía)' },
 ]
 
 const conceptoOptions = [
@@ -101,13 +105,20 @@ const FormatMontoStyled = ({ monto, moneda = 'ARS' }: { monto: number, moneda?: 
   )
 }
 
+// 'YYYY-MM-DD' con new Date() se parsea como medianoche UTC, así que en
+// Argentina (UTC-3) cae el día anterior. Se arma la fecha en horario local.
+const parseFechaLocal = (fecha: string) => {
+  const [a, m, d] = fecha.split('T')[0].split('-').map(Number)
+  return new Date(a, (m || 1) - 1, d || 1)
+}
+
 const formatFecha = (fecha: string) => {
-  return new Date(fecha).toLocaleDateString('es-AR')
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR')
 }
 
 const calcularNoches = (inicio: string, fin: string) => {
-  const d1 = new Date(inicio)
-  const d2 = new Date(fin)
+  const d1 = parseFechaLocal(inicio)
+  const d2 = parseFechaLocal(fin)
   return Math.ceil((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24))
 }
 
@@ -115,6 +126,7 @@ const initialCobroForm = {
   fecha: new Date().toISOString().split('T')[0],
   aplicar_a: 'alquiler',
   concepto: 'seña',
+  descripcion: '',
   monto: 0,
   moneda: 'USD',
   medio_pago: 'efectivo',
@@ -324,14 +336,48 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
   const cobradoLavadero = calcularCobrado(cobros.filter(c => c.aplicar_a === 'lavadero'))
   const cobradoDeposito = calcularCobrado(cobros.filter(c => c.aplicar_a === 'deposito'))
 
-  const saldoAlquiler = pactadoAlquiler - cobradoAlquiler
-  const saldoLimpieza = pactadoLimpieza - cobradoLimpieza
-  const saldoLavadero = pactadoLavadero - cobradoLavadero
   const saldoDeposito = pactadoDeposito - cobradoDeposito
 
-  const totalPactado = pactadoAlquiler + pactadoLimpieza + pactadoLavadero + pactadoDeposito
-  const totalCobrado = cobradoAlquiler + cobradoLimpieza + cobradoLavadero + cobradoDeposito
-  const saldoTotal = totalPactado - totalCobrado
+  const cobrosDeposito = cobros.filter(c => c.aplicar_a === 'deposito')
+  const cobradoDepositoPorMoneda: Record<string, number> = {}
+  for (const c of cobrosDeposito) {
+    cobradoDepositoPorMoneda[c.moneda] = (cobradoDepositoPorMoneda[c.moneda] || 0) + c.monto
+  }
+
+  /* La operación es lo que se cobra de verdad: alquiler + limpieza + lavadero.
+     El depósito va aparte porque es garantía, no ingreso.
+     Como cada concepto puede estar en otra moneda, se agrupa por moneda en vez
+     de sumar peras con manzanas. */
+  const monedaLimpieza = reserva?.moneda_limpieza || 'ARS'
+  const monedaLavadero = reserva?.moneda_lavadero || 'ARS'
+
+  const sumarPorMoneda = (acc: Record<string, number>, moneda: string, monto: number) => {
+    if (!monto) return acc
+    acc[moneda] = (acc[moneda] || 0) + monto
+    return acc
+  }
+
+  const pactadoOperacion: Record<string, number> = {}
+  sumarPorMoneda(pactadoOperacion, monedaAlquiler, pactadoAlquiler)
+  sumarPorMoneda(pactadoOperacion, monedaLimpieza, pactadoLimpieza)
+  sumarPorMoneda(pactadoOperacion, monedaLavadero, pactadoLavadero)
+
+  // Los cobros viejos siguen marcados como limpieza o lavadero: todo lo que no
+  // es depósito cuenta como operación
+  const cobrosOperacion = cobros.filter(c => c.aplicar_a !== 'deposito')
+  const cobradoOperacion: Record<string, number> = {}
+  for (const c of cobrosOperacion) {
+    sumarPorMoneda(cobradoOperacion, c.moneda, c.concepto === 'devolucion_sena' ? -c.monto : c.monto)
+  }
+
+  const monedasOperacion = Array.from(
+    new Set([...Object.keys(pactadoOperacion), ...Object.keys(cobradoOperacion)]),
+  ).sort()
+  const saldoOperacion: Record<string, number> = {}
+  for (const m of monedasOperacion) {
+    saldoOperacion[m] = (pactadoOperacion[m] || 0) - (cobradoOperacion[m] || 0)
+  }
+  const operacionSaldada = monedasOperacion.every(m => Math.round(saldoOperacion[m]) === 0)
 
   const kwInicial = reserva?.kw_inicial || 0
   const kwConsumo = liquidacionForm.kw_final - kwInicial
@@ -350,8 +396,9 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       setEditingCobroId(cobro.id)
       setCobroForm({
         fecha: cobro.fecha,
-        aplicar_a: cobro.aplicar_a || 'alquiler',
+        aplicar_a: cobro.aplicar_a === 'deposito' ? 'deposito' : 'alquiler',
         concepto: cobro.concepto || 'seña',
+        descripcion: cobro.descripcion || '',
         monto: cobro.monto,
         moneda: cobro.moneda,
         medio_pago: cobro.medio_pago,
@@ -409,6 +456,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       fecha: cobroForm.fecha,
       aplicar_a: cobroForm.aplicar_a,
       concepto: cobroForm.concepto || null,
+      descripcion: cobroForm.descripcion?.trim() || null,
       monto: Number(cobroForm.monto),
       moneda: cobroForm.moneda,
       medio_pago: cobroForm.medio_pago,
@@ -667,131 +715,84 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* ALQUILER */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* OPERACIÓN: alquiler + servicios, que es lo que se cobra de verdad */}
         <Card>
           <CardHeader className="py-2 px-4">
             <CardTitle className="flex items-center gap-2 text-sm">
               <DollarSign size={16} />
-              Alquiler
+              Alquiler y servicios
             </CardTitle>
           </CardHeader>
           <CardContent className="py-2 px-4">
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between py-1 border-b border-costa-beige">
-                <span className="text-costa-gris">Total ({noches} noches × <FormatMontoStyled monto={reserva?.precio_noche || 0} moneda={monedaAlquiler} />)</span>
+                <span className="text-costa-gris">Alquiler ({noches} noches × <FormatMontoStyled monto={reserva?.precio_noche || 0} moneda={monedaAlquiler} />)</span>
                 <span className="font-medium"><FormatMontoStyled monto={pactadoAlquiler} moneda={monedaAlquiler} /></span>
               </div>
-              <div className="flex justify-between py-1 border-b border-costa-beige">
-                <span className="text-costa-gris">Cobrado</span>
-                <span className={cobradoAlquiler > 0 ? 'font-medium text-costa-olivo' : 'text-costa-gris'}>
-                  <FormatMontoStyled monto={cobradoAlquiler} moneda={monedaAlquiler} />
-                </span>
-              </div>
-              <div className={`flex justify-between pt-1.5 px-2 py-1.5 rounded font-semibold ${saldoAlquiler === 0 ? 'bg-costa-olivo/10' : 'bg-costa-coral/10'}`}>
-                <span className={saldoAlquiler === 0 ? 'text-costa-olivo' : 'text-costa-coral'}>
-                  {saldoAlquiler === 0 ? 'COMPLETO ✓' : 'PENDIENTE'}
-                </span>
-                <span className={saldoAlquiler === 0 ? 'text-costa-olivo' : 'text-costa-coral'}>
-                  <FormatMontoStyled monto={saldoAlquiler === 0 ? pactadoAlquiler : saldoAlquiler} moneda={monedaAlquiler} />
-                </span>
-              </div>
-              {cobros.filter(c => c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena').length > 0 && (
-                <div className="mt-2 pt-2 border-t border-dashed">
-                  <p className="text-xs text-costa-gris mb-1">Pagos registrados:</p>
-                  {cobros.filter(c => c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena').map(c => (
-                    <div key={c.id} className="flex justify-between text-xs py-0.5">
-                      <span className="text-costa-gris">{formatFecha(c.fecha)} - {conceptoOptions.find(opt => opt.value === c.concepto)?.label || c.concepto || 'Pago'}</span>
-                      <span className="text-costa-olivo">{formatMonto(c.monto, c.moneda)}</span>
-                    </div>
-                  ))}
+              {pactadoLimpieza > 0 && (
+                <div className="flex justify-between py-1 border-b border-costa-beige">
+                  <span className="text-costa-gris">Limpieza final</span>
+                  <span className="font-medium"><FormatMontoStyled monto={pactadoLimpieza} moneda={monedaLimpieza} /></span>
                 </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+              {pactadoLavadero > 0 && (
+                <div className="flex justify-between py-1 border-b border-costa-beige">
+                  <span className="text-costa-gris">Lavadero</span>
+                  <span className="font-medium"><FormatMontoStyled monto={pactadoLavadero} moneda={monedaLavadero} /></span>
+                </div>
+              )}
 
-        {/* LIMPIEZA */}
-        <Card>
-          <CardHeader className="py-2 px-4">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <Calculator size={16} />
-              Limpieza
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="py-2 px-4">
-            <div className="space-y-1.5 text-sm">
+              {/* Subtotal y cobrado: una línea por moneda, no se mezclan */}
               <div className="flex justify-between py-1 border-b border-costa-beige">
-                <span className="text-costa-gris">Limpieza final</span>
-                <span className="font-medium">{formatMonto(pactadoLimpieza, 'ARS')}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-costa-beige">
-                <span className="text-costa-gris">Lavadero</span>
-                <span className="font-medium">{formatMonto(pactadoLavadero, 'ARS')}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-costa-beige bg-costa-beige/30 px-2 rounded">
-                <span className="font-medium text-costa-navy">Total</span>
-                <div className="text-right">
-                  <span className="font-medium text-costa-navy">{formatMonto(pactadoLimpieza + pactadoLavadero, 'ARS')}</span>
-                  {cotizacion > 1 && (
-                    <span className="text-xs text-costa-gris ml-2">
-                      ({formatMonto((pactadoLimpieza + pactadoLavadero) / cotizacion, 'USD')})
+                <span className="text-costa-navy font-medium">Subtotal</span>
+                <span className="font-medium text-costa-navy text-right">
+                  {monedasOperacion.filter(m => pactadoOperacion[m]).map(m => (
+                    <span key={m} className="block">
+                      <FormatMontoStyled monto={pactadoOperacion[m]} moneda={m} />
                     </span>
-                  )}
-                </div>
+                  ))}
+                </span>
               </div>
               <div className="flex justify-between py-1 border-b border-costa-beige">
                 <span className="text-costa-gris">Cobrado</span>
-                <div className="text-right">
-                  <span className={cobradoLimpieza + cobradoLavadero > 0 ? 'font-medium text-costa-olivo' : 'text-costa-gris'}>
-                    {formatMonto(cobradoLimpieza + cobradoLavadero, 'ARS')}
-                  </span>
-                  {cotizacion > 1 && cobradoLimpieza + cobradoLavadero > 0 && (
-                    <span className="text-xs text-costa-gris ml-2">
-                      ({formatMonto((cobradoLimpieza + cobradoLavadero) / cotizacion, 'USD')})
-                    </span>
-                  )}
-                </div>
-              </div>
-              {(() => {
-                const totalLimpieza = pactadoLimpieza + pactadoLavadero
-                const cobradoTotal = cobradoLimpieza + cobradoLavadero
-                const saldo = totalLimpieza - cobradoTotal
-                return (
-                  <div className={`flex justify-between pt-1.5 px-2 py-1.5 rounded font-semibold ${saldo === 0 ? 'bg-costa-olivo/10' : 'bg-costa-coral/10'}`}>
-                    <span className={saldo === 0 ? 'text-costa-olivo' : 'text-costa-coral'}>
-                      {saldo === 0 ? 'COMPLETO ✓' : 'PENDIENTE'}
-                    </span>
-                    <div className="text-right">
-                      <span className={saldo === 0 ? 'text-costa-olivo' : 'text-costa-coral'}>
-                        {saldo === 0 ? formatMonto(totalLimpieza, 'ARS') : formatMonto(saldo, 'ARS')}
+                <span className="text-right">
+                  {monedasOperacion.some(m => cobradoOperacion[m]) ? (
+                    monedasOperacion.filter(m => cobradoOperacion[m]).map(m => (
+                      <span key={m} className="block font-medium text-costa-olivo">
+                        <FormatMontoStyled monto={cobradoOperacion[m]} moneda={m} />
                       </span>
-                      {cotizacion > 1 && (
-                        <span className={`text-xs ml-2 ${saldo === 0 ? 'text-costa-olivo/70' : 'text-costa-coral/70'}`}>
-                          ({formatMonto((saldo === 0 ? totalLimpieza : saldo) / cotizacion, 'USD')})
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )
-              })()}
-              {cotizacion > 1 && (
-                <div className="text-xs text-costa-gris text-right pt-1">
-                  Cotización: {formatMonto(cotizacion, 'ARS')} = U$D 1
-                </div>
-              )}
-              {cobros.filter(c => c.aplicar_a === 'limpieza' || c.aplicar_a === 'lavadero').length > 0 && (
+                    ))
+                  ) : (
+                    <span className="text-costa-gris">-</span>
+                  )}
+                </span>
+              </div>
+              <div className={`flex justify-between pt-1.5 px-2 py-1.5 rounded font-semibold ${operacionSaldada ? 'bg-costa-olivo/10' : 'bg-costa-coral/10'}`}>
+                <span className={operacionSaldada ? 'text-costa-olivo' : 'text-costa-coral'}>
+                  {operacionSaldada ? 'COMPLETO ✓' : 'PENDIENTE'}
+                </span>
+                <span className={`text-right ${operacionSaldada ? 'text-costa-olivo' : 'text-costa-coral'}`}>
+                  {monedasOperacion.filter(m => (operacionSaldada ? pactadoOperacion[m] : saldoOperacion[m])).map(m => (
+                    <span key={m} className="block">
+                      <FormatMontoStyled monto={operacionSaldada ? pactadoOperacion[m] : saldoOperacion[m]} moneda={m} />
+                    </span>
+                  ))}
+                </span>
+              </div>
+
+              {cobrosOperacion.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-dashed">
                   <p className="text-xs text-costa-gris mb-1">Pagos registrados:</p>
-                  {cobros.filter(c => c.aplicar_a === 'limpieza' || c.aplicar_a === 'lavadero').map(c => (
-                    <div key={c.id} className="flex justify-between text-xs py-0.5">
-                      <span className="text-costa-gris">{formatFecha(c.fecha)} - {conceptoOptions.find(opt => opt.value === c.concepto)?.label || c.concepto || (c.aplicar_a === 'limpieza' ? 'Limpieza' : 'Lavadero')}</span>
-                      <div>
-                        <span className="text-costa-olivo">{formatMonto(c.monto, c.moneda)}</span>
-                        {c.moneda === 'ARS' && cotizacion > 1 && (
-                          <span className="text-costa-gris ml-1">({formatMonto(c.monto / cotizacion, 'USD')})</span>
-                        )}
-                      </div>
+                  {cobrosOperacion.map(c => (
+                    <div key={c.id} className="flex justify-between text-xs py-0.5 gap-2">
+                      <span className="text-costa-gris min-w-0">
+                        {formatFecha(c.fecha)} - {conceptoOptions.find(opt => opt.value === c.concepto)?.label || c.concepto || 'Pago'}
+                        {c.descripcion && <span className="italic"> · {c.descripcion}</span>}
+                      </span>
+                      <span className={c.concepto === 'devolucion_sena' ? 'text-costa-coral flex-shrink-0' : 'text-costa-olivo flex-shrink-0'}>
+                        {c.concepto === 'devolucion_sena' ? '-' : ''}{formatMonto(c.monto, c.moneda)}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -806,7 +807,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
             <CardTitle className="flex items-center justify-between text-sm">
               <span className="flex items-center gap-2">
                 <Receipt size={16} />
-                Liquidación Final
+                Depósito en garantía
               </span>
               {!isCerrada && (
                 <Button size="sm" variant="secondary" onClick={() => setLiquidacionModalOpen(true)} className="text-xs py-1 px-2">
@@ -817,16 +818,27 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
           </CardHeader>
           <CardContent className="py-2 px-4">
             <div className="space-y-1.5 text-sm">
+              <p className="text-[11px] text-costa-gris pb-1 leading-snug">
+                Entra y sale: es garantía, no cuenta como ingreso de la reserva.
+              </p>
               <div className="flex justify-between py-1 border-b border-costa-beige">
                 <span className="text-costa-gris">Depósito pactado</span>
                 <span className="font-medium">
-                  <FormatMontoStyled monto={pactadoDeposito} moneda={monedaAlquiler} />
+                  <FormatMontoStyled monto={pactadoDeposito} moneda="ARS" />
                 </span>
               </div>
               <div className="flex justify-between py-1 border-b border-costa-beige">
                 <span className="text-costa-gris">Depósito recibido</span>
-                <span className={cobradoDeposito > 0 ? 'font-medium text-costa-olivo' : 'text-costa-gris'}>
-                  <FormatMontoStyled monto={cobradoDeposito} moneda="USD" />
+                <span className="text-right">
+                  {cobrosDeposito.length ? (
+                    Object.entries(cobradoDepositoPorMoneda).map(([m, v]) => (
+                      <span key={m} className="block font-medium text-costa-olivo">
+                        <FormatMontoStyled monto={v} moneda={m} />
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-costa-gris">-</span>
+                  )}
                 </span>
               </div>
 
@@ -1028,8 +1040,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
               value={cobroForm.aplicar_a}
               onChange={(e) => {
                 const aplicar_a = e.target.value
-                const monedaAuto = (aplicar_a === 'limpieza' || aplicar_a === 'lavadero') ? 'ARS' :
-                                   (aplicar_a === 'deposito') ? 'USD' : monedaAlquiler
+                const monedaAuto = aplicar_a === 'deposito' ? 'USD' : monedaAlquiler
                 setCobroForm({ ...cobroForm, aplicar_a, moneda: monedaAuto })
               }}
               options={aplicarAOptions}
@@ -1071,6 +1082,14 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
               options={monedas}
             />
           </div>
+
+          <Textarea
+            label="Comentario (opcional)"
+            rows={2}
+            value={cobroForm.descripcion}
+            onChange={(e) => setCobroForm({ ...cobroForm, descripcion: e.target.value })}
+            placeholder="Ej: cubre alquiler y limpieza final"
+          />
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="secondary" onClick={() => setModalOpen(false)}>

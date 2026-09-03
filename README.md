@@ -17,7 +17,8 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Propiedades**: CRUD completo con fotos (hasta 16), amenities, precio de alquiler y de venta, y toggle de publicación
 - **Piezas gráficas**: Generador de avisos de venta y alquiler (post 4:5, story 9:16 y ficha A4 en PDF)
 - **Calendario de Precios**: Sistema de reglas de precio por temporada con prioridades
-- **Reservas**: Gestión de reservas con generación de PDF de contrato
+- **Reservas**: Gestión de reservas con generación de PDF de contrato y recibo. Precio por noche con decimales; limpieza final y lavadero con moneda propia
+- **Cobros**: Dos bloques — alquiler y servicios (con subtotales por moneda) y depósito en garantía, que se lleva aparte por no ser ingreso
 - **Calendario de Reservas**: Vista mensual con indicadores de feriados
 - **Inquilinos**: Base de datos de inquilinos con validación contra lista negra
 - **Gastos**: Control de gastos por propiedad
