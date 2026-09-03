@@ -167,7 +167,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
   const [liquidacionForm, setLiquidacionForm] = useState(initialLiquidacion)
   const [reservaForm, setReservaForm] = useState({
     precio_noche: 0,
-    deposito_pesos: 0,
+    deposito: 0,
     limpieza_final: 0,
     monto_lavadero: 0,
     kw_inicial: 0,
@@ -323,7 +323,10 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
   const pactadoAlquiler = reserva ? noches * (reserva.precio_noche || 0) : 0
   const pactadoLimpieza = reserva?.limpieza_final || 0
   const pactadoLavadero = reserva?.monto_lavadero || 0
-  const pactadoDeposito = reserva?.deposito_pesos || 0
+  // El depósito se pacta y se cobra en USD. `deposito` es el campo que carga
+  // el formulario de reservas; se cae a deposito_pesos solo por las reservas
+  // que se hayan editado desde acá cuando este modal guardaba en ese campo.
+  const pactadoDeposito = reserva?.deposito || reserva?.deposito_pesos || 0
 
   // Si el concepto es "devolucion_sena", resta en lugar de sumar
   const calcularCobrado = (cobrosArr: Cobro[]) => cobrosArr.reduce((acc, c) => {
@@ -414,7 +417,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     if (reserva) {
       setReservaForm({
         precio_noche: reserva.precio_noche || 0,
-        deposito_pesos: reserva.deposito_pesos || 0,
+        deposito: reserva.deposito || reserva.deposito_pesos || 0,
         limpieza_final: reserva.limpieza_final || 0,
         monto_lavadero: reserva.monto_lavadero || 0,
         kw_inicial: reserva.kw_inicial || 0,
@@ -431,7 +434,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       .from('reservas')
       .update({
         precio_noche: Number(reservaForm.precio_noche),
-        deposito_pesos: Number(reservaForm.deposito_pesos),
+        deposito: Number(reservaForm.deposito),
         limpieza_final: Number(reservaForm.limpieza_final),
         monto_lavadero: Number(reservaForm.monto_lavadero),
         kw_inicial: Number(reservaForm.kw_inicial),
@@ -681,7 +684,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                   <DollarSign size={14} />
                   <span>Alquiler: {formatMonto(pactadoAlquiler, monedaAlquiler)}</span>
                   <span className="mx-1">•</span>
-                  <span>Depósito: {formatMonto(pactadoDeposito, 'ARS')}</span>
+                  <span>Depósito: {formatMonto(pactadoDeposito, 'USD')}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -824,7 +827,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
               <div className="flex justify-between py-1 border-b border-costa-beige">
                 <span className="text-costa-gris">Depósito pactado</span>
                 <span className="font-medium">
-                  <FormatMontoStyled monto={pactadoDeposito} moneda="ARS" />
+                  <FormatMontoStyled monto={pactadoDeposito} moneda="USD" />
                 </span>
               </div>
               <div className="flex justify-between py-1 border-b border-costa-beige">
@@ -1267,8 +1270,8 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
               <InputNumber value={reservaForm.precio_noche} onChange={(val) => setReservaForm({ ...reservaForm, precio_noche: val })} />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Depósito ($)</label>
-              <InputNumber value={reservaForm.deposito_pesos} onChange={(val) => setReservaForm({ ...reservaForm, deposito_pesos: val })} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Depósito (U$D)</label>
+              <InputNumber value={reservaForm.deposito} onChange={(val) => setReservaForm({ ...reservaForm, deposito: val })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">

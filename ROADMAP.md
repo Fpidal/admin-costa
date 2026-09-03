@@ -21,7 +21,7 @@
 - **Subtotales por moneda**: como cada concepto puede pactarse en distinta moneda, se agrupa por moneda en vez de sumar montos heterogéneos
 - **Aplicar pago simplificado**: de cuatro opciones (alquiler, limpieza, lavadero, depósito) a dos (alquiler y servicios, depósito). Los cobros ya cargados como limpieza o lavadero siguen sumando al bloque de operación
 - **Comentario en el pago**: la columna `descripcion` ya existía en `cobros` pero no estaba en el formulario. Sirve para aclarar pagos que cubren varios conceptos
-- **Fix de moneda del depósito**: el cuadro lo mostraba en dólares mientras el campo de edición y el resumen lo tratan como pesos. Lo recibido ahora sale con la moneda real de cada cobro
+- **Depósito en dólares**: cobros leía y editaba `deposito_pesos`, mientras que el formulario de reservas carga `deposito` (etiquetado "Depósito USD"). Ahora ambos usan el mismo campo y se muestra en U$D; se cae a `deposito_pesos` solo para las reservas editadas desde cobros cuando guardaba en ese campo. Lo recibido sale con la moneda real de cada cobro
 
 ---
 
