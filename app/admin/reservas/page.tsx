@@ -816,13 +816,13 @@ function ReservasContent() {
   function generarContratoPDF(reserva: Reserva) {
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.getWidth()
-    const margin = 20
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 16
     const contentWidth = pageWidth - margin * 2
 
     // ID corto para el nombre del archivo
     const idCorto = String(reserva.id).slice(-6).toUpperCase()
 
-    // Colores
     const azulNavy = { r: 30, g: 58, b: 95 }
 
     // Datos calculados
@@ -830,152 +830,147 @@ function ReservasContent() {
     const total = noches * (reserva.precio_noche || 0)
     const saldo = total - (reserva.sena || 0)
 
-    // Datos de la locadora
     const locador = {
       nombre: 'Rosa María Martín D.',
       domicilio: 'Av. Italia 4500',
       telefono: '11 6879 2207'
     }
 
-    // Datos del locatario
     const locatario = {
       nombre: reserva.inquilinos?.nombre || '-',
       dni: reserva.inquilinos?.documento || '-',
       domicilio: reserva.inquilinos?.domicilio || '-'
     }
 
-    // Barrio y lote salen de la ficha de la propiedad (Golf 1 → Lote 234,
-    // Deportiva 1 → Lote 9), no del nombre repetido
+    // Barrio y lote salen de la ficha de la propiedad
     const barrio = reserva.propiedades?.nombre || 'Propiedad'
     const lote = reserva.propiedades?.lote?.trim()
     const barrioLote = lote ? `${barrio}, Lote ${lote}` : barrio
 
-    // Formato de fechas
     const formatFechaLarga = (fecha: string) => {
       return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
     }
 
-    let y = 20
-
-    // Título
-    doc.setFillColor(azulNavy.r, azulNavy.g, azulNavy.b)
-    doc.rect(0, 0, pageWidth, 25, 'F')
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
-    doc.text('CONTRATO DE LOCACIÓN TEMPORARIA', pageWidth / 2, 16, { align: 'center' })
-
-    y = 35
-
-    // Entre
-    doc.setTextColor(0, 0, 0)
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Entre:', margin, y)
-    y += 7
-
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
-    doc.text(`Locadora: ${locador.nombre}, ${locador.domicilio} — Tel. ${locador.telefono}`, margin, y)
-    y += 5
-    doc.text(`Locatario: ${locatario.nombre}, DNI ${locatario.dni}, ${locatario.domicilio}`, margin, y)
-    y += 10
-
-    // Función para agregar secciones
-    const addSection = (num: string, title: string, content: string) => {
-      doc.setFont('helvetica', 'bold')
-      doc.setFontSize(11)
-      doc.setTextColor(azulNavy.r, azulNavy.g, azulNavy.b)
-      doc.text(`${num}. ${title}`, margin, y)
-      y += 6
-
-      doc.setFont('helvetica', 'normal')
-      doc.setTextColor(60, 60, 60)
-      doc.setFontSize(10)
-
-      const lines = doc.splitTextToSize(content, contentWidth)
-      doc.text(lines, margin, y)
-      y += lines.length * 5 + 8
-    }
-
-    // 1. Objeto
-    addSection('1', 'Objeto',
-      `${locador.nombre} da en alquiler temporario su casa ubicada en Costa Esmeralda, Km 380 Ruta 11, Barrio ${barrioLote}, Partido de la Costa, Buenos Aires. Se entrega amueblada y en buen estado, con todo su equipamiento. El locatario dispone de 24 hs desde el ingreso para informar cualquier desperfecto.`)
-
-    // 2. Destino
-    addSection('2', 'Destino',
-      `Uso exclusivo como vivienda temporaria de descanso, para un máximo de ${MAX_PERSONAS_CONTRATO} personas. Se prohíbe subalquilar, sobre-ocupar, cambiar el destino o realizar fiestas/eventos. El locatario debe cumplir el Reglamento de Convivencia de Costa Esmeralda y solicitar autorización para ingresar animales.`)
-
-    // 3. Plazo
-    addSection('3', 'Plazo',
-      `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${reserva.horario_ingreso || '16:00'} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${reserva.horario_salida || '10:00'} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.`)
-
-    // 4. Precio y pago
     const fechaLimiteSena = parseFechaLocal(reserva.fecha_inicio)
     fechaLimiteSena.setDate(fechaLimiteSena.getDate() - 15)
 
-    addSection('4', 'Precio y pago',
-      `Total: USD ${total.toLocaleString('es-AR')}. Reserva: USD ${(reserva.sena || 0).toLocaleString('es-AR')} antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })} (transferencia). Saldo: USD ${saldo.toLocaleString('es-AR')} al ingresar (efectivo). Incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza de piscina semanal, TV, Internet, vigilancia y electricidad hasta 120 kWh. ${reserva.ropa_blanca ? 'Incluye ropa blanca.' : 'No incluye ropa blanca.'} Falta de suministro de servicios no es responsabilidad del locador.`)
-
-    // 5. Depósito
     const depositoTexto = reserva.deposito_pesos
       ? `USD ${(reserva.deposito || 0).toLocaleString('es-AR')} (o echeq $${(reserva.deposito_pesos || 0).toLocaleString('es-AR')})`
       : `USD ${(reserva.deposito || 0).toLocaleString('es-AR')}`
 
-    addSection('5', 'Depósito',
-      `El locatario entrega un depósito de ${depositoTexto} que se devolverá al finalizar, descontando daños, faltantes, exceso de consumo eléctrico o multas.`)
+    const secciones = [
+      { num: '1', title: 'Objeto', content:
+        `${locador.nombre} da en alquiler temporario su casa ubicada en Costa Esmeralda, Km 380 Ruta 11, Barrio ${barrioLote}, Partido de la Costa, Buenos Aires. Se entrega amueblada y en buen estado, con todo su equipamiento. El locatario dispone de 24 hs desde el ingreso para informar cualquier desperfecto.` },
+      { num: '2', title: 'Destino', content:
+        `Uso exclusivo como vivienda temporaria de descanso, para un máximo de ${MAX_PERSONAS_CONTRATO} personas. Se prohíbe subalquilar, sobre-ocupar, cambiar el destino o realizar fiestas/eventos. El locatario debe cumplir el Reglamento de Convivencia de Costa Esmeralda y solicitar autorización para ingresar animales.` },
+      { num: '3', title: 'Plazo', content:
+        `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${reserva.horario_ingreso || '16:00'} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${reserva.horario_salida || '10:00'} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.` },
+      { num: '4', title: 'Precio y pago', content:
+        `Total: USD ${total.toLocaleString('es-AR')}. Reserva: USD ${(reserva.sena || 0).toLocaleString('es-AR')} antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })} (transferencia). Saldo: USD ${saldo.toLocaleString('es-AR')} al ingresar (efectivo). Incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza de piscina semanal, TV, Internet, vigilancia y electricidad hasta 120 kWh. ${reserva.ropa_blanca ? 'Incluye ropa blanca.' : 'No incluye ropa blanca.'} Falta de suministro de servicios no es responsabilidad del locador.` },
+      { num: '5', title: 'Depósito', content:
+        `El locatario entrega un depósito de ${depositoTexto} que se devolverá al finalizar, descontando daños, faltantes, exceso de consumo eléctrico o multas.` },
+      { num: '6', title: 'Obligaciones del locatario', content:
+        `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. Pagar limpieza de salida de $${(reserva.limpieza_final || 0).toLocaleString('es-AR')}. Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.` },
+      { num: '7', title: 'Responsabilidad', content:
+        `El locador no responde por accidentes, robos, incendios o cortes de servicios. El locatario asume todos los riesgos de su estadía.` },
+      { num: '8', title: 'Jurisdicción', content:
+        `Las partes fijan domicilio en los indicados arriba y se someten a los tribunales ordinarios de la Ciudad Autónoma de Buenos Aires.` },
+    ]
 
-    // === PÁGINA 2 ===
-    doc.addPage()
-    y = 25
+    /* Encaje en una sola hoja: se busca la escala tipográfica más grande con
+       la que el contrato entero entra en la A4, en vez de partirlo en dos. */
+    const headerH = 21
+    const yInicio = headerH + 9
+    const altoFirmas = 38 // lugar y fecha + líneas de firma + pie
 
-    // Encabezado página 2
+    const medir = (k: number) => {
+      const fsTexto = 9.4 * k
+      const lh = 4.5 * k
+      let alto = 0
+      // bloque "Entre"
+      alto += 5 * k + 4.6 * k * 2 + 5 * k
+      for (const sec of secciones) {
+        doc.setFontSize(fsTexto)
+        doc.setFont('helvetica', 'normal')
+        const lines = doc.splitTextToSize(sec.content, contentWidth)
+        alto += 5.2 * k + lines.length * lh + 3.6 * k
+      }
+      return alto
+    }
+
+    let k = 0.62
+    for (let t = 1; t >= 0.62; t -= 0.01) {
+      if (yInicio + medir(t) + altoFirmas <= pageHeight - 8) { k = t; break }
+    }
+
+    const fsTexto = 9.4 * k
+    const fsTitulo = 10.2 * k
+    const lh = 4.5 * k
+
+    /* Encabezado */
     doc.setFillColor(azulNavy.r, azulNavy.g, azulNavy.b)
-    doc.rect(0, 0, pageWidth, 15, 'F')
+    doc.rect(0, 0, pageWidth, headerH, 'F')
     doc.setTextColor(255, 255, 255)
-    doc.setFontSize(10)
+    doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('CONTRATO DE LOCACIÓN TEMPORARIA - Continuación', pageWidth / 2, 10, { align: 'center' })
-
-    // 6. Obligaciones del locatario
-    addSection('6', 'Obligaciones del locatario',
-      `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. Pagar limpieza de salida de $${(reserva.limpieza_final || 0).toLocaleString('es-AR')}. Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.`)
-
-    // 7. Responsabilidad
-    addSection('7', 'Responsabilidad',
-      `El locador no responde por accidentes, robos, incendios o cortes de servicios. El locatario asume todos los riesgos de su estadía.`)
-
-    // 8. Jurisdicción
-    addSection('8', 'Jurisdicción',
-      `Las partes fijan domicilio en los indicados arriba y se someten a los tribunales ordinarios de la Ciudad Autónoma de Buenos Aires.`)
-
-    // Lugar y fecha
-    y += 10
+    doc.text('CONTRATO DE LOCACIÓN TEMPORARIA', pageWidth / 2, 9.5, { align: 'center' })
+    doc.setFontSize(8.5)
     doc.setFont('helvetica', 'normal')
-    doc.setFontSize(10)
+    doc.text(`Costa Esmeralda · Barrio ${barrioLote}`, pageWidth / 2, 15.5, { align: 'center' })
+
+    let y = yInicio
+
+    /* Entre */
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(fsTitulo)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Entre:', margin, y)
+    y += 5 * k
+
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(fsTexto)
+    doc.text(`Locadora: ${locador.nombre}, ${locador.domicilio} — Tel. ${locador.telefono}`, margin, y)
+    y += 4.6 * k
+    doc.text(`Locatario: ${locatario.nombre}, DNI ${locatario.dni}, ${locatario.domicilio}`, margin, y)
+    y += 4.6 * k + 5 * k
+
+    /* Secciones */
+    for (const sec of secciones) {
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(fsTitulo)
+      doc.setTextColor(azulNavy.r, azulNavy.g, azulNavy.b)
+      doc.text(`${sec.num}. ${sec.title}`, margin, y)
+      y += 5.2 * k
+
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(60, 60, 60)
+      doc.setFontSize(fsTexto)
+      const lines = doc.splitTextToSize(sec.content, contentWidth)
+      doc.text(lines, margin, y)
+      y += lines.length * lh + 3.6 * k
+    }
+
+    /* Lugar y fecha */
+    y += 3
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(fsTexto)
     doc.setTextColor(60, 60, 60)
     doc.text(`En la Ciudad Autónoma de Buenos Aires, a los ${new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}.`, margin, y)
 
-    // Firmas
-    y += 25
+    /* Firmas, ancladas al pie para que no queden flotando */
+    const yFirma = pageHeight - 26
     doc.setDrawColor(100, 100, 100)
-
-    // Firma locador
-    doc.line(margin, y + 15, margin + 70, y + 15)
-    doc.setFontSize(9)
-    doc.setTextColor(60, 60, 60)
-    doc.text(`${locador.nombre} – Locadora`, margin, y + 22)
-
-    // Firma locatario
-    doc.line(pageWidth - margin - 70, y + 15, pageWidth - margin, y + 15)
-    doc.text(`${locatario.nombre} – Locatario`, pageWidth - margin - 70, y + 22)
-
-    // Pie de página
+    doc.line(margin, yFirma, margin + 62, yFirma)
+    doc.line(pageWidth - margin - 62, yFirma, pageWidth - margin, yFirma)
     doc.setFontSize(8)
-    doc.setTextColor(150, 150, 150)
-    doc.text(`Contrato generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 285, { align: 'center' })
+    doc.setTextColor(60, 60, 60)
+    doc.text(`${locador.nombre} – Locadora`, margin, yFirma + 5)
+    doc.text(`${locatario.nombre} – Locatario`, pageWidth - margin - 62, yFirma + 5)
 
-    // Guardar
+    doc.setFontSize(7)
+    doc.setTextColor(150, 150, 150)
+    doc.text(`Contrato generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, pageHeight - 8, { align: 'center' })
+
     doc.save(`Contrato_001-${idCorto}_${locatario.nombre.replace(/\s/g, '_')}.pdf`)
   }
 

@@ -7,6 +7,11 @@
 - **Barrio y lote**: se toman del campo `lote` de cada propiedad (Golf 1 → 234, Deportiva 1 → 9). Antes `barrioLote` repetía el nombre de la propiedad
 - **Ocupación máxima**: el punto Destino fija 8 personas como cláusula del contrato, en vez de reflejar la cantidad cargada en la reserva
 
+### Contrato en una sola hoja
+- **Encabezado**: el título va más chico y debajo aparece "Costa Esmeralda · Barrio <barrio>, Lote <n>"
+- **Una sola página A4**: antes se partía en dos con un encabezado de continuación. Ahora las secciones se arman como datos y se busca la escala tipográfica más grande con la que el contrato entero entra en la hoja, así no se corta por más larga que sea la descripción
+- Las firmas quedan ancladas al pie
+
 ### Fix de fechas (bug)
 - `new Date('2027-02-01')` se parsea como medianoche **UTC**, así que en Argentina (UTC-3) caía el día anterior: una reserva del 1 al 15 de febrero salía en el contrato como 31 de enero al 14 de febrero
 - Se agregó parseo en horario local y se aplicó en el contrato, el listado de reservas y el módulo de cobros
