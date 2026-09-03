@@ -43,3 +43,6 @@ backups/
 .env*.local
 fotos-landing/
 .claude/
+
+# PDFs generados por la app (contratos, detalles, recibos) que quedan en la raíz
+/*.pdf

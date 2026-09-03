@@ -12,6 +12,17 @@
 - **Una sola página A4**: antes se partía en dos con un encabezado de continuación. Ahora las secciones se arman como datos y se busca la escala tipográfica más grande con la que el contrato entero entra en la hoja, así no se corta por más larga que sea la descripción
 - Las firmas quedan ancladas al pie
 
+### Detalle de reserva (PDF)
+- **Montos por moneda**: el detalle asumía una sola moneda para todo. Ahora el alquiler, la limpieza y el lavadero llevan cada uno la suya: se lista un concepto por línea y, si no coinciden, sale un total y un saldo por moneda en vez de sumar montos heterogéneos. La seña descuenta de su propia moneda
+- **Depósito al pie**: sale del total y baja como garantía, que es lo que es (entra y sale, no es ingreso de la reserva)
+- **Recuadro elástico**: el cuadro de montos era de alto fijo; ahora se dimensiona según las líneas que haya, y los bloques del medio se cortan en un tope para no encimarse con las condiciones, ancladas al pie
+- **Barrio y lote de la ficha**: salían de buscar "golf" en el nombre de la propiedad; ahora se leen de la columna `lote`. El teléfono quedó en la constante `TELEFONO_CONTACTO`
+- **Horarios HH:MM**: el `time` de Postgres devuelve `HH:MM:SS` y se imprimía tal cual. El email vacío tampoco imprime más un "-" suelto junto al teléfono
+
+### Reservas - tabla
+- **Total y saldo por moneda**: suman los servicios y se abren por moneda, igual que el detalle
+- **Menú de acciones**: las cinco acciones por fila quedaron en "Cobros" más un menú desplegable
+
 ### Fix de fechas (bug)
 - `new Date('2027-02-01')` se parsea como medianoche **UTC**, así que en Argentina (UTC-3) caía el día anterior: una reserva del 1 al 15 de febrero salía en el contrato como 31 de enero al 14 de febrero
 - Se agregó parseo en horario local y se aplicó en el contrato, el listado de reservas y el módulo de cobros
