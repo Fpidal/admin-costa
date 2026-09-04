@@ -2,6 +2,25 @@
 
 ## Actualizaciones Recientes (Septiembre 2026)
 
+### Reservas - alta del titular sin salir del modal
+- **Crear el inquilino ahí mismo**: cargar una reserva con un huésped nuevo obligaba a ir a Inquilinos, crearlo y volver a empezar. Ahora el botón "Nuevo" al lado del titular pide lo mínimo —nombre y apellido, DNI y celular— y lo deja seleccionado. Queda en Inquilinos como cualquier otro para completarle el resto
+- **Sugerencias por nombre**: a partir de dos letras se listan hasta cinco inquilinos ya cargados con su DNI y teléfono; tocar uno lo pone de titular con sus acompañantes en vez de duplicarlo. La búsqueda ignora acentos y mayúsculas y va por palabra suelta, así "perez" encuentra a "Juan Pérez"
+- **Aviso de incidentes**: el DNI se contrasta contra `lista_negra` con el mismo criterio que la pantalla de Inquilinos, y pide confirmación antes de crear al que figure
+- **El Enter crea el titular** en vez de mandar la reserva, que es lo que haría por estar el formulario anidado
+
+### Reservas - acompañantes por cantidad
+- **Se declara cuántos son**: cargar la reserva exigía nombre, apellido, DNI y edad de cada acompañante solo para que `cantidad_personas` quedara bien. Ahora hay un contador y los datos son opcionales, desplegables con "Agregar nombres y datos"
+- **Sin quedar inconsistente**: la cantidad no baja por debajo de los que ya tienen datos, y cargar uno la sube si venía declarada de menos. Borrar un dato no baja la cantidad: si son 4, son 4
+
+### Reservas - tabla y modal
+- **Acciones en una fila propia**: las cinco quedaron centradas debajo de los datos de cada reserva. El menú de tres puntos que las agrupaba no llegaba a abrirse: es un desplegable `absolute` dentro del contenedor `overflow-x-auto` de la tabla, que lo recortaba
+- **Cancelar y Crear en la fila del título**: vivían en una barra sticky propia debajo del encabezado del modal, así que al scrollear quedaban dos franjas fijas pisándose. El header del modal ya era sticky, así que ahora acepta acciones al lado del título. La prop es opcional y los demás modales no cambian
+- **"Detalle PDF" pasa a "Reserva PDF"**, en la tabla y en la vista mobile
+
+### PDF sin centavos
+- **Detalle y contrato**: el precio por noche acepta decimales desde el mes pasado, y los arrastraba a los importes. Se redondea al armar los montos, no solo al imprimirlos, para que el total y el saldo cierren con la suma de las líneas en vez de diferir en una unidad
+- **Moneda de la limpieza en el contrato**: la limpieza de salida se imprimía siempre con "$" aunque desde la migración 18 puede pactarse en dólares
+
 ### Contrato PDF
 - **Locadora**: sale a nombre de Rosa María Martín D., Av. Italia 4500, con teléfono de contacto, y firma como Locadora
 - **Barrio y lote**: se toman del campo `lote` de cada propiedad (Golf 1 → 234, Deportiva 1 → 9). Antes `barrioLote` repetía el nombre de la propiedad
@@ -19,7 +38,7 @@
 - **Barrio y lote de la ficha**: salían de buscar "golf" en el nombre de la propiedad; ahora se leen de la columna `lote`. El teléfono quedó en la constante `TELEFONO_CONTACTO`
 - **Horarios HH:MM**: el `time` de Postgres devuelve `HH:MM:SS` y se imprimía tal cual. El email vacío tampoco imprime más un "-" suelto junto al teléfono
 
-### Reservas - tabla
+### Reservas - montos por moneda en la tabla
 - **Total y saldo por moneda**: suman los servicios y se abren por moneda, igual que el detalle
 - **Menú de acciones**: las cinco acciones por fila quedaron en "Cobros" más un menú desplegable
 
