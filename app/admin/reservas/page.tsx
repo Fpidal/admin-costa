@@ -215,6 +215,11 @@ function ReservasContent() {
   const [liquidaciones, setLiquidaciones] = useState<Liquidacion[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [inquilinos, setInquilinos] = useState<Inquilino[]>([])
+  // Alta rápida del titular: cargar la reserva no debería obligar a ir a
+  // Inquilinos y volver. Se crea con lo mínimo y el resto se completa allá
+  const [nuevoTitularOpen, setNuevoTitularOpen] = useState(false)
+  const [nuevoTitular, setNuevoTitular] = useState({ nombre: '', documento: '', telefono: '' })
+  const [creandoTitular, setCreandoTitular] = useState(false)
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -354,6 +359,8 @@ function ReservasContent() {
     setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
     setEditingAcompIdx(null)
     setPrecioSugerido(null)
+    setNuevoTitularOpen(false)
+    setNuevoTitular({ nombre: '', documento: '', telefono: '' })
   }
 
   function confirmarAcompanante() {
@@ -401,6 +408,47 @@ function ReservasContent() {
         setAcompanantesExpanded(true)
       }
     }
+  }
+
+  // Crea el inquilino con nombre, DNI y celular y lo selecciona como titular.
+  // Queda en Inquilinos como cualquier otro, para completarle los datos ahí
+  async function crearTitularRapido() {
+    const nombre = nuevoTitular.nombre.trim()
+    if (!nombre) {
+      alert('Ingresá el nombre y apellido del titular')
+      return
+    }
+    if (isDemo) {
+      alert('En la demo no se pueden crear inquilinos')
+      return
+    }
+
+    setCreandoTitular(true)
+    const { data, error } = await supabase
+      .from('inquilinos')
+      .insert([{
+        nombre,
+        documento: nuevoTitular.documento.trim(),
+        telefono: nuevoTitular.telefono.trim(),
+        email: '',
+        cantidad_personas: 1,
+        origen: 'directo',
+        acompanantes: [],
+        user_id: userId,
+      }])
+      .select('id, nombre, documento, telefono, email, domicilio, acompanantes')
+      .single()
+    setCreandoTitular(false)
+
+    if (error || !data) {
+      alert('Error al crear el inquilino: ' + (error?.message || ''))
+      return
+    }
+
+    setInquilinos([...inquilinos, data as Inquilino].sort((a, b) => a.nombre.localeCompare(b.nombre)))
+    setForm(f => ({ ...f, inquilino_id: String(data.id) }))
+    setNuevoTitular({ nombre: '', documento: '', telefono: '' })
+    setNuevoTitularOpen(false)
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -1707,13 +1755,69 @@ function ReservasContent() {
               options={propiedades.map(p => ({ value: p.id.toString(), label: `${p.nombre}${p.lote ? ` - Lote ${p.lote}` : ''}${p.direccion ? ` (${p.direccion})` : ''}` }))}
               required
             />
-            <Select
-              label="Titular de la reserva"
-              value={form.inquilino_id}
-              onChange={(e) => handleInquilinoChange(e.target.value)}
-              options={inquilinos.map(i => ({ value: i.id.toString(), label: i.nombre }))}
-            />
+            <div className="flex items-end gap-2">
+              <div className="flex-1 min-w-0">
+                <Select
+                  label="Titular de la reserva"
+                  value={form.inquilino_id}
+                  onChange={(e) => handleInquilinoChange(e.target.value)}
+                  options={inquilinos.map(i => ({ value: i.id.toString(), label: i.nombre }))}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setNuevoTitularOpen(!nuevoTitularOpen)}
+                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-costa-olivo border border-costa-olivo/30 hover:bg-costa-olivo/10 transition-colors"
+              >
+                <Plus size={13} /> Nuevo
+              </button>
+            </div>
           </div>
+
+          {nuevoTitularOpen && (
+            <div className="p-3 rounded-lg bg-costa-beige/40 border border-costa-beige">
+              <p className="text-xs text-costa-gris mb-2">
+                Se crea en Inquilinos y queda seleccionado como titular. El resto de los datos se completan desde ahí.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Input
+                  label="Nombre y apellido"
+                  value={nuevoTitular.nombre}
+                  onChange={(e) => setNuevoTitular({ ...nuevoTitular, nombre: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); crearTitularRapido() } }}
+                  placeholder="Juan Pérez"
+                  autoFocus
+                />
+                <Input
+                  label="DNI"
+                  value={nuevoTitular.documento}
+                  onChange={(e) => setNuevoTitular({ ...nuevoTitular, documento: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); crearTitularRapido() } }}
+                  placeholder="30123456"
+                />
+                <Input
+                  label="Celular"
+                  value={nuevoTitular.telefono}
+                  onChange={(e) => setNuevoTitular({ ...nuevoTitular, telefono: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); crearTitularRapido() } }}
+                  placeholder="11 6879 2207"
+                />
+              </div>
+              <div className="flex justify-end gap-2 mt-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => { setNuevoTitularOpen(false); setNuevoTitular({ nombre: '', documento: '', telefono: '' }) }}
+                >
+                  Cancelar
+                </Button>
+                <Button type="button" size="sm" onClick={crearTitularRapido} disabled={creandoTitular}>
+                  {creandoTitular ? 'Creando...' : 'Crear titular'}
+                </Button>
+              </div>
+            </div>
+          )}
 
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Fechas y horarios</p>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
