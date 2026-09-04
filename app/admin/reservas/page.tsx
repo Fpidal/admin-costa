@@ -234,6 +234,8 @@ function ReservasContent() {
   const [editingId, setEditingId] = useState<number | null>(null)
   const [form, setForm] = useState(initialForm)
   const [acompanantes, setAcompanantes] = useState<Acompanante[]>([])
+  // Para la reserva alcanza con cuántos son; los nombres se cargan si hacen falta
+  const [cantidadAcompanantes, setCantidadAcompanantes] = useState(0)
   const [acompanantesExpanded, setAcompanantesExpanded] = useState(false)
   const [nuevoAcompanante, setNuevoAcompanante] = useState<Acompanante>({ nombre: '', apellido: '', documento: '', edad: '' })
   const [editingAcompIdx, setEditingAcompIdx] = useState<number | null>(null)
@@ -350,11 +352,16 @@ function ReservasContent() {
         estado: reserva.estado || 'pendiente',
         notas: reserva.notas || '',
       })
-      setAcompanantes(reserva.acompanantes || [])
+      const acomps = reserva.acompanantes || []
+      setAcompanantes(acomps)
+      setCantidadAcompanantes(Math.max((reserva.cantidad_personas || 1) - 1, acomps.length))
+      setAcompanantesExpanded(acomps.length > 0)
     } else {
       setEditingId(null)
       setForm(initialForm)
       setAcompanantes([])
+      setCantidadAcompanantes(0)
+      setAcompanantesExpanded(false)
     }
     setModalOpen(true)
   }
@@ -364,6 +371,7 @@ function ReservasContent() {
     setEditingId(null)
     setForm(initialForm)
     setAcompanantes([])
+    setCantidadAcompanantes(0)
     setAcompanantesExpanded(false)
     setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
     setEditingAcompIdx(null)
@@ -371,6 +379,10 @@ function ReservasContent() {
     setNuevoTitularOpen(false)
     setNuevoTitular({ nombre: '', documento: '', telefono: '' })
     setTitularListaNegra(null)
+  }
+
+  function cambiarCantidadAcompanantes(n: number) {
+    setCantidadAcompanantes(Math.min(20, Math.max(acompanantes.length, n || 0)))
   }
 
   function confirmarAcompanante() {
@@ -385,6 +397,7 @@ function ReservasContent() {
     } else {
       // Agregando nuevo
       setAcompanantes([...acompanantes, { ...nuevoAcompanante }])
+      setCantidadAcompanantes(c => Math.max(c, acompanantes.length + 1))
     }
     setNuevoAcompanante({ nombre: '', apellido: '', documento: '', edad: '' })
   }
@@ -415,6 +428,7 @@ function ReservasContent() {
       const inquilino = inquilinos.find(i => i.id.toString() === inquilinoId)
       if (inquilino?.acompanantes && inquilino.acompanantes.length > 0) {
         setAcompanantes(inquilino.acompanantes)
+        setCantidadAcompanantes(c => Math.max(c, inquilino.acompanantes.length))
         setAcompanantesExpanded(true)
       }
     }
@@ -571,7 +585,7 @@ function ReservasContent() {
       fecha_fin: form.check_out,
       horario_ingreso: form.horario_ingreso,
       horario_salida: form.horario_salida,
-      cantidad_personas: 1 + acompanantesValidos.length,
+      cantidad_personas: 1 + Math.max(cantidadAcompanantes, acompanantesValidos.length),
       moneda: form.moneda,
       precio_noche: Number(form.precio_noche),
       deposito: Number(form.deposito),
@@ -2011,27 +2025,60 @@ function ReservasContent() {
             </div>
           )}
 
-          {/* Acompañantes - Colapsable */}
+          {/* Acompañantes: para la reserva alcanza con cuántos son */}
           <div className="border rounded-lg">
-            <button
-              type="button"
-              onClick={() => setAcompanantesExpanded(!acompanantesExpanded)}
-              className="w-full flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg"
-            >
+            <div className="flex items-center justify-between gap-3 p-3">
               <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Users size={16} />
-                Acompañantes ({acompanantes.length})
+                Acompañantes
               </span>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-500">
-                  Total: {1 + acompanantes.length} personas
+              <div className="flex items-center gap-3">
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => cambiarCantidadAcompanantes(cantidadAcompanantes - 1)}
+                    disabled={cantidadAcompanantes <= acompanantes.length}
+                    className="w-8 h-8 flex items-center justify-center rounded-l-lg border border-costa-gris/30 text-costa-navy hover:bg-costa-beige disabled:opacity-40 disabled:hover:bg-transparent transition-colors"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="number"
+                    min={acompanantes.length}
+                    max={20}
+                    value={cantidadAcompanantes}
+                    onChange={(e) => cambiarCantidadAcompanantes(Number(e.target.value))}
+                    className="w-12 h-8 text-center text-sm text-costa-navy border-y border-costa-gris/30 focus:outline-none focus:ring-1 focus:ring-costa-navy"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => cambiarCantidadAcompanantes(cantidadAcompanantes + 1)}
+                    className="w-8 h-8 flex items-center justify-center rounded-r-lg border border-costa-gris/30 text-costa-navy hover:bg-costa-beige transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+                <span className="text-xs text-gray-500 whitespace-nowrap">
+                  Total: {1 + cantidadAcompanantes} persona{cantidadAcompanantes !== 0 ? 's' : ''}
                 </span>
-                {acompanantesExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </div>
-            </button>
+            </div>
+
+            <div className="px-3 pb-3">
+              <button
+                type="button"
+                onClick={() => setAcompanantesExpanded(!acompanantesExpanded)}
+                className="flex items-center gap-1 text-xs text-costa-olivo hover:underline"
+              >
+                {acompanantesExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                {acompanantes.length > 0
+                  ? `Datos cargados: ${acompanantes.length} de ${cantidadAcompanantes}`
+                  : 'Agregar nombres y datos (opcional)'}
+              </button>
+            </div>
 
             {acompanantesExpanded && (
-              <div className="p-3 pt-0 border-t space-y-3">
+              <div className="p-3 border-t space-y-3">
                 {/* Lista de acompañantes registrados */}
                 {acompanantes.length > 0 && (
                   <div className="space-y-2">
