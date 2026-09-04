@@ -91,6 +91,7 @@ interface Cobro {
     id: number
     fecha_inicio: string
     fecha_fin: string
+    eliminado_at: string | null
     propiedades?: { nombre: string }
     inquilinos?: { nombre: string }
   }
@@ -256,7 +257,7 @@ function ReservasContent() {
       supabase.from('reservas').select('*, propiedades(id, nombre, lote, direccion), inquilinos(id, nombre, documento, telefono, email, acompanantes)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio', { ascending: false }),
       supabase.from('propiedades').select('id, nombre, direccion, lote').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
       supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
-      supabase.from('cobros').select('*, reservas(id, fecha_inicio, fecha_fin, propiedades(nombre), inquilinos(nombre))').eq('user_id', userId).order('fecha', { ascending: false }),
+      supabase.from('cobros').select('*, reservas!inner(id, fecha_inicio, fecha_fin, eliminado_at, propiedades(nombre), inquilinos(nombre))').eq('user_id', userId).is('reservas.eliminado_at', null).order('fecha', { ascending: false }),
       supabase.from('liquidaciones').select('*').eq('user_id', userId)
     ])
 
@@ -1498,12 +1499,15 @@ function ReservasContent() {
                   const liquidacionReserva = liquidaciones.find(l => String(l.reserva_id) === String(reservaId))
                   const cotizReserva = liquidacionReserva?.cotizacion_dolar || 0
 
-                  // Calcular total en USD (convirtiendo pesos si hay cotización)
-                  const totalEnUSD = cobrosList.reduce((sum, c) => {
-                    if (c.moneda === 'USD') return sum + c.monto
-                    if (c.moneda === 'ARS' && cotizReserva > 0) return sum + (c.monto / cotizReserva)
-                    return sum + c.monto // fallback si no hay cotización
-                  }, 0)
+                  // Los pesos solo se pueden sumar a los dólares si la liquidación
+                  // tiene cotización cargada. Sin cotización van aparte: sumarlos
+                  // de una contaba $ 110.000 como U$D 110.000
+                  const { totalUSD, totalARS } = cobrosList.reduce((acc, c) => {
+                    if (c.moneda === 'USD') acc.totalUSD += c.monto
+                    else if (cotizReserva > 0) acc.totalUSD += c.monto / cotizReserva
+                    else acc.totalARS += c.monto
+                    return acc
+                  }, { totalUSD: 0, totalARS: 0 })
 
                   return (
                     <div key={reservaId}>
@@ -1536,7 +1540,13 @@ function ReservasContent() {
                             {cobrosList.length} cobro{cobrosList.length > 1 ? 's' : ''}
                           </span>
                           <span className="font-semibold text-costa-navy text-sm">
-                            {formatMonto(totalEnUSD, 'USD')}
+                            {(totalUSD > 0 || totalARS === 0) && formatMonto(totalUSD, 'USD')}
+                            {totalARS > 0 && (
+                              <>
+                                {totalUSD > 0 && <span className="text-costa-gris font-normal"> + </span>}
+                                {formatMonto(totalARS, 'ARS')}
+                              </>
+                            )}
                             {cotizReserva > 0 && cobrosList.some(c => c.moneda === 'ARS') && (
                               <span className="text-xs text-costa-gris font-normal ml-1">
                                 (TC {formatMonto(cotizReserva, 'ARS')})

@@ -177,8 +177,9 @@ function DashboardContent() {
         // Ingresos por alquiler (cobros del mes, solo alquiler)
         const { data: cobrosAlquiler } = await supabase
           .from('cobros')
-          .select('monto, moneda')
+          .select('monto, moneda, reservas!inner(eliminado_at)')
           .eq('user_id', userId)
+          .is('reservas.eliminado_at', null)
           .eq('aplicar_a', 'alquiler')
           .gte('fecha', inicioMesStr)
         const totalIngresosUSD = cobrosAlquiler?.filter(c => c.moneda === 'USD').reduce((acc, c) => acc + (c.monto || 0), 0) || 0
