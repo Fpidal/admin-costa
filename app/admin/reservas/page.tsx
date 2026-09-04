@@ -992,9 +992,13 @@ function ReservasContent() {
     const azulNavy = { r: 30, g: 58, b: 95 }
 
     // Datos calculados
+    // Sin centavos: el precio por noche puede tener decimales, y el saldo sale
+    // de las cifras ya redondeadas para que total = reserva + saldo cierre
+    const monto = (n: number) => Math.round(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })
     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-    const total = noches * (reserva.precio_noche || 0)
-    const saldo = total - (reserva.sena || 0)
+    const total = Math.round(noches * (reserva.precio_noche || 0))
+    const sena = Math.round(reserva.sena || 0)
+    const saldo = total - sena
 
     const locador = {
       nombre: 'Rosa María Martín D.',
@@ -1021,8 +1025,8 @@ function ReservasContent() {
     fechaLimiteSena.setDate(fechaLimiteSena.getDate() - 15)
 
     const depositoTexto = reserva.deposito_pesos
-      ? `USD ${(reserva.deposito || 0).toLocaleString('es-AR')} (o echeq $${(reserva.deposito_pesos || 0).toLocaleString('es-AR')})`
-      : `USD ${(reserva.deposito || 0).toLocaleString('es-AR')}`
+      ? `USD ${monto(reserva.deposito)} (o echeq $${monto(reserva.deposito_pesos)})`
+      : `USD ${monto(reserva.deposito)}`
 
     const secciones = [
       { num: '1', title: 'Objeto', content:
@@ -1032,11 +1036,11 @@ function ReservasContent() {
       { num: '3', title: 'Plazo', content:
         `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${formatHora(reserva.horario_ingreso, '16:00')} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${formatHora(reserva.horario_salida, '10:00')} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.` },
       { num: '4', title: 'Precio y pago', content:
-        `Total: USD ${total.toLocaleString('es-AR')}. Reserva: USD ${(reserva.sena || 0).toLocaleString('es-AR')} antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })} (transferencia). Saldo: USD ${saldo.toLocaleString('es-AR')} al ingresar (efectivo). Incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza de piscina semanal, TV, Internet, vigilancia y electricidad hasta 120 kWh. ${reserva.ropa_blanca ? 'Incluye ropa blanca.' : 'No incluye ropa blanca.'} Falta de suministro de servicios no es responsabilidad del locador.` },
+        `Total: USD ${monto(total)}. Reserva: USD ${monto(sena)} antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })} (transferencia). Saldo: USD ${monto(saldo)} al ingresar (efectivo). Incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza de piscina semanal, TV, Internet, vigilancia y electricidad hasta 120 kWh. ${reserva.ropa_blanca ? 'Incluye ropa blanca.' : 'No incluye ropa blanca.'} Falta de suministro de servicios no es responsabilidad del locador.` },
       { num: '5', title: 'Depósito', content:
         `El locatario entrega un depósito de ${depositoTexto} que se devolverá al finalizar, descontando daños, faltantes, exceso de consumo eléctrico o multas.` },
       { num: '6', title: 'Obligaciones del locatario', content:
-        `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. Pagar limpieza de salida de $${(reserva.limpieza_final || 0).toLocaleString('es-AR')}. Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.` },
+        `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. Pagar limpieza de salida de ${reserva.moneda_limpieza === 'USD' ? 'USD ' : '$'}${monto(reserva.limpieza_final)}. Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.` },
       { num: '7', title: 'Responsabilidad', content:
         `El locador no responde por accidentes, robos, incendios o cortes de servicios. El locatario asume todos los riesgos de su estadía.` },
       { num: '8', title: 'Jurisdicción', content:
