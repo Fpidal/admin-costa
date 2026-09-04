@@ -55,8 +55,15 @@ const formatMontoUSD = (monto: number) => {
   return `U$D ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(monto)}`
 }
 
+// new Date('2027-02-01') es medianoche UTC, que en Argentina (UTC-3) cae el
+// día anterior: el mismo fix que ya tienen reservas, cobros y el contrato
+const parseFechaLocal = (fecha: string) => {
+  const [a, m, d] = fecha.split('T')[0].split('-').map(Number)
+  return new Date(a, (m || 1) - 1, d || 1)
+}
+
 const formatFecha = (fecha: string) => {
-  return new Date(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
 }
 
 function DashboardContent() {
@@ -139,6 +146,7 @@ function DashboardContent() {
           .from('reservas')
           .select('cantidad_personas')
           .eq('user_id', userId)
+          .is('eliminado_at', null)
           .in('estado', ['confirmada', 'pendiente'])
         const totalInquilinos = reservasActivas?.reduce((acc, r) => acc + (r.cantidad_personas || 1), 0) || 0
         setInquilinosCount(totalInquilinos)
@@ -148,6 +156,7 @@ function DashboardContent() {
           .from('reservas')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
+          .is('eliminado_at', null)
           .eq('estado', 'pendiente')
         setReservasPendientes(resPendientes || 0)
 
@@ -156,6 +165,7 @@ function DashboardContent() {
           .from('gastos')
           .select('monto')
           .eq('user_id', userId)
+          .is('eliminado_at', null)
           .eq('pagado', true)
         const totalGastosRealizados = gastosPagados?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         setGastosRealizados(totalGastosRealizados)
@@ -165,6 +175,7 @@ function DashboardContent() {
           .from('gastos')
           .select('monto')
           .eq('user_id', userId)
+          .is('eliminado_at', null)
           .eq('pagado', false)
         const totalGastosPendientes = gastosPend?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         setGastosPendientesTotal(totalGastosPendientes)
@@ -184,6 +195,7 @@ function DashboardContent() {
           .from('gastos')
           .select('monto')
           .eq('user_id', userId)
+          .is('eliminado_at', null)
           .eq('tipo', 'expensa')
           .eq('pagado', false)
         const totalExpensas = expensas?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
@@ -194,6 +206,7 @@ function DashboardContent() {
           .from('reservas')
           .select('*, propiedades(nombre), inquilinos(nombre)')
           .eq('user_id', userId)
+          .is('eliminado_at', null)
           .gte('fecha_inicio', hoy)
           .in('estado', ['confirmada', 'pendiente'])
           .order('fecha_inicio', { ascending: true })
@@ -205,6 +218,7 @@ function DashboardContent() {
           .from('gastos')
           .select('*, propiedades(nombre)')
           .eq('user_id', userId)
+          .is('eliminado_at', null)
           .eq('pagado', false)
           .order('fecha_vencimiento', { ascending: true })
           .limit(5)
@@ -227,6 +241,7 @@ function DashboardContent() {
           .from('gastos')
           .select('concepto, fecha_vencimiento')
           .eq('user_id', userId)
+          .is('eliminado_at', null)
           .eq('pagado', false)
           .lt('fecha_vencimiento', hoy)
 
