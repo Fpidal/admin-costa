@@ -69,7 +69,7 @@ function DashboardContent() {
   const [reservasPendientes, setReservasPendientes] = useState(0)
   const [gastosRealizados, setGastosRealizados] = useState(0)
   const [gastosPendientesTotal, setGastosPendientesTotal] = useState(0)
-  const [ingresosAlquiler, setIngresosAlquiler] = useState(0)
+  const [ingresosAlquiler, setIngresosAlquiler] = useState({ usd: 0, ars: 0 })
   const [expensasTotal, setExpensasTotal] = useState(0)
   const [proximasReservas, setProximasReservas] = useState<Reserva[]>([])
   const [gastosPendientesList, setGastosPendientesList] = useState<Gasto[]>([])
@@ -84,7 +84,7 @@ function DashboardContent() {
       setReservasPendientes(stats.reservasPendientes)
       setGastosRealizados(stats.gastosPagados)
       setGastosPendientesTotal(stats.gastosPendientes)
-      setIngresosAlquiler(stats.ingresosAlquiler)
+      setIngresosAlquiler({ usd: stats.ingresosAlquiler, ars: 0 })
       setExpensasTotal(stats.expensasPendientes)
 
       // Próximas reservas demo
@@ -131,9 +131,6 @@ function DashboardContent() {
 
       try {
         const hoy = new Date().toISOString().split('T')[0]
-        const inicioMes = new Date()
-        inicioMes.setDate(1)
-        const inicioMesStr = inicioMes.toISOString().split('T')[0]
 
         // Inquilinos: contar cantidad_personas de todas las reservas activas
         const { data: reservasActivas } = await supabase
@@ -174,16 +171,36 @@ function DashboardContent() {
         const totalGastosPendientes = gastosPend?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
         setGastosPendientesTotal(totalGastosPendientes)
 
-        // Ingresos por alquiler (cobros del mes, solo alquiler)
-        const { data: cobrosAlquiler } = await supabase
-          .from('cobros')
-          .select('monto, moneda, reservas!inner(eliminado_at)')
-          .eq('user_id', userId)
-          .is('reservas.eliminado_at', null)
-          .eq('aplicar_a', 'alquiler')
-          .gte('fecha', inicioMesStr)
-        const totalIngresosUSD = cobrosAlquiler?.filter(c => c.moneda === 'USD').reduce((acc, c) => acc + (c.monto || 0), 0) || 0
-        setIngresosAlquiler(totalIngresosUSD)
+        // Ingresos por alquiler: `aplicar_a = 'alquiler'` ya deja afuera la
+        // limpieza final, el lavadero y el depósito, que van con su propio
+        // aplicar_a. Es el mismo criterio que usa la pantalla de cobros.
+        const [{ data: cobrosAlquiler }, { data: liquidaciones }] = await Promise.all([
+          supabase
+            .from('cobros')
+            .select('monto, moneda, concepto, reserva_id, reservas!inner(eliminado_at)')
+            .eq('user_id', userId)
+            .is('reservas.eliminado_at', null)
+            .eq('aplicar_a', 'alquiler'),
+          supabase
+            .from('liquidaciones')
+            .select('reserva_id, cotizacion_dolar')
+            .eq('user_id', userId),
+        ])
+
+        const cotizPorReserva = new Map(
+          (liquidaciones || []).map(l => [String(l.reserva_id), l.cotizacion_dolar || 0])
+        )
+
+        const ingresos = (cobrosAlquiler || []).reduce((acc, c) => {
+          // una devolución de seña es plata que salió, así que resta
+          const monto = (c.concepto === 'devolucion_sena' ? -1 : 1) * (c.monto || 0)
+          const cotiz = cotizPorReserva.get(String(c.reserva_id)) || 0
+          if (c.moneda === 'USD') acc.usd += monto
+          else if (cotiz > 0) acc.usd += monto / cotiz
+          else acc.ars += monto
+          return acc
+        }, { usd: 0, ars: 0 })
+        setIngresosAlquiler(ingresos)
 
         // Expensas pendientes (gastos de tipo expensa no pagados)
         const { data: expensas } = await supabase
@@ -262,7 +279,13 @@ function DashboardContent() {
   const stats = [
     { name: 'Inquilinos', value: inquilinosCount.toString(), icon: Users, color: 'text-costa-navy', bg: 'bg-costa-beige' },
     { name: 'Reservas pendientes', value: reservasPendientes.toString(), icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { name: 'Ingresos alquiler', value: formatMontoUSD(ingresosAlquiler), icon: DollarSign, color: 'text-costa-olivo', bg: 'bg-costa-olivo/10' },
+    {
+      name: 'Ingresos alquiler',
+      value: ingresosAlquiler.ars !== 0
+        ? `${ingresosAlquiler.usd !== 0 ? formatMontoUSD(ingresosAlquiler.usd) + ' + ' : ''}${formatMonto(ingresosAlquiler.ars)}`
+        : formatMontoUSD(ingresosAlquiler.usd),
+      icon: DollarSign, color: 'text-costa-olivo', bg: 'bg-costa-olivo/10'
+    },
   ]
 
   const statsGastos = [
