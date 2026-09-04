@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { getDemoReservaById, getDemoCobrosByReservaId, getDemoLiquidacionByReservaId, demoReservas } from '@/lib/demoData'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
@@ -103,13 +104,6 @@ const FormatMontoStyled = ({ monto, moneda = 'ARS' }: { monto: number, moneda?: 
       <span className="text-[0.75em] opacity-70">{symbol}</span> {formatted}
     </span>
   )
-}
-
-// 'YYYY-MM-DD' con new Date() se parsea como medianoche UTC, así que en
-// Argentina (UTC-3) cae el día anterior. Se arma la fecha en horario local.
-const parseFechaLocal = (fecha: string) => {
-  const [a, m, d] = fecha.split('T')[0].split('-').map(Number)
-  return new Date(a, (m || 1) - 1, d || 1)
 }
 
 const formatFecha = (fecha: string) => {

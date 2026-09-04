@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Search, Calendar, X } from 'lucide-react'
+import { parseFechaLocal } from '@/lib/fechas'
 
 interface SelectorFechasPublicoProps {
   onBuscar: (checkIn: string, checkOut: string) => void
@@ -35,8 +36,8 @@ export function SelectorFechasPublico({
   // Calcular noches
   const calcularNoches = () => {
     if (!checkIn || !checkOut) return 0
-    const inicio = new Date(checkIn)
-    const fin = new Date(checkOut)
+    const inicio = parseFechaLocal(checkIn)
+    const fin = parseFechaLocal(checkOut)
     return Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
   }
 
@@ -105,8 +106,8 @@ export function SelectorFechasPublico({
           <p className="text-sm text-costa-navy">
             Mostrando disponibilidad para{' '}
             <span className="font-semibold">
-              {new Date(fechasActivas.checkIn).toLocaleDateString('es-AR')} -{' '}
-              {new Date(fechasActivas.checkOut).toLocaleDateString('es-AR')}
+              {parseFechaLocal(fechasActivas.checkIn).toLocaleDateString('es-AR')} -{' '}
+              {parseFechaLocal(fechasActivas.checkOut).toLocaleDateString('es-AR')}
             </span>
           </p>
         </div>

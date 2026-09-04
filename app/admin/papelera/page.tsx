@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent, Button } from '@/components/ui'
@@ -165,7 +166,7 @@ export default function PapeleraPage() {
     }
   }
 
-  const formatFecha = (fecha: string) => new Date(fecha).toLocaleDateString('es-AR')
+  const formatFecha = (fecha: string) => parseFechaLocal(fecha).toLocaleDateString('es-AR')
   const formatFechaHora = (fecha: string) => new Date(fecha).toLocaleString('es-AR')
 
   const totalItems = reservas.length + inquilinos.length + propiedades.length + gastos.length

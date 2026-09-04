@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
@@ -158,14 +159,6 @@ const FormatMontoStyled = ({ monto, moneda = 'ARS' }: { monto: number, moneda?: 
       <span className="text-[0.75em] opacity-70">{symbol}</span> {formatted}
     </span>
   )
-}
-
-// 'YYYY-MM-DD' con new Date() se parsea como medianoche UTC, así que en
-// Argentina (UTC-3) cae el día anterior: el 1/2 salía como 31/1. Se arma la
-// fecha en horario local para que el día sea el que se cargó.
-const parseFechaLocal = (fecha: string) => {
-  const [a, m, d] = fecha.split('T')[0].split('-').map(Number)
-  return new Date(a, (m || 1) - 1, d || 1)
 }
 
 const formatFecha = (fecha: string) => {
@@ -534,18 +527,18 @@ function ReservasContent() {
     const reservasConfirmadas = reservas.filter(r => {
       if (r.propiedad_id !== form.propiedad_id || r.estado !== 'confirmada') return false
       if (editingId && r.id === editingId) return false
-      const inicioExistente = new Date(r.fecha_inicio)
-      const finExistente = new Date(r.fecha_fin)
-      const inicioNuevo = new Date(form.check_in)
-      const finNuevo = new Date(form.check_out)
+      const inicioExistente = parseFechaLocal(r.fecha_inicio)
+      const finExistente = parseFechaLocal(r.fecha_fin)
+      const inicioNuevo = parseFechaLocal(form.check_in)
+      const finNuevo = parseFechaLocal(form.check_out)
       return inicioNuevo <= finExistente && finNuevo >= inicioExistente
     })
 
     if (reservasConfirmadas.length > 0) {
       const reservaConflicto = reservasConfirmadas[0]
       const nombreInquilino = reservaConflicto.inquilinos?.nombre || 'otro inquilino'
-      const fechaInicio = new Date(reservaConflicto.fecha_inicio).toLocaleDateString('es-AR')
-      const fechaFin = new Date(reservaConflicto.fecha_fin).toLocaleDateString('es-AR')
+      const fechaInicio = formatFecha(reservaConflicto.fecha_inicio)
+      const fechaFin = formatFecha(reservaConflicto.fecha_fin)
       alert(`Esta fecha ya está reservada por ${nombreInquilino} (${fechaInicio} al ${fechaFin}). Debés elegir otras fechas.`)
       return
     }
@@ -554,18 +547,18 @@ function ReservasContent() {
     const reservasPendientes = reservas.filter(r => {
       if (r.propiedad_id !== form.propiedad_id || r.estado !== 'pendiente') return false
       if (editingId && r.id === editingId) return false
-      const inicioExistente = new Date(r.fecha_inicio)
-      const finExistente = new Date(r.fecha_fin)
-      const inicioNuevo = new Date(form.check_in)
-      const finNuevo = new Date(form.check_out)
+      const inicioExistente = parseFechaLocal(r.fecha_inicio)
+      const finExistente = parseFechaLocal(r.fecha_fin)
+      const inicioNuevo = parseFechaLocal(form.check_in)
+      const finNuevo = parseFechaLocal(form.check_out)
       return inicioNuevo <= finExistente && finNuevo >= inicioExistente
     })
 
     if (reservasPendientes.length > 0) {
       const reservaPendiente = reservasPendientes[0]
       const nombreInquilino = reservaPendiente.inquilinos?.nombre || 'otro inquilino'
-      const fechaInicio = new Date(reservaPendiente.fecha_inicio).toLocaleDateString('es-AR')
-      const fechaFin = new Date(reservaPendiente.fecha_fin).toLocaleDateString('es-AR')
+      const fechaInicio = formatFecha(reservaPendiente.fecha_inicio)
+      const fechaFin = formatFecha(reservaPendiente.fecha_fin)
       const continuar = confirm(`⚠️ ADVERTENCIA: Esta fecha tiene una reserva PENDIENTE de ${nombreInquilino} (${fechaInicio} al ${fechaFin}).\n\n¿Querés continuar de todas formas?`)
       if (!continuar) return
     }
@@ -1915,7 +1908,7 @@ function ReservasContent() {
                       <p className="text-red-600">{titularListaNegra.nombre} - DNI: {titularListaNegra.documento}</p>
                       <p className="text-red-700 mt-1"><strong>Motivo:</strong> {titularListaNegra.motivo}</p>
                       <p className="text-red-500 text-xs mt-0.5">
-                        Registrado el {new Date(titularListaNegra.fecha).toLocaleDateString('es-AR')}
+                        Registrado el {formatFecha(titularListaNegra.fecha)}
                       </p>
                     </div>
                   </div>

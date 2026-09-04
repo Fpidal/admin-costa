@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope, Phone, ThermometerSun, Zap, WashingMachine, Ruler, LandPlot, Eye, Globe } from 'lucide-react'
 import { useLanguage } from '@/hooks/useLanguage'
@@ -330,23 +331,23 @@ function LandingContent() {
     hoy.setHours(0, 0, 0, 0)
     return reservas.some(r => {
       if (r.propiedad_id !== propiedadId) return false
-      const inicio = new Date(r.fecha_inicio)
-      const fin = new Date(r.fecha_fin)
+      const inicio = parseFechaLocal(r.fecha_inicio)
+      const fin = parseFechaLocal(r.fecha_fin)
       return hoy >= inicio && hoy <= fin
     })
   }
 
   // Check if property is reserved for specific dates (overlapping)
   const estaReservadaEnFechas = (propiedadId: number, checkIn: string, checkOut: string) => {
-    const busquedaInicio = new Date(checkIn)
-    const busquedaFin = new Date(checkOut)
+    const busquedaInicio = parseFechaLocal(checkIn)
+    const busquedaFin = parseFechaLocal(checkOut)
 
     return reservas.some(r => {
       if (r.propiedad_id !== propiedadId) return false
       if (r.estado !== 'confirmada' && r.estado !== 'pendiente') return false
 
-      const reservaInicio = new Date(r.fecha_inicio)
-      const reservaFin = new Date(r.fecha_fin)
+      const reservaInicio = parseFechaLocal(r.fecha_inicio)
+      const reservaFin = parseFechaLocal(r.fecha_fin)
 
       // Check for overlap: reservation overlaps if it starts before search ends AND ends after search starts
       return reservaInicio <= busquedaFin && reservaFin >= busquedaInicio

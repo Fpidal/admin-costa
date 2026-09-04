@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
@@ -226,7 +227,7 @@ function PropiedadesContent() {
   }
 
   const formatFechaCorta = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
+    return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })
   }
 
   function compartirWhatsApp(propiedad: Propiedad) {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Select } from '@/components/ui'
 import { Plus, Zap, Pencil, Trash2, AlertTriangle, Check, FileText } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
@@ -68,7 +69,7 @@ const formatMonto = (monto: number) => {
 }
 
 const formatFecha = (fecha: string) => {
-  return new Date(fecha).toLocaleDateString('es-AR')
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR')
 }
 
 const formatNumero = (num: number) => {
@@ -77,7 +78,7 @@ const formatNumero = (num: number) => {
 
 const formatMesAnio = (fecha: string) => {
   const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-  const d = new Date(fecha)
+  const d = parseFechaLocal(fecha)
   return `${meses[d.getMonth()]} ${d.getFullYear()}`
 }
 
@@ -248,7 +249,7 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
       })
 
     // Ordenar por fecha de medición (más reciente primero)
-    return datos.sort((a, b) => new Date(b.fechaMedicion).getTime() - new Date(a.fechaMedicion).getTime())
+    return datos.sort((a, b) => parseFechaLocal(b.fechaMedicion).getTime() - parseFechaLocal(a.fechaMedicion).getTime())
   }, [propiedadId, gastos])
 
   // Último dato
@@ -261,7 +262,7 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
       .slice(0, 12)
       .reverse()
       .map(d => ({
-        mes: meses[new Date(d.fechaMedicion).getMonth()],
+        mes: meses[parseFechaLocal(d.fechaMedicion).getMonth()],
         consumo: d.consumo
       }))
   }, [datosElectricidad])
@@ -270,8 +271,8 @@ export function ElectricidadTab({ propiedades, gastos, isDemo, userId }: Props) 
   const buscarMedicionManual = (dato: DatoElectricidad) => {
     // Buscar medición manual cercana a la fecha de medición de Eidico
     return medicionesManuales.find(m => {
-      const fechaManual = new Date(m.fecha)
-      const fechaEidico = new Date(dato.fechaMedicion)
+      const fechaManual = parseFechaLocal(m.fecha)
+      const fechaEidico = parseFechaLocal(dato.fechaMedicion)
       const diffDias = Math.abs((fechaManual.getTime() - fechaEidico.getTime()) / (1000 * 60 * 60 * 24))
       return diffDias < 15 // Dentro de 15 días
     })

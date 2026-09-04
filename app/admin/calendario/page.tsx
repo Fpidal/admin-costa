@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal, aFechaISO } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardContent } from '@/components/ui'
@@ -150,8 +151,7 @@ export default function CalendarioPage() {
 
   // Obtener reservas de una propiedad para una fecha
   const getReservaFecha = (propiedadId: string, dia: number): Reserva | null => {
-    const fecha = new Date(anioActual, mesActual, dia)
-    const fechaStr = fecha.toISOString().split('T')[0]
+    const fechaStr = aFechaISO(new Date(anioActual, mesActual, dia))
 
     return reservas.find(r =>
       r.propiedad_id === propiedadId &&
@@ -162,8 +162,7 @@ export default function CalendarioPage() {
 
   // Obtener feriado para una fecha
   const getFeriadoFecha = (dia: number): Feriado | null => {
-    const fecha = new Date(anioActual, mesActual, dia)
-    const fechaStr = fecha.toISOString().split('T')[0]
+    const fechaStr = aFechaISO(new Date(anioActual, mesActual, dia))
     return feriadosMes.get(fechaStr) || null
   }
 
@@ -364,8 +363,8 @@ export default function CalendarioPage() {
                       <div className="flex flex-wrap gap-2">
                         {reservasPropiedad
                           .filter(r => {
-                            const inicio = new Date(r.fecha_inicio)
-                            const fin = new Date(r.fecha_fin)
+                            const inicio = parseFechaLocal(r.fecha_inicio)
+                            const fin = parseFechaLocal(r.fecha_fin)
                             const inicioMes = new Date(anioActual, mesActual, 1)
                             const finMes = new Date(anioActual, mesActual + 1, 0)
                             return inicio <= finMes && fin >= inicioMes
@@ -376,13 +375,13 @@ export default function CalendarioPage() {
                               href={`/admin/reservas/${r.id}`}
                               className={`px-2 py-1 rounded text-xs ${getColorEstado(r.estado)} hover:opacity-80 transition-opacity cursor-pointer`}
                             >
-                              {r.inquilinos?.nombre || 'Sin nombre'}: {new Date(r.fecha_inicio).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} - {new Date(r.fecha_fin).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
+                              {r.inquilinos?.nombre || 'Sin nombre'}: {parseFechaLocal(r.fecha_inicio).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })} - {parseFechaLocal(r.fecha_fin).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}
                             </Link>
                           ))
                         }
                         {reservasPropiedad.filter(r => {
-                          const inicio = new Date(r.fecha_inicio)
-                          const fin = new Date(r.fecha_fin)
+                          const inicio = parseFechaLocal(r.fecha_inicio)
+                          const fin = parseFechaLocal(r.fecha_fin)
                           const inicioMes = new Date(anioActual, mesActual, 1)
                           const finMes = new Date(anioActual, mesActual + 1, 0)
                           return inicio <= finMes && fin >= inicioMes

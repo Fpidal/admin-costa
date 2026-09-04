@@ -3,6 +3,7 @@
 import React, { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { demoGastos, demoPropiedades } from '@/lib/demoData'
 import { PageHeader } from '@/components/PageHeader'
@@ -60,7 +61,7 @@ const formatMonto = (monto: number) => {
 }
 
 const formatFecha = (fecha: string) => {
-  return new Date(fecha).toLocaleDateString('es-AR')
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR')
 }
 
 const initialForm = {
@@ -153,7 +154,7 @@ function AdministracionContent() {
 
   // Gastos filtrados
   const gastosFiltrados = gastos.filter(gasto => {
-    const fechaGasto = new Date(gasto.fecha)
+    const fechaGasto = parseFechaLocal(gasto.fecha)
     const mesGasto = String(fechaGasto.getMonth() + 1).padStart(2, '0')
     const anioGasto = String(fechaGasto.getFullYear())
 

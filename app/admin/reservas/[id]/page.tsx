@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { Card, CardContent, Button, Badge } from '@/components/ui'
 import { ArrowLeft, Calendar, User, Home, DollarSign, Clock, FileText, Wallet, Users, Phone, Mail, MapPin } from 'lucide-react'
@@ -105,7 +106,7 @@ function ReservaDetalleContent() {
   }
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-AR', {
+    return parseFechaLocal(dateStr).toLocaleDateString('es-AR', {
       weekday: 'long',
       day: '2-digit',
       month: 'long',
@@ -115,8 +116,8 @@ function ReservaDetalleContent() {
 
   const calcularNoches = () => {
     if (!reserva) return 0
-    const inicio = new Date(reserva.fecha_inicio)
-    const fin = new Date(reserva.fecha_fin)
+    const inicio = parseFechaLocal(reserva.fecha_inicio)
+    const fin = parseFechaLocal(reserva.fecha_fin)
     return Math.ceil((fin.getTime() - inicio.getTime()) / (1000 * 60 * 60 * 24))
   }
 

@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
@@ -53,13 +54,6 @@ const formatMonto = (monto: number) => {
 
 const formatMontoUSD = (monto: number) => {
   return `U$D ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(monto)}`
-}
-
-// new Date('2027-02-01') es medianoche UTC, que en Argentina (UTC-3) cae el
-// día anterior: el mismo fix que ya tienen reservas, cobros y el contrato
-const parseFechaLocal = (fecha: string) => {
-  const [a, m, d] = fecha.split('T')[0].split('-').map(Number)
-  return new Date(a, (m || 1) - 1, d || 1)
 }
 
 const formatFecha = (fecha: string) => {

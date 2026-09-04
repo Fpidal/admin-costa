@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select } from '@/components/ui'
@@ -694,7 +695,7 @@ export default function InfoUtilPage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs">
-                            {new Date(item.fecha).toLocaleDateString('es-AR')}
+                            {parseFechaLocal(item.fecha).toLocaleDateString('es-AR')}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-1">

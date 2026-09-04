@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea } from '@/components/ui'
@@ -89,7 +90,7 @@ const formatMonto = (monto: number) => {
 }
 
 const formatFecha = (fecha: string) => {
-  return new Date(fecha).toLocaleDateString('es-AR')
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR')
 }
 
 const initialForm = {
@@ -514,7 +515,7 @@ function InquilinosContent() {
                     <strong>Motivo:</strong> {listaNegraAlert.motivo}
                   </p>
                   <p className="text-red-500 text-sm mt-1">
-                    Registrado el: {new Date(listaNegraAlert.fecha).toLocaleDateString('es-AR')}
+                    Registrado el: {parseFechaLocal(listaNegraAlert.fecha).toLocaleDateString('es-AR')}
                   </p>
                 </div>
               </div>
