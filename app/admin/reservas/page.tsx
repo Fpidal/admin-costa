@@ -643,16 +643,18 @@ function ReservasContent() {
     const monedaLimpieza = reserva.moneda_limpieza || 'ARS'
     const monedaLavadero = reserva.moneda_lavadero || 'ARS'
     const simboloDe = (m: string) => (m === 'USD' ? 'U$D' : '$')
-    const importe = (n: number, m: string) => `${simboloDe(m)} ${(n || 0).toLocaleString('es-AR')}`
+    // Sin centavos: se redondea acá y también al armar los montos, para que el
+    // total y el saldo coincidan con la suma de las líneas de arriba
+    const importe = (n: number, m: string) => `${simboloDe(m)} ${Math.round(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}`
 
     const conceptos: { label: string; monto: number; moneda: string }[] = [
-      { label: `Alquiler · ${noches} noche${noches !== 1 ? 's' : ''} × ${importe(reserva.precio_noche || 0, moneda)}`, monto: total, moneda },
+      { label: `Alquiler · ${noches} noche${noches !== 1 ? 's' : ''} × ${importe(reserva.precio_noche || 0, moneda)}`, monto: Math.round(total), moneda },
     ]
     if (reserva.limpieza_final > 0) {
-      conceptos.push({ label: 'Limpieza final', monto: reserva.limpieza_final, moneda: monedaLimpieza })
+      conceptos.push({ label: 'Limpieza final', monto: Math.round(reserva.limpieza_final), moneda: monedaLimpieza })
     }
     if (reserva.monto_lavadero > 0) {
-      conceptos.push({ label: 'Lavadero', monto: reserva.monto_lavadero, moneda: monedaLavadero })
+      conceptos.push({ label: 'Lavadero', monto: Math.round(reserva.monto_lavadero), moneda: monedaLavadero })
     }
 
     const totalPorMoneda: Record<string, number> = {}
@@ -660,7 +662,7 @@ function ReservasContent() {
     const monedasTotal = Object.keys(totalPorMoneda)
 
     // La seña descuenta de su propia moneda
-    const senaMonto = reserva.sena || 0
+    const senaMonto = Math.round(reserva.sena || 0)
     const saldoPorMoneda: Record<string, number> = { ...totalPorMoneda }
     if (senaMonto) saldoPorMoneda[moneda] = (saldoPorMoneda[moneda] || 0) - senaMonto
     const monedasSaldo = Object.keys(saldoPorMoneda).filter(m => saldoPorMoneda[m] !== 0 || monedasTotal.includes(m))
@@ -1197,7 +1199,7 @@ function ReservasContent() {
                         <Button variant="ghost" size="sm" onClick={() => generarContratoPDF(reserva)} title="Contrato">
                           <FileSignature size={16} className="text-costa-olivo" />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Detalle">
+                        <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Reserva">
                           <FileText size={16} className="text-costa-navy" />
                         </Button>
                       </>
@@ -1306,7 +1308,7 @@ function ReservasContent() {
                           quedaba recortado por el overflow del contenedor */}
                       <tr>
                         <td colSpan={8} className="px-3 pb-2 pt-0">
-                          <div className="flex flex-wrap items-center gap-2">
+                          <div className="flex flex-wrap items-center justify-center gap-2">
                             <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-olivo border border-costa-olivo/30 hover:bg-costa-olivo/10 transition-colors">
                                 <Wallet size={13} /> Cobros
@@ -1324,7 +1326,7 @@ function ReservasContent() {
                                   onClick={() => generarReciboPDF(reserva)}
                                   className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
                                 >
-                                  <FileText size={13} /> Detalle PDF
+                                  <FileText size={13} /> Reserva PDF
                                 </button>
                               </>
                             )}
