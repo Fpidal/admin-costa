@@ -10,9 +10,11 @@ interface ModalProps {
   children: React.ReactNode
   size?: 'sm' | 'md' | 'lg' | 'xl'
   closeOnOverlayClick?: boolean
+  /** Acciones al lado del título: al vivir en el header sticky no estorban al scrollear */
+  actions?: React.ReactNode
 }
 
-export function Modal({ isOpen, onClose, title, children, size = 'md', closeOnOverlayClick = false }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'md', closeOnOverlayClick = false, actions }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -48,14 +50,17 @@ export function Modal({ isOpen, onClose, title, children, size = 'md', closeOnOv
           onTouchEnd={(e) => e.stopPropagation()}
         >
           {/* Header fijo en móvil */}
-          <div className="sticky top-0 z-10 flex items-center justify-between px-5 py-4 border-b border-costa-beige bg-costa-white sm:rounded-t-xl">
-            <h2 className="text-lg font-semibold text-costa-navy">{title}</h2>
-            <button
-              onClick={onClose}
-              className="p-2 -mr-2 rounded-full hover:bg-costa-beige transition-colors"
-            >
-              <X size={20} className="text-costa-gris" />
-            </button>
+          <div className="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-costa-beige bg-costa-white sm:rounded-t-xl">
+            <h2 className="text-lg font-semibold text-costa-navy truncate">{title}</h2>
+            <div className="flex items-center gap-2 shrink-0">
+              {actions}
+              <button
+                onClick={onClose}
+                className="p-2 -mr-2 rounded-full hover:bg-costa-beige transition-colors"
+              >
+                <X size={20} className="text-costa-gris" />
+              </button>
+            </div>
           </div>
           <div className="px-5 py-4 overflow-y-auto max-h-[calc(100vh-60px)] sm:max-h-[80vh]">
             {children}

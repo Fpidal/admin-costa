@@ -1799,13 +1799,20 @@ function ReservasContent() {
       )}
 
       {/* Modal */}
-      <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Reserva' : 'Nueva Reserva'} size="lg">
-        {/* Botones sticky arriba */}
-        <div className="sticky top-0 z-10 bg-white flex justify-end gap-3 pb-3 mb-4 border-b -mt-2">
-          <Button type="button" variant="secondary" onClick={closeModal}>Cancelar</Button>
-          <Button type="submit" form="reserva-form" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}</Button>
-        </div>
-
+      <Modal
+        isOpen={modalOpen}
+        onClose={closeModal}
+        title={editingId ? 'Editar Reserva' : 'Nueva Reserva'}
+        size="lg"
+        actions={
+          <>
+            <Button type="button" variant="secondary" size="sm" onClick={closeModal}>Cancelar</Button>
+            <Button type="submit" form="reserva-form" size="sm" disabled={saving}>
+              {saving ? 'Guardando...' : editingId ? 'Actualizar' : 'Crear'}
+            </Button>
+          </>
+        }
+      >
         <form id="reserva-form" onSubmit={handleSubmit} className="space-y-4">
           <p className="text-sm font-medium text-gray-700 border-b pb-2">Propiedad y titular</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
