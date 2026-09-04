@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock, AlertTriangle } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
@@ -18,6 +18,14 @@ interface Propiedad {
   nombre: string
   direccion: string | null
   lote: string | null
+}
+
+interface ListaNegraItem {
+  id: number
+  documento: string
+  nombre: string
+  motivo: string
+  fecha: string
 }
 
 interface Inquilino {
@@ -220,6 +228,7 @@ function ReservasContent() {
   const [nuevoTitularOpen, setNuevoTitularOpen] = useState(false)
   const [nuevoTitular, setNuevoTitular] = useState({ nombre: '', documento: '', telefono: '' })
   const [creandoTitular, setCreandoTitular] = useState(false)
+  const [titularListaNegra, setTitularListaNegra] = useState<ListaNegraItem | null>(null)
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState<number | null>(null)
@@ -361,6 +370,7 @@ function ReservasContent() {
     setPrecioSugerido(null)
     setNuevoTitularOpen(false)
     setNuevoTitular({ nombre: '', documento: '', telefono: '' })
+    setTitularListaNegra(null)
   }
 
   function confirmarAcompanante() {
@@ -410,6 +420,29 @@ function ReservasContent() {
     }
   }
 
+  // Un titular ya cargado no debería duplicarse por escribir el nombre de
+  // nuevo: se busca sin acentos ni mayúsculas y por cada palabra suelta, así
+  // "perez" encuentra a "Juan Pérez"
+  const titularesSugeridos = useMemo(() => {
+    const normalizar = (t: string) => t.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+    const q = normalizar(nuevoTitular.nombre)
+    if (q.length < 2) return []
+    const terminos = q.split(/\s+/)
+    return inquilinos.filter(i => {
+      const n = normalizar(i.nombre)
+      return terminos.every(t => n.includes(t))
+    }).slice(0, 5)
+  }, [nuevoTitular.nombre, inquilinos])
+
+  // Usa uno de los ya cargados en vez de crearlo: queda de titular y arrastra
+  // sus acompañantes, igual que si se hubiera elegido del desplegable
+  function usarTitularExistente(inquilino: Inquilino) {
+    handleInquilinoChange(String(inquilino.id))
+    setNuevoTitularOpen(false)
+    setNuevoTitular({ nombre: '', documento: '', telefono: '' })
+    setTitularListaNegra(null)
+  }
+
   // Crea el inquilino con nombre, DNI y celular y lo selecciona como titular.
   // Queda en Inquilinos como cualquier otro, para completarle los datos ahí
   async function crearTitularRapido() {
@@ -420,6 +453,9 @@ function ReservasContent() {
     }
     if (isDemo) {
       alert('En la demo no se pueden crear inquilinos')
+      return
+    }
+    if (titularListaNegra && !confirm(`${titularListaNegra.nombre} figura con incidentes (${titularListaNegra.motivo}). ¿Crear igual el titular?`)) {
       return
     }
 
@@ -449,7 +485,28 @@ function ReservasContent() {
     setForm(f => ({ ...f, inquilino_id: String(data.id) }))
     setNuevoTitular({ nombre: '', documento: '', telefono: '' })
     setNuevoTitularOpen(false)
+    setTitularListaNegra(null)
   }
+
+  // El DNI se contrasta con inquilinos con incidentes, como en su pantalla
+  useEffect(() => {
+    async function checkListaNegra() {
+      const doc = nuevoTitular.documento.trim()
+      if (doc.length < 5 || !userId || isDemo) {
+        setTitularListaNegra(null)
+        return
+      }
+      const { data, error } = await supabase
+        .from('lista_negra')
+        .select('id, documento, nombre, motivo, fecha')
+        .eq('user_id', userId)
+        .ilike('documento', `%${doc}%`)
+        .limit(1)
+      setTitularListaNegra(!error && data && data.length > 0 ? data[0] : null)
+    }
+    const timeoutId = setTimeout(checkListaNegra, 500)
+    return () => clearTimeout(timeoutId)
+  }, [nuevoTitular.documento, userId, isDemo])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -1803,12 +1860,49 @@ function ReservasContent() {
                   placeholder="11 6879 2207"
                 />
               </div>
+              {titularesSugeridos.length > 0 && (
+                <div className="mt-3 rounded-lg border border-costa-olivo/30 bg-white overflow-hidden">
+                  <p className="px-3 py-1.5 text-xs text-costa-gris bg-costa-olivo/5 border-b border-costa-olivo/20">
+                    Ya está cargado, ¿es alguno de estos? Tocalo y queda de titular.
+                  </p>
+                  {titularesSugeridos.map(i => (
+                    <button
+                      key={i.id}
+                      type="button"
+                      onClick={() => usarTitularExistente(i)}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left hover:bg-costa-beige/50 border-b border-costa-beige last:border-b-0 transition-colors"
+                    >
+                      <span className="text-sm font-medium text-costa-navy">{i.nombre}</span>
+                      <span className="text-xs text-costa-gris whitespace-nowrap">
+                        {[i.documento && `DNI ${i.documento}`, i.telefono].filter(Boolean).join(' · ') || 'sin datos'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {titularListaNegra && (
+                <div className="mt-3 p-3 rounded-lg bg-red-50 border-2 border-red-400">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                    <div className="text-sm">
+                      <p className="font-bold text-red-700">Inquilino con incidentes</p>
+                      <p className="text-red-600">{titularListaNegra.nombre} - DNI: {titularListaNegra.documento}</p>
+                      <p className="text-red-700 mt-1"><strong>Motivo:</strong> {titularListaNegra.motivo}</p>
+                      <p className="text-red-500 text-xs mt-0.5">
+                        Registrado el {new Date(titularListaNegra.fecha).toLocaleDateString('es-AR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end gap-2 mt-3">
                 <Button
                   type="button"
                   variant="secondary"
                   size="sm"
-                  onClick={() => { setNuevoTitularOpen(false); setNuevoTitular({ nombre: '', documento: '', telefono: '' }) }}
+                  onClick={() => { setNuevoTitularOpen(false); setNuevoTitular({ nombre: '', documento: '', telefono: '' }); setTitularListaNegra(null) }}
                 >
                   Cancelar
                 </Button>
