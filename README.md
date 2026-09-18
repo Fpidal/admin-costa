@@ -53,7 +53,7 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Datos duros de la ficha**: Se eligen de un catálogo (m² cubiertos, semicubiertos, de lote, ambientes, dormitorios, baños, plantas, camas, huéspedes, cocheras, años) y se suman con el valor ya tomado de la propiedad
 - **Barra de contacto**: Logo de WhatsApp junto al teléfono y logo de Costa Esmeralda en la esquina opuesta (`public/logo-costa-esmeralda.png`, opcional: si falta, la pieza sale sin él)
 - **Ajuste automático**: La tipografía se adapta al espacio disponible; con títulos largos la foto cede hasta un piso del 64%
-- **Guardado por propiedad y tipo**: Cada aviso (venta / alquiler) conserva textos, fotos, encuadres e iconos en `piezas_avisos`
+- **Guardado por propiedad y tipo**: Cada aviso (temporada / fuera de temporada / venta) conserva textos, fotos, encuadres e iconos en `piezas_avisos`, y cada tipo tiene su propia paleta
 
 ### Mensajería Interna
 - Campanita de mensajes en el sidebar con contador de no leídos
