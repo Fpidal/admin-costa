@@ -43,7 +43,7 @@ interface Propiedad {
   direccion: string | null
 }
 
-type Tipo = 'venta' | 'alquiler'
+type Tipo = 'venta' | 'temporada' | 'fuera_temporada'
 type Formato = 'post' | 'story' | 'ficha'
 
 // Icono elegido para la barra inferior: clave del set + texto editable
@@ -89,10 +89,28 @@ interface DatosAviso {
 /* Paleta de la pieza                                                  */
 /* ------------------------------------------------------------------ */
 
-const INK = '#14201C'
-const CREAM = '#F6F1E7'
-const BRASS = '#B08D4F'
-const MUT = '#6B7A72'
+interface Paleta {
+  INK: string // fondo de la barra de contacto, títulos y precio
+  CREAM: string // fondo de la pieza
+  BRASS: string // acento: chips, filete y iconos
+  MUT: string // volanta, ficha y sufijo del precio
+  ONBAR: string // texto sobre la barra, que va claro sea cual sea el INK
+}
+
+// Venta conserva la paleta de siempre. Los dos alquileres cambian el fondo y
+// además el oscuro y el acento, que es lo que se ve en el chip sobre la foto y
+// en la franja de abajo: con solo el fondo las tres piezas salían casi iguales.
+const PALETAS: Record<Tipo, Paleta> = {
+  temporada: { INK: '#0E3547', CREAM: '#DCE6E2', BRASS: '#C9622F', MUT: '#5E7E8C', ONBAR: '#F7F3EB' },
+  fuera_temporada: { INK: '#2A2523', CREAM: '#EFE4D2', BRASS: '#8F4A44', MUT: '#7C7168', ONBAR: '#F7F3EB' },
+  venta: { INK: '#14201C', CREAM: '#F6F1E7', BRASS: '#B08D4F', MUT: '#6B7A72', ONBAR: '#F6F1E7' },
+}
+
+const ETIQUETA_TIPO: Record<Tipo, string> = {
+  temporada: 'Temporada',
+  fuera_temporada: 'Fuera de temporada',
+  venta: 'Venta',
+}
 
 /* ------------------------------------------------------------------ */
 /* Iconos de la barra inferior                                         */
@@ -164,11 +182,15 @@ function temporadaActual() {
 
 // Etiquetas por defecto de los chips sobre la foto (editables)
 const chipIzqDe = (t: Tipo) =>
-  t === 'venta' ? 'EN VENTA' : `TEMPORADA ${temporadaActual()}`
+  t === 'venta'
+    ? 'EN VENTA'
+    : t === 'fuera_temporada'
+      ? 'FINES DE SEMANA'
+      : `TEMPORADA ${temporadaActual()}`
 const CHIP_DER_DEFAULT = 'DUEÑO DIRECTO'
 
 function fichaDe(p: Propiedad, tipo: Tipo) {
-  if (tipo === 'alquiler') {
+  if (tipo !== 'venta') {
     const partes = [
       `${p.habitaciones} dorm`,
       `${p.banos} baños`,
@@ -192,7 +214,7 @@ function destacadosDe(p: Propiedad, tipo: Tipo) {
   if (p.parrilla) d.push('Galería con parrilla')
   if (p.fogonero) d.push('Fogonero en el parque')
   if (p.grupo_electrogeno) d.push('Grupo electrógeno')
-  if (tipo === 'alquiler') {
+  if (tipo !== 'venta') {
     if (p.aire_acondicionado) d.push('Aire acondicionado')
     d.push('Equipada: ropa blanca, toallas y sillas de playa')
   } else {
@@ -350,7 +372,7 @@ export default function PiezasPage() {
   const [exportandoPDF, setExportandoPDF] = useState(false)
   const [guardadoMsg, setGuardadoMsg] = useState('')
 
-  const [tipo, setTipo] = useState<Tipo>('alquiler')
+  const [tipo, setTipo] = useState<Tipo>('temporada')
   const [formato, setFormato] = useState<Formato>('post')
 
   const [imgs, setImgs] = useState<HTMLImageElement[]>([])
@@ -400,10 +422,14 @@ export default function PiezasPage() {
     setSubtitulo(subtituloDe(p))
     setDatos(datosDe(p))
     setBloques(bloquesDe(p))
-    if (t === 'alquiler') {
+    if (t === 'temporada') {
       setPrecio(p.precio_alquiler ? money(p.precio_alquiler) : 'US$ ')
       setSufijo('/ noche')
       setPrecio2('Consult\u00e1 enero completo, febrero y fines de semana largos')
+    } else if (t === 'fuera_temporada') {
+      setPrecio(p.precio_alquiler ? money(p.precio_alquiler) : 'US$ ')
+      setSufijo('/ noche')
+      setPrecio2('Fines de semana largos y escapadas fuera de temporada')
     } else {
       setPrecio(p.precio_venta ? money(p.precio_venta) : 'US$ ')
       setSufijo('')
@@ -533,7 +559,7 @@ export default function PiezasPage() {
       return
     }
     setAvisosGuardados((prev) => ({ ...prev, [`${sel.id}:${tipo}`]: aviso }))
-    setGuardadoMsg(`Cambios de ${tipo} guardados ✓`)
+    setGuardadoMsg(`Cambios de ${ETIQUETA_TIPO[tipo]} guardados ✓`)
   }
 
   // Vuelve a generar los textos desde la ficha, descartando lo editado
@@ -572,7 +598,13 @@ export default function PiezasPage() {
 
       const mapa: Record<string, DatosAviso> = {}
       for (const a of avisosRes.data || []) {
-        mapa[`${a.propiedad_id}:${a.tipo}`] = a.datos as DatosAviso
+        // Los avisos grabados cuando el alquiler era uno solo tienen tipo
+        // 'alquiler': se muestran en Temporada para no perderlos. Al volver a
+        // guardar quedan con el tipo nuevo.
+        const t = a.tipo === 'alquiler' ? 'temporada' : a.tipo
+        // Si ya hay uno grabado con el tipo nuevo, ese manda
+        if (t === 'temporada' && mapa[`${a.propiedad_id}:temporada`]) continue
+        mapa[`${a.propiedad_id}:${t}`] = a.datos as DatosAviso
       }
       setAvisosGuardados(mapa)
 
@@ -583,13 +615,13 @@ export default function PiezasPage() {
       setSelId(inicial)
       const p0 = lista.find((x) => x.id === inicial)
       if (p0) {
-        const g = mapa[`${p0.id}:alquiler`]
+        const g = mapa[`${p0.id}:temporada`]
         if (g) {
-          aplicarGuardado(g, 'alquiler', p0)
+          aplicarGuardado(g, 'temporada', p0)
           if (g.fotos?.length) void cargarFotosDesde(g.fotos, g.encuadres)
           else void cargarFotos(p0)
         } else {
-          aplicarTextos(p0, 'alquiler')
+          aplicarTextos(p0, 'temporada')
           void cargarFotos(p0)
         }
       }
@@ -597,12 +629,16 @@ export default function PiezasPage() {
     })()
   }, [authLoading, userId, propIdParam, aplicarTextos, aplicarGuardado, cargarFotos, cargarFotosDesde])
 
+  const paleta = PALETAS[tipo]
+
   /* ---------- dibujar ---------- */
   const dibujar = useCallback(() => {
     const cv = canvasRef.current
     if (!cv) return
     const ctx = cv.getContext('2d')
     if (!ctx) return
+
+    const { INK, CREAM, BRASS, MUT, ONBAR } = PALETAS[tipo]
 
     const W = 1080
     // La ficha usa proporción A4 (1:1,414) para que imprima y exporte a PDF
@@ -833,12 +869,12 @@ export default function PiezasPage() {
     ctx.restore()
 
     const tx = P + wa + 22
-    ctx.fillStyle = 'rgba(246,241,231,.62)'
+    ctx.fillStyle = 'rgba(255,255,255,.64)'
     ctx.font = '600 19px Inter, sans-serif'
     ls(3.6)
     ctx.fillText(tipo === 'venta' ? 'CONSULTAS Y VISITAS' : 'RESERVAS Y CONSULTAS', tx, H - barH + 48)
     ls(0)
-    ctx.fillStyle = CREAM
+    ctx.fillStyle = ONBAR
     ctx.font = '600 35px Inter, sans-serif'
     ctx.fillText(contacto || 'WhatsApp 11 0000-0000', tx, H - barH + 88)
 
@@ -1316,12 +1352,21 @@ export default function PiezasPage() {
         <div>
           <p className={label}>2 · Tipo de aviso</p>
           <div className="flex gap-2">
-            <button onClick={() => elegirTipo('venta')} className={`${seg} ${tipo === 'venta' ? segOn : segOff}`}>
-              Venta{sel && avisosGuardados[`${sel.id}:venta`] ? ' ✓' : ''}
-            </button>
-            <button onClick={() => elegirTipo('alquiler')} className={`${seg} ${tipo === 'alquiler' ? segOn : segOff}`}>
-              Alquiler{sel && avisosGuardados[`${sel.id}:alquiler`] ? ' ✓' : ''}
-            </button>
+            {(['temporada', 'fuera_temporada', 'venta'] as Tipo[]).map((t) => (
+              <button
+                key={t}
+                onClick={() => elegirTipo(t)}
+                className={`${seg} ${tipo === t ? segOn : segOff}`}
+                title={`Estilo ${ETIQUETA_TIPO[t]}`}
+              >
+                <span
+                  className="inline-block w-2.5 h-2.5 rounded-full mr-1.5 align-[-1px] border border-black/15"
+                  style={{ background: PALETAS[t].BRASS }}
+                />
+                {ETIQUETA_TIPO[t]}
+                {sel && avisosGuardados[`${sel.id}:${t}`] ? ' ✓' : ''}
+              </button>
+            ))}
           </div>
         </div>
         <div>
@@ -1588,7 +1633,7 @@ export default function PiezasPage() {
                 </p>
                 {iconos.map((it, i) => (
                   <div key={it.k} className="flex items-center gap-2">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={BRASS} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke={paleta.BRASS} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
                       <path d={ICONO_POR_K[it.k]?.d} />
                     </svg>
                     <input
@@ -1664,7 +1709,7 @@ export default function PiezasPage() {
                 <label className={label}>Precio</label>
                 <input className={input} value={precio} onChange={(e) => setPrecio(e.target.value)} />
               </div>
-              {tipo === 'alquiler' && (
+              {tipo !== 'venta' && (
                 <div className="w-32">
                   <label className={label}>Sufijo</label>
                   <input className={input} value={sufijo} onChange={(e) => setSufijo(e.target.value)} />
