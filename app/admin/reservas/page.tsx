@@ -137,6 +137,41 @@ const MAX_PERSONAS_CONTRATO = 8
 // Teléfono que se muestra en el contrato y en el detalle de reserva
 const TELEFONO_CONTACTO = '11 6879 2207'
 
+// Condiciones y cuidados: los mismos textos van en el detalle de reserva y como
+// nota del contrato. El horario sale de cada reserva, para que coincida con el plazo.
+const condicionesAlquiler = (ingreso: string, salida: string) => [
+  `Horario de ingreso: ${ingreso} hs - Horario de salida: ${salida} hs`,
+  'Se incluyen 110 kW de electricidad cada 7 días. El excedente se cobra al valor vigente.',
+  'Prohibido fumar dentro de la propiedad. No se admiten mascotas sin autorización previa.',
+  'El depósito se devuelve al verificar el estado de la propiedad.',
+]
+
+const USOS_Y_CUIDADOS = [
+  'Apagar luces, aires acondicionados y artefactos eléctricos al salir de la vivienda.',
+  'Mantener la casa ordenada durante la estadía.',
+  'Ventilar los ambientes diariamente.',
+  'Cuidar el mobiliario, equipamiento y elementos de la casa.',
+  'Respetar las normas de convivencia del barrio.',
+  'Informar cualquier inconveniente o daño a la brevedad.',
+]
+
+const URL_INFO_UTIL = 'https://admin-costa.vercel.app/'
+const URL_COSTA = 'https://costa-esmeralda.com.ar/'
+
+const conceptosCobro: Record<string, string> = {
+  'seña': 'Seña',
+  devolucion_sena: 'Devolución de seña',
+  anticipo: 'Anticipo',
+  liquidacion: 'Liquidación',
+  otro: 'Pago',
+}
+
+const mediosCobro: Record<string, string> = {
+  efectivo: 'Efectivo',
+  transferencia: 'Transferencia',
+  tarjeta: 'Tarjeta',
+}
+
 const estadoVariant = {
   'confirmada': 'success',
   'pendiente': 'warning',
@@ -639,9 +674,9 @@ function ReservasContent() {
 
     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
     const total = noches * (reserva.precio_noche || 0)
-    const saldo = total - (reserva.sena || 0)
     const moneda = reserva.moneda || 'ARS'
-    const simbolo = moneda === 'USD' ? 'U$D' : '$'
+    // Mientras no está confirmada, el mismo PDF sirve de cotización
+    const esCotizacion = reserva.estado === 'pendiente'
 
     // Colores - Paleta náutica costa
     const azulPrincipal = { r: 30, g: 58, b: 95 }  // costa-navy #1e3a5f
@@ -677,7 +712,7 @@ function ReservasContent() {
     // Detalle a la derecha del encabezado
     doc.setFontSize(12)
     doc.setFont('helvetica', 'bold')
-    doc.text('DETALLE DE RESERVA', pageWidth - 15, 12, { align: 'right' })
+    doc.text(esCotizacion ? 'COTIZACIÓN' : 'DETALLE DE RESERVA', pageWidth - 15, 12, { align: 'right' })
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     doc.text(`N° ${numDetalle}`, pageWidth - 15, 19, { align: 'right' })
@@ -774,16 +809,46 @@ function ReservasContent() {
     for (const c of conceptos) totalPorMoneda[c.moneda] = (totalPorMoneda[c.moneda] || 0) + c.monto
     const monedasTotal = Object.keys(totalPorMoneda)
 
-    // La seña descuenta de su propia moneda
-    const senaMonto = Math.round(reserva.sena || 0)
+    // Los pagos salen de Cobros, igual que en la tabla: todo menos el depósito,
+    // que es garantía. La devolución de seña resta.
+    const cobrosReserva = cobros
+      .filter(c => c.reserva_id === reserva.id)
+      .sort((a, b) => a.fecha.localeCompare(b.fecha))
+    const pagos = cobrosReserva
+      .filter(c => c.aplicar_a !== 'deposito')
+      .map(c => ({
+        label: [formatFecha(c.fecha), conceptosCobro[c.concepto] || 'Pago', mediosCobro[c.medio_pago]].filter(Boolean).join(' · '),
+        monto: Math.round(c.concepto === 'devolucion_sena' ? -(c.monto || 0) : (c.monto || 0)),
+        moneda: c.moneda || 'ARS',
+      }))
+    const depositoRecibido = cobrosReserva.some(c => c.aplicar_a === 'deposito')
+
+    // Con muchos pagos no entran todos antes de las condiciones: los primeros
+    // van uno por uno y el resto se agrupa por moneda
+    const MAX_LINEAS_PAGOS = 6
+    let lineasPagos = pagos
+    if (pagos.length > MAX_LINEAS_PAGOS) {
+      const resto = pagos.slice(MAX_LINEAS_PAGOS - 2)
+      const restoPorMoneda: Record<string, number> = {}
+      for (const p of resto) restoPorMoneda[p.moneda] = (restoPorMoneda[p.moneda] || 0) + p.monto
+      lineasPagos = [
+        ...pagos.slice(0, MAX_LINEAS_PAGOS - 2),
+        ...Object.keys(restoPorMoneda).map(m => ({ label: `Otros ${resto.length} pagos`, monto: restoPorMoneda[m], moneda: m })),
+      ]
+    }
+
+    // Sin pagos todavía, la seña pactada figura como lo que hay que abonar
+    const senaAAbonar = pagos.length === 0 ? Math.round(reserva.sena || 0) : 0
+
     const saldoPorMoneda: Record<string, number> = { ...totalPorMoneda }
-    if (senaMonto) saldoPorMoneda[moneda] = (saldoPorMoneda[moneda] || 0) - senaMonto
+    for (const p of pagos) saldoPorMoneda[p.moneda] = (saldoPorMoneda[p.moneda] || 0) - p.monto
     const monedasSaldo = Object.keys(saldoPorMoneda).filter(m => saldoPorMoneda[m] !== 0 || monedasTotal.includes(m))
 
     const montosStartY = y - 3
     const hayDeposito = !!(reserva.deposito && reserva.deposito > 0)
+    const altoPagos = 6 + Math.max(1, lineasPagos.length) * 5 + 3
     const montosHeight =
-      12 + conceptos.length * 6 + 6 + monedasTotal.length * 6 + 6 + monedasSaldo.length * 8 + 6 + (hayDeposito ? 8 : 0)
+      12 + conceptos.length * 6 + 6 + monedasTotal.length * 6 + altoPagos + monedasSaldo.length * 8 + 6 + (hayDeposito ? 8 : 0)
 
     // Borde del cuadro
     doc.setDrawColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
@@ -820,11 +885,34 @@ function ReservasContent() {
       y += 6
     }
 
-    // La seña va aparte, después del total
+    // Pagos registrados, después del total
+    y += 1
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+    doc.text('PAGOS REGISTRADOS', 20, y)
+    y += 5
     doc.setFont('helvetica', 'normal')
-    doc.text('Seña pagada', 20, y)
-    doc.text(`- ${importe(senaMonto, moneda)}`, pageWidth - 20, y, { align: 'right' })
-    y += 8
+    doc.setFontSize(9)
+    doc.setTextColor(60, 60, 60)
+    if (lineasPagos.length > 0) {
+      for (const p of lineasPagos) {
+        doc.text(p.label, 20, y)
+        // Un pago descuenta del saldo; una devolución de seña lo vuelve a sumar
+        doc.text(`${p.monto < 0 ? '+' : '-'} ${importe(Math.abs(p.monto), p.moneda)}`, pageWidth - 20, y, { align: 'right' })
+        y += 5
+      }
+    } else if (senaAAbonar) {
+      doc.text('Sin pagos todavía · Seña a abonar para confirmar', 20, y)
+      doc.text(importe(senaAAbonar, moneda), pageWidth - 20, y, { align: 'right' })
+      y += 5
+    } else {
+      doc.setTextColor(120, 120, 120)
+      doc.text('Sin pagos registrados', 20, y)
+      doc.setTextColor(60, 60, 60)
+      y += 5
+    }
+    y += 3
 
     // Saldo pendiente, con fondo celeste
     const altoSaldo = 2 + monedasSaldo.length * 8
@@ -848,7 +936,7 @@ function ReservasContent() {
       doc.setFontSize(8)
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(120, 120, 120)
-      doc.text('Depósito en garantía (no integra el total, se devuelve al finalizar)', 20, y)
+      doc.text(`Depósito en garantía (no integra el total, se devuelve al finalizar)${depositoRecibido ? ' · recibido' : ''}`, 20, y)
       doc.text(importe(reserva.deposito, 'USD'), pageWidth - 20, y, { align: 'right' })
       y += 6
     }
@@ -917,8 +1005,12 @@ function ReservasContent() {
     }
 
     // ===== CONDICIONES DEL ALQUILER =====
-    // Fijo: los dos bloques más el link ocupan ~96 mm y el pie va en 280
-    y = 178
+    // Los dos bloques más los links ocupan ~80 mm y el pie va en 280. Van anclados
+    // en 178; si los montos llegan más abajo bajan, y si no entran pasan a otra hoja
+    const ALTO_CONDICIONES = 84
+    if (y + 4 <= 178) y = 178
+    else if (y + 4 + ALTO_CONDICIONES <= 276) y = y + 4
+    else { doc.addPage(); y = 20 }
     doc.setFillColor(250, 250, 250)
     doc.rect(15, y - 3, pageWidth - 30, 32, 'F')
 
@@ -930,14 +1022,9 @@ function ReservasContent() {
     y += 8
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
-    const condiciones = [
-      '• Horario de ingreso: 14:00 hs - Horario de salida: 10:00 hs',
-      '• Se incluyen 110 kW de electricidad cada 7 días. El excedente se cobra al valor vigente.',
-      '• Prohibido fumar dentro de la propiedad. No se admiten mascotas sin autorización previa.',
-      '• El depósito se devuelve al verificar el estado de la propiedad.'
-    ]
+    const condiciones = condicionesAlquiler(formatHora(reserva.horario_ingreso, '14:00'), formatHora(reserva.horario_salida, '10:00'))
     condiciones.forEach(c => {
-      doc.text(c, 20, y)
+      doc.text(`• ${c}`, 20, y)
       y += 4
     })
 
@@ -954,16 +1041,8 @@ function ReservasContent() {
     y += 8
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
-    const usosCuidados = [
-      '• Apagar luces, aires acondicionados y artefactos eléctricos al salir de la vivienda.',
-      '• Mantener la casa ordenada durante la estadía.',
-      '• Ventilar los ambientes diariamente.',
-      '• Cuidar el mobiliario, equipamiento y elementos de la casa.',
-      '• Respetar las normas de convivencia del barrio.',
-      '• Informar cualquier inconveniente o daño a la brevedad.'
-    ]
-    usosCuidados.forEach(c => {
-      doc.text(c, 20, y)
+    USOS_Y_CUIDADOS.forEach(c => {
+      doc.text(`• ${c}`, 20, y)
       y += 4
     })
 
@@ -975,16 +1054,29 @@ function ReservasContent() {
     y += 4
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(30, 100, 180)
-    doc.textWithLink('https://admin-costa.vercel.app/', 20, y, { url: 'https://admin-costa.vercel.app/' })
+    doc.textWithLink(URL_INFO_UTIL, 20, y, { url: URL_INFO_UTIL })
 
-    // ===== PIE =====
-    doc.setTextColor(150, 150, 150)
-    doc.setFontSize(8)
-    doc.text('Admin Costa - Sistema de Gestión de Alquileres', pageWidth / 2, 280, { align: 'center' })
-    doc.text(`Generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 285, { align: 'center' })
+    y += 5
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
+    doc.text('Actividades, novedades y servicios de Costa Esmeralda:', 20, y)
+    y += 4
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(30, 100, 180)
+    doc.textWithLink(URL_COSTA, 20, y, { url: URL_COSTA })
+
+    // ===== PIE (en cada hoja) =====
+    for (let p = 1; p <= doc.getNumberOfPages(); p++) {
+      doc.setPage(p)
+      doc.setTextColor(150, 150, 150)
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'normal')
+      doc.text('Admin Costa - Sistema de Gestión de Alquileres', pageWidth / 2, 280, { align: 'center' })
+      doc.text(`Generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 285, { align: 'center' })
+    }
 
     // Guardar
-    doc.save(`Detalle_Reserva_${numDetalle}_${reserva.inquilinos?.nombre?.replace(/\s/g, '_') || 'reserva'}.pdf`)
+    doc.save(`${esCotizacion ? 'Cotizacion' : 'Detalle_Reserva'}_${numDetalle}_${reserva.inquilinos?.nombre?.replace(/\s/g, '_') || 'reserva'}.pdf`)
   }
 
   function generarContratoPDF(reserva: Reserva) {
@@ -1053,6 +1145,13 @@ function ReservasContent() {
         `El locador no responde por accidentes, robos, incendios o cortes de servicios. El locatario asume todos los riesgos de su estadía.` },
       { num: '8', title: 'Jurisdicción', content:
         `Las partes fijan domicilio en los indicados arriba y se someten a los tribunales ordinarios de la Ciudad Autónoma de Buenos Aires.` },
+      // Nota con lo mismo que figura en el detalle de reserva
+      { num: '9', title: 'Nota: condiciones, usos y cuidados de la propiedad', content:
+        [...condicionesAlquiler(formatHora(reserva.horario_ingreso, '16:00'), formatHora(reserva.horario_salida, '10:00')), ...USOS_Y_CUIDADOS]
+          .map(c => `• ${c}`)
+          .concat(`Teléfonos útiles, servicios, emergencias y contactos del barrio: ${URL_INFO_UTIL}`)
+          .concat(`Actividades, novedades y servicios de Costa Esmeralda: ${URL_COSTA}`)
+          .join('\n') },
     ]
 
     /* Encaje en una sola hoja: se busca la escala tipográfica más grande con
@@ -1312,14 +1411,14 @@ function ReservasContent() {
                   </div>
                   <div className="flex justify-end gap-1 pt-2 border-t border-costa-beige">
                     {reserva.estado === 'confirmada' && (
-                      <>
-                        <Button variant="ghost" size="sm" onClick={() => generarContratoPDF(reserva)} title="Contrato">
-                          <FileSignature size={16} className="text-costa-olivo" />
-                        </Button>
-                        <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title="Reserva">
-                          <FileText size={16} className="text-costa-navy" />
-                        </Button>
-                      </>
+                      <Button variant="ghost" size="sm" onClick={() => generarContratoPDF(reserva)} title="Contrato">
+                        <FileSignature size={16} className="text-costa-olivo" />
+                      </Button>
+                    )}
+                    {reserva.estado !== 'cancelada' && (
+                      <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title={reserva.estado === 'pendiente' ? 'Cotización' : 'Reserva'}>
+                        <FileText size={16} className="text-costa-navy" />
+                      </Button>
                     )}
                     <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
                       <Button variant="ghost" size="sm" title="Cobros"><Wallet size={16} className="text-costa-olivo" /></Button>
@@ -1432,20 +1531,20 @@ function ReservasContent() {
                               </span>
                             </Link>
                             {reserva.estado === 'confirmada' && (
-                              <>
-                                <button
-                                  onClick={() => generarContratoPDF(reserva)}
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
-                                >
-                                  <FileSignature size={13} /> Contrato PDF
-                                </button>
-                                <button
-                                  onClick={() => generarReciboPDF(reserva)}
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
-                                >
-                                  <FileText size={13} /> Reserva PDF
-                                </button>
-                              </>
+                              <button
+                                onClick={() => generarContratoPDF(reserva)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
+                              >
+                                <FileSignature size={13} /> Contrato PDF
+                              </button>
+                            )}
+                            {reserva.estado !== 'cancelada' && (
+                              <button
+                                onClick={() => generarReciboPDF(reserva)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
+                              >
+                                <FileText size={13} /> {reserva.estado === 'pendiente' ? 'Cotización PDF' : 'Reserva PDF'}
+                              </button>
                             )}
                             <button
                               onClick={() => openModal(reserva)}
