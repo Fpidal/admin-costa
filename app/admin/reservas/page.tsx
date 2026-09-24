@@ -1145,7 +1145,7 @@ function ReservasContent() {
       { num: '5', title: 'Depósito', content:
         `El locatario entrega un depósito de ${depositoTexto} que se devolverá al finalizar, descontando daños, faltantes, exceso de consumo eléctrico o multas.` },
       { num: '6', title: 'Obligaciones del locatario', content:
-        `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. Pagar limpieza de salida de ${reserva.moneda_limpieza === 'USD' ? 'USD ' : '$'}${monto(reserva.limpieza_final)}. Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.` },
+        `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. ${reserva.limpieza_final > 0 ? `Pagar limpieza de salida de ${reserva.moneda_limpieza === 'USD' ? 'USD ' : '$'}${monto(reserva.limpieza_final)}.` : 'La limpieza de salida está bonificada.'} Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.` },
       { num: '7', title: 'Responsabilidad', content:
         `El locador no responde por accidentes, robos, incendios o cortes de servicios. El locatario asume todos los riesgos de su estadía.` },
       { num: '8', title: 'Jurisdicción', content:
