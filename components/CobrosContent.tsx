@@ -12,6 +12,10 @@ import { jsPDF } from 'jspdf'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
 import Link from 'next/link'
 
+// Electricidad incluida en el precio, igual que en el contrato. Se prorratea
+// por noche, así una estadía de 15 días incluye unos 321 kWh
+const KWH_INCLUIDOS_CADA_7_DIAS = 150
+
 interface Reserva {
   id: number
   propiedad_id: number
@@ -380,7 +384,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
 
   const kwInicial = reserva?.kw_inicial || 0
   const kwConsumo = liquidacionForm.kw_final - kwInicial
-  const kwPorDia = 110 / 7
+  const kwPorDia = KWH_INCLUIDOS_CADA_7_DIAS / 7
   const kwIncluido = Math.round(noches * kwPorDia)
   const kwExcedente = Math.max(0, kwConsumo - kwIncluido)
   const costoEnergia = kwExcedente * (liquidacionForm.costo_kw || 0)
@@ -1120,7 +1124,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
           </div>
 
           <div className="border rounded-lg p-3 bg-yellow-50/50">
-            <p className="text-sm font-medium text-costa-navy mb-2">Control de Electricidad (110 KW cada 7 días)</p>
+            <p className="text-sm font-medium text-costa-navy mb-2">Control de Electricidad ({KWH_INCLUIDOS_CADA_7_DIAS} kWh cada 7 días)</p>
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs text-costa-gris mb-1">KW Inicial</label>
@@ -1149,7 +1153,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                 {(() => {
                   const kwInicialLocal = reserva?.kw_inicial || 0
                   const consumido = liquidacionForm.kw_final - kwInicialLocal
-                  const kwPorDiaLocal = 110 / 7
+                  const kwPorDiaLocal = KWH_INCLUIDOS_CADA_7_DIAS / 7
                   const incluido = Math.round(noches * kwPorDiaLocal)
                   const excedente = Math.max(0, consumido - incluido)
                   const costoExcedente = excedente * (liquidacionForm.costo_kw || 0)
