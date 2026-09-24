@@ -289,7 +289,7 @@ function ReservasContent() {
     if (!userId) return
 
     const [resReservas, resPropiedades, resInquilinos, resCobros, resLiquidaciones] = await Promise.all([
-      supabase.from('reservas').select('*, propiedades(id, nombre, lote, direccion), inquilinos(id, nombre, documento, telefono, email, acompanantes)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio', { ascending: false }),
+      supabase.from('reservas').select('*, propiedades(id, nombre, lote, direccion), inquilinos(id, nombre, documento, domicilio, telefono, email, acompanantes)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio', { ascending: false }),
       supabase.from('propiedades').select('id, nombre, direccion, lote').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
       supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
       supabase.from('cobros').select('*, reservas!inner(id, fecha_inicio, fecha_fin, eliminado_at, propiedades(nombre), inquilinos(nombre))').eq('user_id', userId).is('reservas.eliminado_at', null).order('fecha', { ascending: false }),
@@ -736,7 +736,8 @@ function ReservasContent() {
     doc.text(reserva.inquilinos?.nombre || '-', 20, y)
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(9)
-    const datosContacto = [reserva.inquilinos?.email, reserva.inquilinos?.telefono].filter(Boolean).join(' | ')
+    const dni = reserva.inquilinos?.documento?.trim()
+    const datosContacto = [dni ? `DNI ${dni}` : '', reserva.inquilinos?.email, reserva.inquilinos?.telefono].filter(Boolean).join(' | ')
     doc.text(datosContacto || '-', 20, y + 5)
 
     y += 18
@@ -1410,7 +1411,7 @@ function ReservasContent() {
                     </div>
                   </div>
                   <div className="flex justify-end gap-1 pt-2 border-t border-costa-beige">
-                    {reserva.estado === 'confirmada' && (
+                    {reserva.estado !== 'cancelada' && (
                       <Button variant="ghost" size="sm" onClick={() => generarContratoPDF(reserva)} title="Contrato">
                         <FileSignature size={16} className="text-costa-olivo" />
                       </Button>
@@ -1530,7 +1531,7 @@ function ReservasContent() {
                                 <Wallet size={13} /> Cobros
                               </span>
                             </Link>
-                            {reserva.estado === 'confirmada' && (
+                            {reserva.estado !== 'cancelada' && (
                               <button
                                 onClick={() => generarContratoPDF(reserva)}
                                 className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
