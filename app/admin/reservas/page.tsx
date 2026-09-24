@@ -151,7 +151,7 @@ const PORCENTAJE_RESERVA = 50
 // nota del contrato. El horario sale de cada reserva, para que coincida con el plazo.
 const condicionesAlquiler = (ingreso: string, salida: string) => [
   `Horario de ingreso: ${ingreso} hs - Horario de salida: ${salida} hs`,
-  'Se incluyen 110 kWh de electricidad cada 7 días. El excedente se cobra al valor vigente.',
+  'Se incluyen 150 kWh de electricidad cada 7 días. El excedente se cobra al valor vigente.',
   'Prohibido fumar dentro de la propiedad. No se admiten mascotas sin autorización previa.',
   'El depósito se devuelve al verificar el estado de la propiedad.',
 ]
@@ -1221,7 +1221,7 @@ function ReservasContent() {
       { num: '3', title: 'Plazo', content:
         `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${formatHora(reserva.horario_ingreso, '16:00')} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${formatHora(reserva.horario_salida, '10:00')} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.` },
       { num: '4', title: 'Precio y pago', content:
-        `Total: ${monedaTotal} ${monto(total)}. ${textoReserva} El ${100 - PORCENTAJE_RESERVA}% restante, en concepto de saldo, se abonará con una anticipación mínima de 15 días a la fecha de ingreso (a más tardar el ${fechaLimiteSaldoTexto}). La forma de pago se acordará con el locador.\nEl precio incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza semanal de piscina, TV, Internet, vigilancia y electricidad hasta 110 kWh cada 7 días. El excedente se cobra según la lectura del medidor al ingreso y al egreso, al valor vigente del kWh. ${reserva.ropa_blanca ? `**Incluye ropa blanca${(reserva.monto_ropa_blanca || 0) > 0 ? ` (con cargo de ${montoEn(reserva.monto_ropa_blanca, reserva.moneda_ropa_blanca)})` : ''}.**` : '**No incluye ropa blanca.**'}${extrasTexto}` },
+        `Total: ${monedaTotal} ${monto(total)}. ${textoReserva} El ${100 - PORCENTAJE_RESERVA}% restante, en concepto de saldo, se abonará con una anticipación mínima de 15 días a la fecha de ingreso (a más tardar el ${fechaLimiteSaldoTexto}). La forma de pago se acordará con el locador.\nEl precio incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza semanal de piscina, TV, Internet, vigilancia y electricidad hasta 150 kWh cada 7 días. El excedente se cobra según la lectura del medidor al ingreso y al egreso, al valor vigente del kWh. ${reserva.ropa_blanca ? `**Incluye ropa blanca${(reserva.monto_ropa_blanca || 0) > 0 ? ` (con cargo de ${montoEn(reserva.monto_ropa_blanca, reserva.moneda_ropa_blanca)})` : ''}.**` : '**No incluye ropa blanca.**'}${extrasTexto}` },
       { num: '5', title: 'Depósito', content:
         `El locatario entrega al ingreso un depósito en garantía de ${depositoTexto}. Se devolverá al egreso, una vez verificado el estado de la propiedad, o dentro de los 7 días posteriores si hubiera que esperar lecturas, reparaciones o multas pendientes. Se descontarán daños, faltantes, exceso de consumo eléctrico y multas aplicadas por la administración del barrio por conductas del locatario, sus acompañantes o visitas. Si los daños superan el monto del depósito, la diferencia queda a cargo del locatario.` },
       { num: '6', title: 'Obligaciones del locatario', content:
