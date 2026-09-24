@@ -9,6 +9,7 @@ import { getDemoReservaById, getDemoCobrosByReservaId, getDemoLiquidacionByReser
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
 import { Plus, FileText, Receipt, Calculator, Trash2, DollarSign, Calendar, User, Home, Pencil, ChevronLeft, ChevronRight, Lock } from 'lucide-react'
 import { jsPDF } from 'jspdf'
+import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
 import Link from 'next/link'
 
 interface Reserva {
@@ -27,6 +28,10 @@ interface Reserva {
   sena: number
   limpieza_final: number
   monto_lavadero: number
+  ropa_blanca?: boolean
+  monto_ropa_blanca?: number
+  moneda_ropa_blanca?: string
+  servicios_extra?: ServicioExtra[] | null
   kw_inicial: number
   estado: string
   propiedades?: { id: number; nombre: string; direccion: string }
@@ -315,8 +320,8 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
   const isCerrada = reserva?.estado === 'cerrada'
 
   const pactadoAlquiler = reserva ? noches * (reserva.precio_noche || 0) : 0
-  const pactadoLimpieza = reserva?.limpieza_final || 0
-  const pactadoLavadero = reserva?.monto_lavadero || 0
+  // Servicios con precio: ropa blanca, limpieza, lavadero y extras
+  const pactadoServicios = reserva ? serviciosConPrecio(reserva) : []
   // El depósito se pacta y se cobra en USD. `deposito` es el campo que carga
   // el formulario de reservas; se cae a deposito_pesos solo por las reservas
   // que se hayan editado desde acá cuando este modal guardaba en ese campo.
@@ -345,8 +350,6 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
      El depósito va aparte porque es garantía, no ingreso.
      Como cada concepto puede estar en otra moneda, se agrupa por moneda en vez
      de sumar peras con manzanas. */
-  const monedaLimpieza = reserva?.moneda_limpieza || 'ARS'
-  const monedaLavadero = reserva?.moneda_lavadero || 'ARS'
 
   const sumarPorMoneda = (acc: Record<string, number>, moneda: string, monto: number) => {
     if (!monto) return acc
@@ -356,8 +359,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
 
   const pactadoOperacion: Record<string, number> = {}
   sumarPorMoneda(pactadoOperacion, monedaAlquiler, pactadoAlquiler)
-  sumarPorMoneda(pactadoOperacion, monedaLimpieza, pactadoLimpieza)
-  sumarPorMoneda(pactadoOperacion, monedaLavadero, pactadoLavadero)
+  for (const serv of pactadoServicios) sumarPorMoneda(pactadoOperacion, serv.moneda, serv.monto)
 
   // Los cobros viejos siguen marcados como limpieza o lavadero: todo lo que no
   // es depósito cuenta como operación
@@ -727,18 +729,12 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                 <span className="text-costa-gris">Alquiler ({noches} noches × <FormatMontoStyled monto={reserva?.precio_noche || 0} moneda={monedaAlquiler} />)</span>
                 <span className="font-medium"><FormatMontoStyled monto={pactadoAlquiler} moneda={monedaAlquiler} /></span>
               </div>
-              {pactadoLimpieza > 0 && (
-                <div className="flex justify-between py-1 border-b border-costa-beige">
-                  <span className="text-costa-gris">Limpieza final</span>
-                  <span className="font-medium"><FormatMontoStyled monto={pactadoLimpieza} moneda={monedaLimpieza} /></span>
+              {pactadoServicios.map((serv, i) => (
+                <div key={i} className="flex justify-between py-1 border-b border-costa-beige">
+                  <span className="text-costa-gris">{serv.label}</span>
+                  <span className="font-medium"><FormatMontoStyled monto={serv.monto} moneda={serv.moneda} /></span>
                 </div>
-              )}
-              {pactadoLavadero > 0 && (
-                <div className="flex justify-between py-1 border-b border-costa-beige">
-                  <span className="text-costa-gris">Lavadero</span>
-                  <span className="font-medium"><FormatMontoStyled monto={pactadoLavadero} moneda={monedaLavadero} /></span>
-                </div>
-              )}
+              ))}
 
               {/* Subtotal y cobrado: una línea por moneda, no se mezclan */}
               <div className="flex justify-between py-1 border-b border-costa-beige">

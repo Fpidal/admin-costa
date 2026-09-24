@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
 import { CobrosContent } from '@/components/CobrosContent'
 import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
+import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
 
 interface Propiedad {
   id: number
@@ -67,6 +68,12 @@ interface Reserva {
   monto_lavadero: number
   moneda_limpieza: string
   moneda_lavadero: string
+  incluye_limpieza: boolean
+  incluye_lavadero: boolean
+  monto_ropa_blanca: number
+  moneda_ropa_blanca: string
+  servicios_extra: ServicioExtra[] | null
+  comentario_servicios: string | null
   kw_inicial: number
   estado: string
   notas: string
@@ -235,6 +242,12 @@ const initialForm = {
   monto_lavadero: 0,
   moneda_limpieza: 'ARS',
   moneda_lavadero: 'ARS',
+  incluye_limpieza: false,
+  incluye_lavadero: false,
+  monto_ropa_blanca: 0,
+  moneda_ropa_blanca: 'ARS',
+  servicios_extra: [] as ServicioExtra[],
+  comentario_servicios: '',
   cobrar_luz: false,
   kw_inicial: 0,
   estado: 'pendiente',
@@ -379,6 +392,12 @@ function ReservasContent() {
         monto_lavadero: reserva.monto_lavadero || 0,
         moneda_limpieza: reserva.moneda_limpieza || 'ARS',
         moneda_lavadero: reserva.moneda_lavadero || 'ARS',
+        incluye_limpieza: reserva.incluye_limpieza || false,
+        incluye_lavadero: reserva.incluye_lavadero || false,
+        monto_ropa_blanca: reserva.monto_ropa_blanca || 0,
+        moneda_ropa_blanca: reserva.moneda_ropa_blanca || 'ARS',
+        servicios_extra: reserva.servicios_extra || [],
+        comentario_servicios: reserva.comentario_servicios || '',
         cobrar_luz: (reserva.kw_inicial || 0) > 0,
         kw_inicial: reserva.kw_inicial || 0,
         estado: reserva.estado || 'pendiente',
@@ -626,10 +645,20 @@ function ReservasContent() {
       sena: Number(form.sena),
       forma_pago: form.forma_pago,
       ropa_blanca: form.ropa_blanca,
-      limpieza_final: Number(form.limpieza_final),
-      monto_lavadero: Number(form.monto_lavadero),
+      // Un servicio destildado no lleva precio, aunque haya quedado escrito
+      limpieza_final: form.incluye_limpieza ? Number(form.limpieza_final) || 0 : 0,
+      monto_lavadero: form.incluye_lavadero ? Number(form.monto_lavadero) || 0 : 0,
       moneda_limpieza: form.moneda_limpieza,
       moneda_lavadero: form.moneda_lavadero,
+      incluye_limpieza: form.incluye_limpieza,
+      incluye_lavadero: form.incluye_lavadero,
+      monto_ropa_blanca: form.ropa_blanca ? Number(form.monto_ropa_blanca) || 0 : 0,
+      moneda_ropa_blanca: form.moneda_ropa_blanca,
+      // Los renglones que quedaron vacíos no se guardan
+      servicios_extra: form.servicios_extra
+        .filter(x => x.concepto.trim() || Number(x.monto))
+        .map(x => ({ concepto: x.concepto.trim(), monto: Number(x.monto) || 0, moneda: x.moneda })),
+      comentario_servicios: form.comentario_servicios.trim() || null,
       kw_inicial: Number(form.kw_inicial),
       monto: monto,
       monto_usd: Number(form.precio_noche),
@@ -793,8 +822,6 @@ function ReservasContent() {
     // ===== DETALLE DE MONTOS (con borde) =====
     // El alquiler, la limpieza y el lavadero pueden estar en monedas distintas:
     // si coinciden se suma un total; si no, se muestra una línea por moneda.
-    const monedaLimpieza = reserva.moneda_limpieza || 'ARS'
-    const monedaLavadero = reserva.moneda_lavadero || 'ARS'
     const simboloDe = (m: string) => (m === 'USD' ? 'U$D' : '$')
     // Sin centavos: se redondea acá y también al armar los montos, para que el
     // total y el saldo coincidan con la suma de las líneas de arriba
@@ -803,11 +830,8 @@ function ReservasContent() {
     const conceptos: { label: string; monto: number; moneda: string }[] = [
       { label: `Alquiler · ${noches} noche${noches !== 1 ? 's' : ''} × ${importe(reserva.precio_noche || 0, moneda)}`, monto: Math.round(total), moneda },
     ]
-    if (reserva.limpieza_final > 0) {
-      conceptos.push({ label: 'Limpieza final', monto: Math.round(reserva.limpieza_final), moneda: monedaLimpieza })
-    }
-    if (reserva.monto_lavadero > 0) {
-      conceptos.push({ label: 'Lavadero', monto: Math.round(reserva.monto_lavadero), moneda: monedaLavadero })
+    for (const serv of serviciosConPrecio(reserva)) {
+      conceptos.push({ ...serv, monto: Math.round(serv.monto) })
     }
 
     const totalPorMoneda: Record<string, number> = {}
@@ -975,10 +999,17 @@ function ReservasContent() {
     }
 
     // ===== SERVICIOS =====
-    const servicios = []
-    if (reserva.ropa_blanca) servicios.push('Ropa blanca incluida')
+    // Los que tienen precio ya figuran en los montos; acá va qué incluye
+    const servicios: string[] = []
+    if (reserva.ropa_blanca) servicios.push((reserva.monto_ropa_blanca || 0) > 0 ? 'Ropa blanca' : 'Ropa blanca (incluida)')
+    if (reserva.incluye_limpieza || reserva.limpieza_final > 0) servicios.push(reserva.limpieza_final > 0 ? 'Limpieza final' : 'Limpieza final (bonificada)')
+    if (reserva.incluye_lavadero || reserva.monto_lavadero > 0) servicios.push('Lavadero')
+    for (const x of reserva.servicios_extra || []) {
+      if (x.concepto) servicios.push(x.monto > 0 ? x.concepto : `${x.concepto} (sin cargo)`)
+    }
+    const comentarioServicios = reserva.comentario_servicios?.trim()
 
-    if (servicios.length > 0 && y < TOPE_MEDIO) {
+    if ((servicios.length > 0 || comentarioServicios) && y < TOPE_MEDIO) {
       doc.setTextColor(azulPrincipal.r, azulPrincipal.g, azulPrincipal.b)
       doc.setFontSize(10)
       doc.setFont('helvetica', 'bold')
@@ -991,6 +1022,13 @@ function ReservasContent() {
         doc.text(`• ${s}`, 25, y)
         y += 4
       })
+      if (comentarioServicios) {
+        doc.setFont('helvetica', 'italic')
+        const lineas = doc.splitTextToSize(comentarioServicios, pageWidth - 45)
+        doc.text(lineas, 25, y)
+        y += lineas.length * 4
+        doc.setFont('helvetica', 'normal')
+      }
       y += 3
     }
 
@@ -1122,6 +1160,22 @@ function ReservasContent() {
     const lote = reserva.propiedades?.lote?.trim()
     const barrioLote = lote ? `${barrio}, Lote ${lote}` : barrio
 
+    const montoEn = (n: number, m: string | null | undefined) => `${m === 'USD' ? 'USD ' : '$'}${monto(n)}`
+
+    // Extras (mucama, ropa blanca adicional...): con su precio o sin cargo
+    const extras = (reserva.servicios_extra || []).filter(x => x.concepto)
+    const extrasTexto = extras.length
+      ? ` Servicios adicionales: ${extras.map(x => `${x.concepto} (${x.monto > 0 ? montoEn(x.monto, x.moneda) : 'sin cargo'})`).join(', ')}.`
+      : ''
+
+    // Limpieza: con precio se paga; tildada sin precio, bonificada; sin tildar no se menciona
+    const textoLimpieza = [
+      reserva.limpieza_final > 0
+        ? `Pagar limpieza de salida de ${montoEn(reserva.limpieza_final, reserva.moneda_limpieza)}.`
+        : reserva.incluye_limpieza ? 'La limpieza de salida está bonificada.' : '',
+      reserva.monto_lavadero > 0 ? `Pagar lavadero de ${montoEn(reserva.monto_lavadero, reserva.moneda_lavadero)}.` : '',
+    ].filter(Boolean).map(t => `${t} `).join('')
+
     const formatFechaLarga = (fecha: string) => {
       return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
     }
@@ -1141,11 +1195,11 @@ function ReservasContent() {
       { num: '3', title: 'Plazo', content:
         `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${formatHora(reserva.horario_ingreso, '16:00')} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${formatHora(reserva.horario_salida, '10:00')} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.` },
       { num: '4', title: 'Precio y pago', content:
-        `Total: ${monedaTotal} ${monto(total)}. El locatario abonará el ${PORCENTAJE_RESERVA}% en concepto de reserva antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}, y el ${100 - PORCENTAJE_RESERVA}% restante al momento del ingreso. La forma de pago se acordará con el locador. Si la reserva no se abona en la fecha indicada, el locador podrá disponer libremente de la propiedad para esas fechas.\nEl precio incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza semanal de piscina, TV, Internet, vigilancia y electricidad hasta 110 kWh cada 7 días. El excedente se cobra según la lectura del medidor al ingreso y al egreso, al valor vigente del kWh. ${reserva.ropa_blanca ? '**Incluye ropa blanca.**' : '**No incluye ropa blanca.**'} La falta de suministro de servicios no es responsabilidad del locador.` },
+        `Total: ${monedaTotal} ${monto(total)}. El locatario abonará el ${PORCENTAJE_RESERVA}% en concepto de reserva antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}, y el ${100 - PORCENTAJE_RESERVA}% restante al momento del ingreso. La forma de pago se acordará con el locador. Si la reserva no se abona en la fecha indicada, el locador podrá disponer libremente de la propiedad para esas fechas.\nEl precio incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza semanal de piscina, TV, Internet, vigilancia y electricidad hasta 110 kWh cada 7 días. El excedente se cobra según la lectura del medidor al ingreso y al egreso, al valor vigente del kWh. ${reserva.ropa_blanca ? `**Incluye ropa blanca${(reserva.monto_ropa_blanca || 0) > 0 ? ` (con cargo de ${montoEn(reserva.monto_ropa_blanca, reserva.moneda_ropa_blanca)})` : ''}.**` : '**No incluye ropa blanca.**'}${extrasTexto} La falta de suministro de servicios no es responsabilidad del locador.` },
       { num: '5', title: 'Depósito', content:
         `El locatario entrega un depósito de ${depositoTexto} que se devolverá al finalizar, descontando daños, faltantes, exceso de consumo eléctrico o multas.` },
       { num: '6', title: 'Obligaciones del locatario', content:
-        `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. ${reserva.limpieza_final > 0 ? `Pagar limpieza de salida de ${reserva.moneda_limpieza === 'USD' ? 'USD ' : '$'}${monto(reserva.limpieza_final)}.` : 'La limpieza de salida está bonificada.'} Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.` },
+        `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. ${textoLimpieza}Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.` },
       { num: '7', title: 'Responsabilidad', content:
         `El locador no responde por accidentes, robos, incendios o cortes de servicios. El locatario asume todos los riesgos de su estadía.` },
       { num: '8', title: 'Jurisdicción', content:
@@ -1511,8 +1565,7 @@ function ReservasContent() {
                     const totalPorMoneda: Record<string, number> = {}
                     const sumar = (m: string, v: number) => { if (v) totalPorMoneda[m] = (totalPorMoneda[m] || 0) + v }
                     sumar(moneda, noches * (reserva.precio_noche || 0))
-                    sumar(reserva.moneda_limpieza || 'ARS', reserva.limpieza_final || 0)
-                    sumar(reserva.moneda_lavadero || 'ARS', reserva.monto_lavadero || 0)
+                    for (const serv of serviciosConPrecio(reserva)) sumar(serv.moneda, serv.monto)
 
                     // Cuenta todo lo cobrado menos el depósito, que es garantía
                     const cobradoPorMoneda: Record<string, number> = {}
@@ -2322,92 +2375,100 @@ function ReservasContent() {
           </div>
 
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Servicios adicionales</p>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg h-fit">
-              <input
-                type="checkbox"
-                id="ropa_blanca"
-                checked={form.ropa_blanca}
-                onChange={(e) => setForm({ ...form, ropa_blanca: e.target.checked })}
-                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <label htmlFor="ropa_blanca" className="text-sm text-gray-700">Ropa blanca</label>
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="incluye_limpieza"
-                  checked={form.limpieza_final > 0}
-                  onChange={(e) => {
-                    setForm({ ...form, limpieza_final: e.target.checked ? 150000 : 0 })
-                  }}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="incluye_limpieza" className="text-sm text-gray-700">Limpieza final</label>
-              </div>
-              {form.limpieza_final > 0 && (
-                <div className="mt-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Monto
-                    {form.limpieza_final === 150000 && (
-                      <span className="text-xs text-gray-400 ml-2">(sugerido)</span>
-                    )}
-                  </label>
-                  <div className="flex gap-2">
-                    <div className={`flex-1 ${form.limpieza_final === 150000 ? 'opacity-50' : ''}`}>
-                      <InputNumber value={form.limpieza_final} onChange={(val) => setForm({ ...form, limpieza_final: val })} />
+          {/* Cada servicio se tilda y, si se quiere, se le pone precio. En blanco
+              queda incluido sin cargo (la limpieza figura bonificada). */}
+          <div className="p-3 bg-gray-50 rounded-lg space-y-2">
+            {([
+              { check: 'ropa_blanca', monto: 'monto_ropa_blanca', moneda: 'moneda_ropa_blanca', label: 'Ropa blanca', ayuda: '' },
+              { check: 'incluye_limpieza', monto: 'limpieza_final', moneda: 'moneda_limpieza', label: 'Limpieza final', ayuda: 'puede incluir el lavadero' },
+              { check: 'incluye_lavadero', monto: 'monto_lavadero', moneda: 'moneda_lavadero', label: 'Lavadero', ayuda: '' },
+            ] as const).map(serv => (
+              <div key={serv.check} className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-h-10">
+                <label className="flex items-center gap-2 cursor-pointer w-full sm:w-auto sm:flex-1">
+                  <input
+                    type="checkbox"
+                    checked={form[serv.check]}
+                    onChange={(e) => setForm({ ...form, [serv.check]: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{serv.label}</span>
+                  {serv.ayuda && <span className="text-xs text-gray-400">{serv.ayuda}</span>}
+                </label>
+                {form[serv.check] && (
+                  <>
+                    <div className="flex-1 sm:w-36 sm:flex-none">
+                      <InputNumber
+                        value={form[serv.monto] || ''}
+                        onChange={(val) => setForm({ ...form, [serv.monto]: val })}
+                        placeholder="Sin cargo"
+                      />
                     </div>
                     <select
-                      value={form.moneda_limpieza}
-                      onChange={(e) => setForm({ ...form, moneda_limpieza: e.target.value })}
-                      className="w-24 px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={form[serv.moneda]}
+                      onChange={(e) => setForm({ ...form, [serv.moneda]: e.target.value })}
+                      className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     >
                       <option value="ARS">$</option>
                       <option value="USD">U$D</option>
                     </select>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="incluye_lavadero"
-                  checked={form.monto_lavadero > 0}
-                  onChange={(e) => {
-                    setForm({ ...form, monto_lavadero: e.target.checked ? 100000 : 0 })
-                  }}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label htmlFor="incluye_lavadero" className="text-sm text-gray-700">Lavadero</label>
+                    <span className="w-8 hidden sm:block" />
+                  </>
+                )}
               </div>
-              {form.monto_lavadero > 0 && (
-                <div className="mt-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Monto
-                    {form.monto_lavadero === 100000 && (
-                      <span className="text-xs text-gray-400 ml-2">(sugerido)</span>
-                    )}
-                  </label>
-                  <div className="flex gap-2">
-                    <div className={`flex-1 ${form.monto_lavadero === 100000 ? 'opacity-50' : ''}`}>
-                      <InputNumber value={form.monto_lavadero} onChange={(val) => setForm({ ...form, monto_lavadero: val })} />
-                    </div>
-                    <select
-                      value={form.moneda_lavadero}
-                      onChange={(e) => setForm({ ...form, moneda_lavadero: e.target.value })}
-                      className="w-24 px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="ARS">$</option>
-                      <option value="USD">U$D</option>
-                    </select>
+            ))}
+
+            {form.servicios_extra.map((extra, idx) => {
+              const cambiar = (cambios: Partial<ServicioExtra>) => setForm({
+                ...form,
+                servicios_extra: form.servicios_extra.map((x, i) => (i === idx ? { ...x, ...cambios } : x)),
+              })
+              return (
+                <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                  <input
+                    type="text"
+                    value={extra.concepto}
+                    onChange={(e) => cambiar({ concepto: e.target.value })}
+                    placeholder="Ej: Ropa blanca adicional, mucama cada 3 días"
+                    className="w-full sm:flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <div className="flex-1 sm:w-36 sm:flex-none">
+                    <InputNumber value={extra.monto || ''} onChange={(val) => cambiar({ monto: val })} placeholder="Sin cargo" />
                   </div>
+                  <select
+                    value={extra.moneda}
+                    onChange={(e) => cambiar({ moneda: e.target.value })}
+                    className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="ARS">$</option>
+                    <option value="USD">U$D</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, servicios_extra: form.servicios_extra.filter((_, i) => i !== idx) })}
+                    className="p-2 w-8 text-costa-gris hover:bg-costa-beige rounded"
+                    title="Quitar"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
-              )}
-            </div>
+              )
+            })}
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, servicios_extra: [...form.servicios_extra, { concepto: '', monto: 0, moneda: form.moneda }] })}
+              className="inline-flex items-center gap-1 pt-1 text-sm font-medium text-costa-navy hover:underline"
+            >
+              <Plus size={14} /> Agregar otro servicio
+            </button>
           </div>
+
+          <Textarea
+            label="Comentario sobre los servicios"
+            value={form.comentario_servicios}
+            onChange={(e) => setForm({ ...form, comentario_servicios: e.target.value })}
+            placeholder="Ej: la ropa blanca incluye sábanas y toallas, no toallones de pileta"
+            rows={2}
+          />
 
           {/* Control de electricidad - Solo KW Inicial */}
           <div className="border rounded-lg p-4 bg-yellow-50/50">
