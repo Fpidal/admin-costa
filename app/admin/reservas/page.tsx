@@ -559,7 +559,8 @@ function ReservasContent() {
       return
     }
 
-    // Validar superposición de fechas con reservas confirmadas
+    // Validar superposición de fechas con reservas confirmadas. Como en un hotel,
+    // el día de salida de una reserva puede ser el de entrada de la siguiente
     const reservasConfirmadas = reservas.filter(r => {
       if (r.propiedad_id !== form.propiedad_id || r.estado !== 'confirmada') return false
       if (editingId && r.id === editingId) return false
@@ -567,7 +568,7 @@ function ReservasContent() {
       const finExistente = parseFechaLocal(r.fecha_fin)
       const inicioNuevo = parseFechaLocal(form.check_in)
       const finNuevo = parseFechaLocal(form.check_out)
-      return inicioNuevo <= finExistente && finNuevo >= inicioExistente
+      return inicioNuevo < finExistente && finNuevo > inicioExistente
     })
 
     if (reservasConfirmadas.length > 0) {
@@ -587,7 +588,7 @@ function ReservasContent() {
       const finExistente = parseFechaLocal(r.fecha_fin)
       const inicioNuevo = parseFechaLocal(form.check_in)
       const finNuevo = parseFechaLocal(form.check_out)
-      return inicioNuevo <= finExistente && finNuevo >= inicioExistente
+      return inicioNuevo < finExistente && finNuevo > inicioExistente
     })
 
     if (reservasPendientes.length > 0) {

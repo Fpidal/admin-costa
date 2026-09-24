@@ -349,8 +349,8 @@ function LandingContent() {
       const reservaInicio = parseFechaLocal(r.fecha_inicio)
       const reservaFin = parseFechaLocal(r.fecha_fin)
 
-      // Check for overlap: reservation overlaps if it starts before search ends AND ends after search starts
-      return reservaInicio <= busquedaFin && reservaFin >= busquedaInicio
+      // Como en un hotel: el día de salida de uno puede ser el de entrada de otro
+      return reservaInicio < busquedaFin && reservaFin > busquedaInicio
     })
   }
 
