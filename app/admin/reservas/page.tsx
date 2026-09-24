@@ -134,6 +134,9 @@ const monedas = [
 // cantidad de personas que vino en la reserva.
 const MAX_PERSONAS_CONTRATO = 8
 
+// Porcentaje del total que se abona como reserva; el resto, al ingresar
+const PORCENTAJE_RESERVA = 30
+
 // Teléfono que se muestra en el contrato y en el detalle de reserva
 const TELEFONO_CONTACTO = '11 6879 2207'
 
@@ -141,7 +144,7 @@ const TELEFONO_CONTACTO = '11 6879 2207'
 // nota del contrato. El horario sale de cada reserva, para que coincida con el plazo.
 const condicionesAlquiler = (ingreso: string, salida: string) => [
   `Horario de ingreso: ${ingreso} hs - Horario de salida: ${salida} hs`,
-  'Se incluyen 110 kW de electricidad cada 7 días. El excedente se cobra al valor vigente.',
+  'Se incluyen 110 kWh de electricidad cada 7 días. El excedente se cobra al valor vigente.',
   'Prohibido fumar dentro de la propiedad. No se admiten mascotas sin autorización previa.',
   'El depósito se devuelve al verificar el estado de la propiedad.',
 ]
@@ -1099,8 +1102,8 @@ function ReservasContent() {
     const monto = (n: number) => Math.round(n || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })
     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
     const total = Math.round(noches * (reserva.precio_noche || 0))
-    const sena = Math.round(reserva.sena || 0)
-    const saldo = total - sena
+    // El total va en la moneda de la reserva; la reserva y el saldo, en porcentaje
+    const monedaTotal = reserva.moneda === 'ARS' ? '$' : 'USD'
 
     const locador = {
       nombre: 'Rosa María Martín D.',
@@ -1138,7 +1141,7 @@ function ReservasContent() {
       { num: '3', title: 'Plazo', content:
         `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${formatHora(reserva.horario_ingreso, '16:00')} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${formatHora(reserva.horario_salida, '10:00')} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.` },
       { num: '4', title: 'Precio y pago', content:
-        `Total: USD ${monto(total)}. Reserva: USD ${monto(sena)} antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })} (transferencia). Saldo: USD ${monto(saldo)} al ingresar (efectivo). Incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza de piscina semanal, TV, Internet, vigilancia y electricidad hasta 110 kW cada 7 días (el excedente se cobra al valor vigente). ${reserva.ropa_blanca ? 'Incluye ropa blanca.' : 'No incluye ropa blanca.'} Falta de suministro de servicios no es responsabilidad del locador.` },
+        `Total: ${monedaTotal} ${monto(total)}. El locatario abonará el ${PORCENTAJE_RESERVA}% en concepto de reserva antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}, y el ${100 - PORCENTAJE_RESERVA}% restante al momento del ingreso. La forma de pago se acordará con el locador. Si la reserva no se abona en la fecha indicada, el locador podrá disponer libremente de la propiedad para esas fechas.\nEl precio incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza semanal de piscina, TV, Internet, vigilancia${reserva.ropa_blanca ? ', ropa blanca' : ''} y electricidad hasta 110 kWh cada 7 días.${reserva.ropa_blanca ? '' : ' No incluye ropa blanca.'} El excedente se cobra según la lectura del medidor al ingreso y al egreso, al valor vigente del kWh. La falta de suministro de servicios no es responsabilidad del locador.` },
       { num: '5', title: 'Depósito', content:
         `El locatario entrega un depósito de ${depositoTexto} que se devolverá al finalizar, descontando daños, faltantes, exceso de consumo eléctrico o multas.` },
       { num: '6', title: 'Obligaciones del locatario', content:
