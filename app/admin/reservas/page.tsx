@@ -1201,7 +1201,7 @@ function ReservasContent() {
       { num: '6', title: 'Obligaciones del locatario', content:
         `Mantener la propiedad en buen estado y restituirla limpia, con vajilla y parrilla lavadas. ${textoLimpieza}Avisar de desperfectos y permitir ingreso para reparaciones, jardinería y mantenimiento de piscina. No realizar mejoras sin autorización. No estacionar sobre el césped ni dañar riego; el costo de reparación será a su cargo. El uso de cuatriciclos requiere registro y es bajo su exclusiva responsabilidad.` },
       { num: '7', title: 'Responsabilidad', content:
-        `El locador no responde por accidentes, robos, incendios o cortes de servicios. El locatario asume todos los riesgos de su estadía.` },
+        `El locador no responde por robos o hurtos de pertenencias del locatario, sus acompañantes o visitas, ni por cortes o fallas de servicios ajenos a su control (electricidad, agua, gas, Internet, TV).\nEl uso de la piscina, parrilla, juegos y demás instalaciones es bajo exclusiva responsabilidad del locatario. Los menores de edad deberán estar en todo momento bajo la supervisión de un adulto, especialmente en la zona de piscina.\nEl locatario responde por los daños que él, sus acompañantes o visitas causen a la propiedad, a su equipamiento o a terceros, incluidas las sanciones que aplique la administración del barrio.` },
       { num: '8', title: 'Jurisdicción', content:
         `Las partes fijan domicilio en los indicados arriba y se someten a los tribunales ordinarios de la Ciudad Autónoma de Buenos Aires.` },
       // Nota con lo mismo que figura en el detalle de reserva
