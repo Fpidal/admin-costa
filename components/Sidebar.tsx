@@ -17,7 +17,8 @@ import {
   Eye,
   Shield,
   Trash2,
-  Images
+  Images,
+  UserCog
 } from 'lucide-react'
 import { useState } from 'react'
 import { CampanitaMensajes } from './CampanitaMensajes'
@@ -31,6 +32,7 @@ const navigation = [
   { name: 'Resumen', href: '/admin', icon: LayoutDashboard },
   { name: 'Administración', href: '/admin/gastos', icon: Receipt },
   { name: 'Info útil', href: '/admin/info-util', icon: Info },
+  { name: 'Mis datos', href: '/admin/mis-datos', icon: UserCog },
   { name: 'Papelera', href: '/admin/papelera', icon: Trash2 },
 ]
 

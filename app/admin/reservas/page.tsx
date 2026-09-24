@@ -14,6 +14,7 @@ import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib
 import { CobrosContent } from '@/components/CobrosContent'
 import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
+import { DATOS_LOCADOR_DEMO, DATOS_LOCADOR_VACIOS, camposFaltantes, type DatosLocador } from '@/lib/datosLocador'
 
 interface Propiedad {
   id: number
@@ -145,7 +146,6 @@ const MAX_PERSONAS_CONTRATO = 8
 const PORCENTAJE_RESERVA = 50
 
 // Teléfono que se muestra en el contrato y en el detalle de reserva
-const TELEFONO_CONTACTO = '11 6879 2207'
 
 // Condiciones y cuidados: los mismos textos van en el detalle de reserva y como
 // nota del contrato. El horario sale de cada reserva, para que coincida con el plazo.
@@ -268,6 +268,8 @@ function ReservasContent() {
   const [liquidaciones, setLiquidaciones] = useState<Liquidacion[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [inquilinos, setInquilinos] = useState<Inquilino[]>([])
+  // Locador del contrato: los datos que el usuario cargó en "Mis datos"
+  const [locador, setLocador] = useState<DatosLocador>(DATOS_LOCADOR_VACIOS)
   // Alta rápida del titular: cargar la reserva no debería obligar a ir a
   // Inquilinos y volver. Se crea con lo mínimo y el resto se completa allá
   const [nuevoTitularOpen, setNuevoTitularOpen] = useState(false)
@@ -295,6 +297,7 @@ function ReservasContent() {
       setPropiedades(demoPropiedades.map(p => ({ id: p.id as unknown as number, nombre: p.nombre })) as Propiedad[])
       setInquilinos(demoInquilinos as unknown as Inquilino[])
       setCobros(demoCobros as unknown as Cobro[])
+      setLocador(DATOS_LOCADOR_DEMO)
       setLoading(false)
       return
     }
@@ -304,12 +307,13 @@ function ReservasContent() {
   async function fetchData() {
     if (!userId) return
 
-    const [resReservas, resPropiedades, resInquilinos, resCobros, resLiquidaciones] = await Promise.all([
+    const [resReservas, resPropiedades, resInquilinos, resCobros, resLiquidaciones, resPerfil] = await Promise.all([
       supabase.from('reservas').select('*, propiedades(id, nombre, lote, direccion), inquilinos(id, nombre, documento, domicilio, telefono, email, acompanantes)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio', { ascending: false }),
       supabase.from('propiedades').select('id, nombre, direccion, lote').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
       supabase.from('inquilinos').select('id, nombre, documento, telefono, email, domicilio, acompanantes').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
       supabase.from('cobros').select('*, reservas!inner(id, fecha_inicio, fecha_fin, eliminado_at, propiedades(nombre), inquilinos(nombre))').eq('user_id', userId).is('reservas.eliminado_at', null).order('fecha', { ascending: false }),
-      supabase.from('liquidaciones').select('*').eq('user_id', userId)
+      supabase.from('liquidaciones').select('*').eq('user_id', userId),
+      supabase.from('profiles').select('nombre, dni, domicilio, telefono').eq('id', userId).single()
     ])
 
     if (resReservas.data) setReservas(resReservas.data)
@@ -317,6 +321,14 @@ function ReservasContent() {
     if (resInquilinos.data) setInquilinos(resInquilinos.data)
     if (resCobros.data) setCobros(resCobros.data)
     if (resLiquidaciones.data) setLiquidaciones(resLiquidaciones.data)
+    if (resPerfil.data) {
+      setLocador({
+        nombre: resPerfil.data.nombre || '',
+        dni: resPerfil.data.dni || '',
+        domicilio: resPerfil.data.domicilio || '',
+        telefono: resPerfil.data.telefono || '',
+      })
+    }
     setLoading(false)
   }
 
@@ -720,7 +732,7 @@ function ReservasContent() {
     const loteProp = reserva.propiedades?.lote?.trim()
     const contacto = {
       direccion: `${nombrePropiedad}${loteProp ? `, Lote ${loteProp}` : ''}, Costa Esmeralda`,
-      tel: TELEFONO_CONTACTO,
+      tel: locador.telefono,
     }
 
     // Número de detalle - usar últimos 6 caracteres del UUID
@@ -740,7 +752,7 @@ function ReservasContent() {
 
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
-    doc.text(`${contacto.direccion} | ${contacto.tel}`, 15, 22)
+    doc.text(contacto.tel ? `${contacto.direccion} | ${contacto.tel}` : contacto.direccion, 15, 22)
 
     // Detalle a la derecha del encabezado
     doc.setFontSize(12)
@@ -1123,6 +1135,15 @@ function ReservasContent() {
   }
 
   function generarContratoPDF(reserva: Reserva) {
+    // Sin los datos del locador el contrato saldría incompleto: se piden antes
+    const faltan = camposFaltantes(locador)
+    if (faltan.length > 0) {
+      if (confirm(`Para generar el contrato completá tus datos (${faltan.join(', ')}) en "Mis datos".\n\n¿Ir ahora?`)) {
+        window.location.href = '/admin/mis-datos'
+      }
+      return
+    }
+
     const doc = new jsPDF()
     const pageWidth = doc.internal.pageSize.getWidth()
     const pageHeight = doc.internal.pageSize.getHeight()
@@ -1142,13 +1163,6 @@ function ReservasContent() {
     const total = Math.round(noches * (reserva.precio_noche || 0))
     // El total va en la moneda de la reserva; la reserva y el saldo, en porcentaje
     const monedaTotal = reserva.moneda === 'ARS' ? '$' : 'USD'
-
-    const locador = {
-      nombre: 'Rosa María Martin D.',
-      dni: '25.021.513',
-      domicilio: 'Av. Italia 4500',
-      telefono: TELEFONO_CONTACTO
-    }
 
     const locatario = {
       nombre: reserva.inquilinos?.nombre || '-',
@@ -1302,7 +1316,7 @@ function ReservasContent() {
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(fsTexto)
-    doc.text(`Locadora: ${locador.nombre}, DNI ${locador.dni}, ${locador.domicilio} — Tel. ${locador.telefono}`, margin, y)
+    doc.text(`Locador: ${locador.nombre}, DNI ${locador.dni}, ${locador.domicilio} — Tel. ${locador.telefono}`, margin, y)
     y += 4.6 * k
     doc.text(`Locatario: ${locatario.nombre}, DNI ${locatario.dni}, ${locatario.domicilio}`, margin, y)
     y += 4.6 * k + 5 * k
@@ -1345,7 +1359,7 @@ function ReservasContent() {
     doc.line(pageWidth - margin - 62, yFirma, pageWidth - margin, yFirma)
     doc.setFontSize(8)
     doc.setTextColor(60, 60, 60)
-    doc.text(`${locador.nombre} – Locadora`, margin, yFirma + 5)
+    doc.text(`${locador.nombre} – Locador`, margin, yFirma + 5)
     doc.text(`${locatario.nombre} – Locatario`, pageWidth - margin - 62, yFirma + 5)
     doc.text(`DNI ${locador.dni}`, margin, yFirma + 9)
     if (locatario.dni !== '-') doc.text(`DNI ${locatario.dni}`, pageWidth - margin - 62, yFirma + 9)
