@@ -1141,7 +1141,7 @@ function ReservasContent() {
       { num: '3', title: 'Plazo', content:
         `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${formatHora(reserva.horario_ingreso, '16:00')} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${formatHora(reserva.horario_salida, '10:00')} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.` },
       { num: '4', title: 'Precio y pago', content:
-        `Total: ${monedaTotal} ${monto(total)}. El locatario abonará el ${PORCENTAJE_RESERVA}% en concepto de reserva antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}, y el ${100 - PORCENTAJE_RESERVA}% restante al momento del ingreso. La forma de pago se acordará con el locador. Si la reserva no se abona en la fecha indicada, el locador podrá disponer libremente de la propiedad para esas fechas.\nEl precio incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza semanal de piscina, TV, Internet, vigilancia${reserva.ropa_blanca ? ', ropa blanca' : ''} y electricidad hasta 110 kWh cada 7 días.${reserva.ropa_blanca ? '' : ' No incluye ropa blanca.'} El excedente se cobra según la lectura del medidor al ingreso y al egreso, al valor vigente del kWh. La falta de suministro de servicios no es responsabilidad del locador.` },
+        `Total: ${monedaTotal} ${monto(total)}. El locatario abonará el ${PORCENTAJE_RESERVA}% en concepto de reserva antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}, y el ${100 - PORCENTAJE_RESERVA}% restante al momento del ingreso. La forma de pago se acordará con el locador. Si la reserva no se abona en la fecha indicada, el locador podrá disponer libremente de la propiedad para esas fechas.\nEl precio incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza semanal de piscina, TV, Internet, vigilancia y electricidad hasta 110 kWh cada 7 días. El excedente se cobra según la lectura del medidor al ingreso y al egreso, al valor vigente del kWh. ${reserva.ropa_blanca ? '**Incluye ropa blanca.**' : '**No incluye ropa blanca.**'} La falta de suministro de servicios no es responsabilidad del locador.` },
       { num: '5', title: 'Depósito', content:
         `El locatario entrega un depósito de ${depositoTexto} que se devolverá al finalizar, descontando daños, faltantes, exceso de consumo eléctrico o multas.` },
       { num: '6', title: 'Obligaciones del locatario', content:
@@ -1165,6 +1165,42 @@ function ReservasContent() {
     const yInicio = headerH + 9
     const altoFirmas = 38 // lugar y fecha + líneas de firma + pie
 
+    /* Arma las líneas de un párrafo respetando los tramos entre ** como
+       negrita (jsPDF no mezcla fuentes dentro de un mismo text). Usa el
+       tamaño de letra vigente, igual para medir que para escribir. */
+    type Tramo = { t: string; b: boolean }
+    const partirEnLineas = (texto: string): Tramo[][] => {
+      const lineas: Tramo[][] = []
+      const ancho = (t: string, b: boolean) => {
+        doc.setFont('helvetica', b ? 'bold' : 'normal')
+        return doc.getTextWidth(t)
+      }
+      for (const parrafo of texto.split('\n')) {
+        const palabras: Tramo[] = []
+        parrafo.split(/(\*\*[^*]+\*\*)/).forEach((parte, i) => {
+          const b = i % 2 === 1
+          const limpio = b ? parte.slice(2, -2) : parte
+          for (const t of limpio.split(' ')) if (t) palabras.push({ t, b })
+        })
+        let linea: Tramo[] = []
+        let usado = 0
+        for (const p of palabras) {
+          const w = ancho(p.t, p.b)
+          const espacio = linea.length ? ancho(' ', p.b) : 0
+          if (linea.length && usado + espacio + w > contentWidth) {
+            lineas.push(linea)
+            linea = []
+            usado = 0
+          }
+          linea.push({ t: linea.length ? ` ${p.t}` : p.t, b: p.b })
+          usado += (linea.length > 1 ? espacio : 0) + w
+        }
+        lineas.push(linea)
+      }
+      doc.setFont('helvetica', 'normal')
+      return lineas
+    }
+
     const medir = (k: number) => {
       const fsTexto = 9.4 * k
       const lh = 4.5 * k
@@ -1174,7 +1210,7 @@ function ReservasContent() {
       for (const sec of secciones) {
         doc.setFontSize(fsTexto)
         doc.setFont('helvetica', 'normal')
-        const lines = doc.splitTextToSize(sec.content, contentWidth)
+        const lines = partirEnLineas(sec.content)
         alto += 5.2 * k + lines.length * lh + 3.6 * k
       }
       return alto
@@ -1227,8 +1263,16 @@ function ReservasContent() {
       doc.setFont('helvetica', 'normal')
       doc.setTextColor(60, 60, 60)
       doc.setFontSize(fsTexto)
-      const lines = doc.splitTextToSize(sec.content, contentWidth)
-      doc.text(lines, margin, y)
+      const lines = partirEnLineas(sec.content)
+      lines.forEach((linea, i) => {
+        let x = margin
+        for (const tramo of linea) {
+          doc.setFont('helvetica', tramo.b ? 'bold' : 'normal')
+          doc.text(tramo.t, x, y + i * lh)
+          x += doc.getTextWidth(tramo.t)
+        }
+      })
+      doc.setFont('helvetica', 'normal')
       y += lines.length * lh + 3.6 * k
     }
 
