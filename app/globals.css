@@ -56,4 +56,13 @@ body {
   --text-xl: 1rem;
   --text-2xl: 1.2rem;
   --text-3xl: 1.5rem;
+  /* Anchos máximos (max-w-*) también al 80%, si no la ficha de reserva
+     queda igual de ancha con la letra más chica y los campos se separan */
+  --container-md: 22.4rem;
+  --container-lg: 25.6rem;
+  --container-xl: 28.8rem;
+  --container-2xl: 33.6rem;
+  --container-3xl: 38.4rem;
+  --container-4xl: 44.8rem;
+  --container-5xl: 51.2rem;
 }
