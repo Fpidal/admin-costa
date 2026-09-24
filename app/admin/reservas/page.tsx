@@ -1145,6 +1145,7 @@ function ReservasContent() {
 
     const locador = {
       nombre: 'Rosa María Martin D.',
+      dni: '25.021.513',
       domicilio: 'Av. Italia 4500',
       telefono: TELEFONO_CONTACTO
     }
@@ -1301,7 +1302,7 @@ function ReservasContent() {
 
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(fsTexto)
-    doc.text(`Locadora: ${locador.nombre}, ${locador.domicilio} — Tel. ${locador.telefono}`, margin, y)
+    doc.text(`Locadora: ${locador.nombre}, DNI ${locador.dni}, ${locador.domicilio} — Tel. ${locador.telefono}`, margin, y)
     y += 4.6 * k
     doc.text(`Locatario: ${locatario.nombre}, DNI ${locatario.dni}, ${locatario.domicilio}`, margin, y)
     y += 4.6 * k + 5 * k
