@@ -1195,8 +1195,19 @@ function ReservasContent() {
       return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
     }
 
-    const fechaLimiteSena = parseFechaLocal(reserva.fecha_inicio)
-    fechaLimiteSena.setDate(fechaLimiteSena.getDate() - 15)
+    // El saldo se paga con 15 días de anticipación al ingreso
+    const fechaLimiteSaldo = parseFechaLocal(reserva.fecha_inicio)
+    fechaLimiteSaldo.setDate(fechaLimiteSaldo.getDate() - 15)
+    const fechaLimiteSaldoTexto = fechaLimiteSaldo.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
+
+    // Si ya hay cobros (sin contar el depósito) la reserva está paga y el
+    // contrato sirve de recibo; si no, se pide dentro de los 5 días
+    const cobradoReserva = cobros
+      .filter(c => c.reserva_id === reserva.id && c.aplicar_a !== 'deposito')
+      .reduce((acc, c) => acc + (c.concepto === 'devolucion_sena' ? -(c.monto || 0) : (c.monto || 0)), 0)
+    const textoReserva = cobradoReserva > 0
+      ? `El locatario abonó el ${PORCENTAJE_RESERVA}% en concepto de reserva, que el locador declara haber recibido, sirviendo el presente de recibo.`
+      : `El locatario abonará el ${PORCENTAJE_RESERVA}% en concepto de reserva dentro de los 5 días de aceptada la cotización. Si no se abona en ese plazo, el locador podrá disponer libremente de la propiedad para esas fechas.`
 
     const depositoTexto = reserva.deposito_pesos
       ? `USD ${monto(reserva.deposito)} (o echeq $${monto(reserva.deposito_pesos)})`
@@ -1210,7 +1221,7 @@ function ReservasContent() {
       { num: '3', title: 'Plazo', content:
         `Desde ${formatFechaLarga(reserva.fecha_inicio)} a las ${formatHora(reserva.horario_ingreso, '16:00')} hs hasta ${formatFechaLarga(reserva.fecha_fin)} a las ${formatHora(reserva.horario_salida, '10:00')} hs, improrrogable. Si no se entrega en término, se aplica una penalidad de USD 500 por día de demora.` },
       { num: '4', title: 'Precio y pago', content:
-        `Total: ${monedaTotal} ${monto(total)}. El locatario abonará el ${PORCENTAJE_RESERVA}% en concepto de reserva antes del ${fechaLimiteSena.toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })}, y el ${100 - PORCENTAJE_RESERVA}% restante en concepto de cancelación al momento del ingreso. La forma de pago se acordará con el locador. Si la reserva no se abona en la fecha indicada, el locador podrá disponer libremente de la propiedad para esas fechas.\nEl precio incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza semanal de piscina, TV, Internet, vigilancia y electricidad hasta 110 kWh cada 7 días. El excedente se cobra según la lectura del medidor al ingreso y al egreso, al valor vigente del kWh. ${reserva.ropa_blanca ? `**Incluye ropa blanca${(reserva.monto_ropa_blanca || 0) > 0 ? ` (con cargo de ${montoEn(reserva.monto_ropa_blanca, reserva.moneda_ropa_blanca)})` : ''}.**` : '**No incluye ropa blanca.**'}${extrasTexto}` },
+        `Total: ${monedaTotal} ${monto(total)}. ${textoReserva} El ${100 - PORCENTAJE_RESERVA}% restante, en concepto de saldo, se abonará con una anticipación mínima de 15 días a la fecha de ingreso (a más tardar el ${fechaLimiteSaldoTexto}). La forma de pago se acordará con el locador.\nEl precio incluye agua, impuesto inmobiliario, tasa municipal, jardinería, limpieza semanal de piscina, TV, Internet, vigilancia y electricidad hasta 110 kWh cada 7 días. El excedente se cobra según la lectura del medidor al ingreso y al egreso, al valor vigente del kWh. ${reserva.ropa_blanca ? `**Incluye ropa blanca${(reserva.monto_ropa_blanca || 0) > 0 ? ` (con cargo de ${montoEn(reserva.monto_ropa_blanca, reserva.moneda_ropa_blanca)})` : ''}.**` : '**No incluye ropa blanca.**'}${extrasTexto}` },
       { num: '5', title: 'Depósito', content:
         `El locatario entrega al ingreso un depósito en garantía de ${depositoTexto}. Se devolverá al egreso, una vez verificado el estado de la propiedad, o dentro de los 7 días posteriores si hubiera que esperar lecturas, reparaciones o multas pendientes. Se descontarán daños, faltantes, exceso de consumo eléctrico y multas aplicadas por la administración del barrio por conductas del locatario, sus acompañantes o visitas. Si los daños superan el monto del depósito, la diferencia queda a cargo del locatario.` },
       { num: '6', title: 'Obligaciones del locatario', content:
