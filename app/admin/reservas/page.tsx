@@ -1347,6 +1347,8 @@ function ReservasContent() {
     doc.setTextColor(60, 60, 60)
     doc.text(`${locador.nombre} – Locadora`, margin, yFirma + 5)
     doc.text(`${locatario.nombre} – Locatario`, pageWidth - margin - 62, yFirma + 5)
+    doc.text(`DNI ${locador.dni}`, margin, yFirma + 9)
+    if (locatario.dni !== '-') doc.text(`DNI ${locatario.dni}`, pageWidth - margin - 62, yFirma + 9)
 
     doc.setFontSize(7)
     doc.setTextColor(150, 150, 150)
