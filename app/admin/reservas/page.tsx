@@ -1374,7 +1374,7 @@ function ReservasContent() {
   }
 
   return (
-    <div>
+    <div className="vista-compacta">
       <PageHeader title="Reservas" description="Administra las reservas de tus propiedades">
         {activeTab === 'reservas' && (
           <Button onClick={() => openModal()}>
@@ -1385,7 +1385,7 @@ function ReservasContent() {
       </PageHeader>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-costa-beige/50 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 mb-4 bg-costa-beige/50 p-1 rounded-lg w-fit">
         <button
           onClick={() => setActiveTab('reservas')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -1433,27 +1433,27 @@ function ReservasContent() {
       {activeTab === 'reservas' && (
         <>
       {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-3">
             <p className="text-sm text-costa-gris">Total reservas</p>
             <p className="text-2xl font-bold text-costa-navy">{reservas.length}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-3">
             <p className="text-sm text-costa-gris">Pendientes</p>
             <p className="text-2xl font-bold text-costa-coral">{pendientes}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-3">
             <p className="text-sm text-costa-gris">Ingresos confirmados</p>
             <p className="text-2xl font-bold text-costa-olivo">{formatMonto(totalConfirmadas)}</p>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="py-4">
+          <CardContent className="py-3">
             <p className="text-sm text-costa-gris">Total señas</p>
             <p className="text-2xl font-bold text-costa-navy">{formatMonto(totalSenas)}</p>
           </CardContent>
