@@ -1389,6 +1389,11 @@ function ReservasContent() {
   }
 
   const totalConfirmadas = reservas.filter(r => r.estado === 'confirmada').reduce((acc, r) => acc + calcularTotal(r), 0)
+  // La pestaña Cobros muestra solo los alquileres abiertos: los cerrados se
+  // ven con sus cobros en Pasados
+  const idsCerradas = new Set(reservas.filter(r => r.estado === 'cerrada').map(r => r.id))
+  const cobrosAbiertos = cobros.filter(c => !idsCerradas.has(c.reserva_id))
+
   const totalSenas = reservas.filter(r => r.estado !== 'cancelada').reduce((acc, r) => acc + (r.sena || 0), 0)
   const pendientes = reservas.filter(r => r.estado === 'pendiente').length
 
@@ -1706,16 +1711,16 @@ function ReservasContent() {
       {activeTab === 'cobros' && (
         <Card>
           <CardHeader>
-            <CardTitle>Historial de Cobros</CardTitle>
+            <CardTitle>Cobros de alquileres abiertos</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {cobros.length === 0 ? (
-              <div className="py-8 text-center text-gray-500">No hay cobros registrados</div>
+            {cobrosAbiertos.length === 0 ? (
+              <div className="py-8 text-center text-gray-500">No hay cobros de alquileres abiertos</div>
             ) : (
               <div className="divide-y divide-costa-beige">
                 {/* Agrupar cobros por reserva_id */}
                 {Object.entries(
-                  cobros.reduce((acc, cobro) => {
+                  cobrosAbiertos.reduce((acc, cobro) => {
                     const key = cobro.reserva_id
                     if (!acc[key]) acc[key] = []
                     acc[key].push(cobro)
