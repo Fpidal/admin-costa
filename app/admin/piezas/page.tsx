@@ -131,6 +131,8 @@ const ICONOS: { k: string; nombre: string; d: string }[] = [
   { k: 'jardin', nombre: 'Jardín', d: 'M8 21v-5.6M8 15.4 4.2 10.6h2.4L4.4 5.6h7.2L9.4 10.6h2.4zM17 21v-7.4M17 13.6a4.3 4.3 0 1 0 0-8.6 4.3 4.3 0 0 0 0 8.6' },
   { k: 'golf', nombre: 'Vista al golf', d: 'M11.4 19.6V3l7.4 3.8-7.4 3.8M8 21.6h8.6M9.4 18.4a1.6 1.6 0 1 0 0-3.2 1.6 1.6 0 0 0 0 3.2' },
   { k: 'aire', nombre: 'Aire acondicionado', d: 'M3 6.4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6.2H3zM5 9.2h14M6.6 12.6v2.2M12 12.6v4.4M17.4 12.6v2.2' },
+  // Lavadero: el lavarropas de carga frontal, con el tambor y el agua adentro
+  { k: 'lavadero', nombre: 'Lavadero', d: 'M4.6 2.6h14.8v18.8H4.6zM4.6 7h14.8M7.4 4.8h.1M10 4.8h.1M12 18.6a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4M9.6 15.2c.8-.6 1.6-.6 2.4 0s1.6.6 2.4 0' },
   { k: 'wifi', nombre: 'Wi-Fi', d: 'M5 12.6a10 10 0 0 1 14 0M8.6 16.2a5 5 0 0 1 6.8 0M2 9.2a15 15 0 0 1 20 0M12 20.4h.1' },
   { k: 'playa', nombre: 'Playa', d: 'M12 3.4c4.7 0 8.6 3.5 8.6 7.8H3.4c0-4.3 3.9-7.8 8.6-7.8M12 11.2v9.4M12 20.6a2.4 2.4 0 0 1-2.4-2.4' },
   // Superficie cubierta: el cuadrado con la diagonal, como en los portales
@@ -258,6 +260,7 @@ function iconosDe(p: Propiedad, tipo: Tipo): IconoElegido[] {
   if (p.fogonero) d.push({ k: 'fogon', t: 'Fogonero' })
   if (p.aire_acondicionado) d.push({ k: 'aire', t: 'Aire acondicionado' })
   if (p.wifi) d.push({ k: 'wifi', t: 'Wi-Fi' })
+  if (p.lavadero) d.push({ k: 'lavadero', t: 'Lavadero' })
   if (p.grupo_electrogeno) d.push({ k: 'grupo', t: 'Grupo electrógeno' })
   return d.slice(0, MAX_ICONOS)
 }
