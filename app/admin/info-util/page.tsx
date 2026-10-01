@@ -44,9 +44,9 @@ const categoriasContacto = [
 ]
 
 const categoriaConfig = {
-  emergencias: { icon: Shield, color: 'text-costa-coral', bg: 'bg-costa-coral/20' },
-  servicios: { icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-100' },
-  mantenimiento: { icon: Wrench, color: 'text-blue-600', bg: 'bg-blue-100' },
+  emergencias: { icon: Shield },
+  servicios: { icon: Zap },
+  mantenimiento: { icon: Wrench },
 } as const
 
 const linksUtiles = [
@@ -74,16 +74,6 @@ const rubrosProveedor = [
   { value: 'constructor', label: 'Constructor' },
 ]
 
-const rubroConfig: Record<string, { color: string; bg: string }> = {
-  plomero: { color: 'text-blue-600', bg: 'bg-blue-100' },
-  electricista: { color: 'text-amber-600', bg: 'bg-amber-100' },
-  pintor: { color: 'text-costa-coral', bg: 'bg-costa-coral/20' },
-  jardinero: { color: 'text-costa-olivo', bg: 'bg-costa-olivo/20' },
-  piletero: { color: 'text-cyan-600', bg: 'bg-cyan-100' },
-  arreglos_varios: { color: 'text-costa-gris', bg: 'bg-costa-beige' },
-  constructor: { color: 'text-costa-navy', bg: 'bg-costa-navy/20' },
-}
-
 const initialProveedorForm = {
   nombre: '',
   apellido: '',
@@ -102,12 +92,12 @@ const initialListaNegraForm = {
 }
 
 const motivosIncidente = [
-  { value: 'pendiente', label: 'Pendiente', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { value: 'danos', label: 'Daños', color: 'bg-red-100 text-red-800 border-red-300' },
-  { value: 'incumplimiento', label: 'Incumplimiento', color: 'bg-orange-100 text-orange-800 border-orange-300' },
-  { value: 'convivencia', label: 'Convivencia', color: 'bg-blue-100 text-blue-800 border-blue-300' },
-  { value: 'sucios', label: 'Sucios', color: 'bg-amber-100 text-amber-800 border-amber-300' },
-  { value: 'otro', label: 'Otro', color: 'bg-gray-100 text-gray-700 border-gray-300' },
+  { value: 'pendiente', label: 'Pendiente', color: 'bg-white text-costa-gris border-costa-gris/40 border-dashed' },
+  { value: 'danos', label: 'Daños', color: 'bg-costa-coral/15 text-costa-coral-dark border-costa-coral/40' },
+  { value: 'incumplimiento', label: 'Incumplimiento', color: 'bg-costa-coral/15 text-costa-coral-dark border-costa-coral/40' },
+  { value: 'convivencia', label: 'Convivencia', color: 'bg-costa-beige text-costa-navy border-costa-beige' },
+  { value: 'sucios', label: 'Sucios', color: 'bg-costa-beige text-costa-navy border-costa-beige' },
+  { value: 'otro', label: 'Otro', color: 'bg-costa-beige text-costa-navy border-costa-beige' },
 ]
 
 const getMotivoConfig = (motivo: string) => {
@@ -154,6 +144,16 @@ export default function InfoUtilPage() {
   const [savingListaNegra, setSavingListaNegra] = useState(false)
   const [busquedaListaNegra, setBusquedaListaNegra] = useState('')
   const [listaNegraExpandida, setListaNegraExpandida] = useState(false)
+  const [incidentesAbiertos, setIncidentesAbiertos] = useState<Set<number>>(new Set())
+
+  function toggleIncidente(id: number) {
+    setIncidentesAbiertos(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
 
   useEffect(() => {
     fetchData()
@@ -511,8 +511,8 @@ export default function InfoUtilPage() {
             <Card key={value}>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2">
-                  <div className={`p-2 rounded-lg ${config.bg}`}>
-                    <Icon className={`w-5 h-5 ${config.color}`} />
+                  <div className="p-2 rounded-lg bg-costa-beige">
+                    <Icon className="w-5 h-5 text-costa-navy" />
                   </div>
                   {label}
                 </CardTitle>
@@ -532,7 +532,7 @@ export default function InfoUtilPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           {contacto.telefono && (
-                            <a href={`tel:${contacto.telefono}`} className="flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-700">
+                            <a href={`tel:${contacto.telefono}`} className="flex items-center gap-1 text-sm font-medium text-costa-navy hover:text-costa-coral">
                               <Phone size={14} />
                               {contacto.telefono}
                             </a>
@@ -554,8 +554,8 @@ export default function InfoUtilPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-costa-navy flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-green-100">
-              <Users className="w-5 h-5 text-green-600" />
+            <div className="p-2 rounded-lg bg-costa-beige">
+              <Users className="w-5 h-5 text-costa-navy" />
             </div>
             Proveedores de Servicios
           </h2>
@@ -567,13 +567,12 @@ export default function InfoUtilPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {rubrosProveedor.map(({ value, label }) => {
-            const config = rubroConfig[value] || { color: 'text-gray-600', bg: 'bg-gray-100' }
             const listaProveedores = Array.isArray(proveedoresPorRubro[value]) ? proveedoresPorRubro[value] : []
 
             return (
               <Card key={value} className="overflow-hidden">
-                <div className={`px-4 py-3 ${config.bg} border-b`}>
-                  <h3 className={`font-semibold ${config.color}`}>{label}</h3>
+                <div className="px-4 py-3 bg-costa-beige-light border-b border-costa-beige">
+                  <h3 className="font-semibold text-costa-navy">{label}</h3>
                 </div>
                 <CardContent className="p-3">
                   {listaProveedores.length === 0 ? (
@@ -589,7 +588,7 @@ export default function InfoUtilPage() {
                             {prov.telefono && (
                               <a
                                 href={`tel:${prov.telefono}`}
-                                className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 mt-0.5"
+                                className="flex items-center gap-1 text-xs text-costa-gris hover:text-costa-coral mt-0.5"
                               >
                                 <Phone size={12} />
                                 {prov.telefono}
@@ -619,8 +618,8 @@ export default function InfoUtilPage() {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold text-costa-navy flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-gray-100">
-              <AlertTriangle className="w-5 h-5 text-gray-600" />
+            <div className="p-2 rounded-lg bg-costa-beige">
+              <AlertTriangle className="w-5 h-5 text-costa-navy" />
             </div>
             Inquilinos con Incidentes
           </h2>
@@ -678,6 +677,7 @@ export default function InfoUtilPage() {
                       const esValorDropdown = motivosIncidente.some(m => m.value === item.motivo)
                       // Mostrar notas si existen, o el motivo original si era texto libre
                       const detalleTexto = item.notas || (!esValorDropdown ? item.motivo : '')
+                      const abierto = incidentesAbiertos.has(item.id)
                       return (
                         <tr key={item.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3">
@@ -689,9 +689,17 @@ export default function InfoUtilPage() {
                               {motivoConfig.label}
                             </span>
                             {detalleTexto && (
-                              <p className="text-xs text-gray-500 mt-1 truncate max-w-[200px]" title={detalleTexto}>
-                                {detalleTexto}
-                              </p>
+                              <button
+                                type="button"
+                                onClick={() => toggleIncidente(item.id)}
+                                className="mt-1 flex items-start gap-1 text-left text-xs text-costa-gris hover:text-costa-navy"
+                                aria-expanded={abierto}
+                              >
+                                <span className={abierto ? 'whitespace-pre-wrap break-words max-w-md' : 'truncate max-w-[200px]'}>
+                                  {detalleTexto}
+                                </span>
+                                <ChevronDown size={14} className={`shrink-0 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+                              </button>
                             )}
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs">
@@ -701,13 +709,13 @@ export default function InfoUtilPage() {
                             <div className="flex justify-end gap-1">
                               <button
                                 onClick={() => openListaNegraModal(item)}
-                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                className="p-1.5 text-gray-400 hover:text-costa-navy hover:bg-costa-beige rounded transition-colors"
                               >
                                 <Pencil size={14} />
                               </button>
                               <button
                                 onClick={() => handleListaNegraDelete(item.id)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
+                                className="p-1.5 text-gray-400 hover:text-costa-coral hover:bg-costa-coral/10 rounded transition-colors"
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -756,7 +764,7 @@ export default function InfoUtilPage() {
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                className="flex items-center justify-between p-4 rounded-lg border border-gray-200 hover:border-costa-navy/30 hover:bg-costa-beige-light transition-colors"
               >
                 <div>
                   <p className="font-medium text-gray-900">{link.nombre}</p>
@@ -827,9 +835,9 @@ export default function InfoUtilPage() {
       {/* Modal Lista Negra */}
       <Modal isOpen={listaNegraModalOpen} onClose={closeListaNegraModal} title={editingListaNegraId ? 'Editar Registro' : 'Agregar Inquilino con Incidente'}>
         <form onSubmit={handleListaNegraSubmit} className="space-y-4">
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-            <p className="text-sm text-amber-700 flex items-center gap-2">
-              <AlertTriangle size={16} />
+          <div className="p-3 bg-costa-beige-light border border-costa-beige rounded-lg">
+            <p className="text-sm text-costa-navy flex items-center gap-2">
+              <AlertTriangle size={16} className="text-costa-coral" />
               Los inquilinos en esta lista serán alertados al cargar una reserva.
             </p>
           </div>
