@@ -379,7 +379,7 @@ export default function InfoUtilPage() {
     y = 55
 
     // Encabezado de tabla
-    doc.setFillColor(239, 68, 68) // rojo
+    doc.setFillColor(30, 58, 95) // costa-navy
     doc.rect(margin, y, contentWidth, 10, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(9)
@@ -401,7 +401,7 @@ export default function InfoUtilPage() {
         y = margin
 
         // Repetir encabezado de tabla
-        doc.setFillColor(239, 68, 68)
+        doc.setFillColor(30, 58, 95)
         doc.rect(margin, y, contentWidth, 10, 'F')
         doc.setTextColor(255, 255, 255)
         doc.setFontSize(9)
@@ -417,7 +417,7 @@ export default function InfoUtilPage() {
 
       // Fondo alternado
       if (index % 2 === 0) {
-        doc.setFillColor(254, 242, 242) // rojo muy claro
+        doc.setFillColor(250, 246, 241) // costa-beige-light
         doc.rect(margin, y - 3, contentWidth, 8, 'F')
       }
 
