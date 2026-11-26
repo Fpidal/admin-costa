@@ -1405,10 +1405,13 @@ function ReservasContent() {
   const idsCerradas = new Set(reservas.filter(r => r.estado === 'cerrada').map(r => r.id))
   const cobrosAbiertos = cobros.filter(c => !idsCerradas.has(c.reserva_id))
 
-  // Reservas del filtro. Los recuadros y el PDF suman también las cerradas
-  // (así un año o temporada pasada da completo) pero no las canceladas
+  // Reservas del filtro. Los recuadros suman lo mismo que muestra la tabla:
+  // las vigentes, sin canceladas. El PDF lista además las cerradas del
+  // período, cada una con su fila, así un año o temporada pasada sale completo
   const reservasFiltradas = filtrarReservas(reservas, filtro)
-  const reservasResumen = reservasFiltradas.filter(r => r.estado !== 'cancelada')
+  const reservasReporte = reservasFiltradas.filter(r => r.estado !== 'cancelada')
+  const reservasResumen = reservasReporte.filter(r => r.estado !== 'cerrada')
+  const cerradasPeriodo = reservasReporte.length - reservasResumen.length
   const montosResumen = reservasResumen.map(r => montosReserva(r, cobros))
   const resumen = {
     total: sumarMontos(montosResumen.map(m => m.total)),
@@ -1432,7 +1435,7 @@ function ReservasContent() {
 
   function descargarReporte() {
     generarReporteReservasPDF({
-      reservas: reservasResumen,
+      reservas: reservasReporte,
       cobros,
       casas: casasFiltro,
       periodo: describirPeriodo(filtro),
@@ -1563,13 +1566,14 @@ function ReservasContent() {
                   <X size={14} /> Limpiar
                 </Button>
               )}
-              <Button variant="secondary" size="sm" onClick={descargarReporte} disabled={reservasResumen.length === 0}>
+              <Button variant="secondary" size="sm" onClick={descargarReporte} disabled={reservasReporte.length === 0}>
                 <Download size={15} /> Reporte PDF
               </Button>
             </div>
           </div>
           <p className="text-xs text-costa-gris mt-2">
-            {casasFiltro} · {describirPeriodo(filtro)} · cuenta las reservas cuyo ingreso cae en el período, incluidas las cerradas
+            {casasFiltro} · {describirPeriodo(filtro)} · reservas vigentes cuyo ingreso cae en el período
+            {cerradasPeriodo > 0 && ` · ${cerradasPeriodo} cerrada${cerradasPeriodo !== 1 ? 's' : ''} en Pasados (también sale${cerradasPeriodo !== 1 ? 'n' : ''} en el reporte PDF)`}
           </p>
         </CardContent>
       </Card>
