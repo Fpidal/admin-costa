@@ -2,6 +2,10 @@
 
 ## Actualizaciones Recientes (Noviembre 2026)
 
+### Gastos en dólares
+- Cada gasto tiene moneda (pesos o dólares) y el dólar del día en que se pagó (sql/26); el formulario trae el blue de la fecha y muestra el equivalente
+- La lista muestra el dólar y el valor en dólares; el balance suma cada gasto con su propio dólar
+
 ### Informes (antes Resumen)
 - Balance del año (económico, por fecha de entrada de cada reserva) desde 2026: saldo inicial + cobrado − gastos = saldo al 31/12, que pasa al año siguiente; el año próximo siempre visible, con lo por cobrar de las reservas confirmadas
 - En el menú principal; incluye el resultado del año (cobrado menos gastos, con acumulado), que antes estaba en Temporada

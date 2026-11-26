@@ -24,7 +24,7 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Calendario de Reservas**: Vista mensual con indicadores de feriados
 - **Inquilinos / Huéspedes**: Base de datos de inquilinos con validación contra lista negra e historial de reservas
 - **Link para el huésped**: `/huespedes/[código]` para que cargue nombre, apellido, edad y DNI de sus acompañantes (autorización del barrio); en la reserva se copia la lista lista para mandar
-- **Gastos**: Control de gastos por propiedad
+- **Gastos**: Control de gastos por propiedad, en pesos o en dólares, con el dólar blue del día de cada gasto (se completa solo desde argentinadatos.com) y su valor en dólares
 - **Usuarios**: Panel de administración de usuarios (solo admin)
 - **Info útil**: Información de servicios, contactos y lista negra
 - **Papelera**: Recuperación de elementos eliminados (soft delete)

@@ -4,21 +4,22 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { demoGastos } from '@/lib/demoData'
 import { montosReserva } from '@/lib/resumenReservas'
+import { gastoEnUsd } from '@/lib/gastosMoneda'
 
 // Balance económico del año: los ingresos de las reservas que entran en el año
 // (todo lo cobrado de alquiler y servicios, sin depósitos, aunque la seña se
 // haya cobrado el año anterior) menos los gastos del año de cada casa.
 // Arranca en 2026, que también toma la temporada que empezó en dic 2025. El
 // saldo de un año pasa como saldo inicial del siguiente.
-// Los gastos están en pesos y lo cobrado mayormente en dólares: se pasa todo
-// con el dólar del día o uno a mano.
+// Todo se muestra en dólares: cada gasto con el dólar del día en que se pagó
+// (o en dólares si se cargó así); lo cobrado en pesos, con el dólar de hoy o uno a mano.
 
 // Primer año del balance (lo anterior no se cuenta)
 const PRIMER_ANIO = 2026
 
 interface ReservaR { id: number; propiedad_id: string; fecha_inicio: string; fecha_fin: string; estado: string; precio_noche: number | null; moneda: string | null; [k: string]: unknown }
 interface CobroR { reserva_id: number; monto: number; moneda: string; concepto: string; aplicar_a: string; fecha?: string | null }
-interface GastoR { propiedad_id: string | null; monto: number; fecha: string; pagado: boolean | null }
+interface GastoR { propiedad_id: string | null; monto: number; fecha: string; pagado: boolean | null; moneda?: string | null; cotizacion?: number | null }
 interface Casa { id: string; nombre: string }
 
 const TIPOS_DOLAR = [
@@ -51,7 +52,7 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
     async function cargar() {
       if (isDemo) { setGastos(demoGastos as unknown as GastoR[]); return }
       if (!userId) return
-      const { data } = await supabase.from('gastos').select('propiedad_id, monto, fecha, pagado')
+      const { data } = await supabase.from('gastos').select('propiedad_id, monto, fecha, pagado, moneda, cotizacion')
         .eq('user_id', userId).is('eliminado_at', null)
       if (vivo) setGastos((data || []) as GastoR[])
     }
@@ -96,19 +97,20 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
       })
     return {
       usd, ars, reservas: conPago.size, porCobrarUsd, porCobrarArs,
-      gastosArs: propios.reduce((a, g) => a + Number(g.monto), 0),
-      sinPagar: propios.filter(g => !g.pagado).reduce((a, g) => a + Number(g.monto), 0),
+      // Gastos en dólares, cada uno con el dólar de su fecha
+      gastosUsd: propios.reduce((a, g) => a + (gastoEnUsd(g, dolar) || 0), 0),
+      sinPagar: propios.filter(g => !g.pagado).reduce((a, g) => a + (gastoEnUsd(g, dolar) || 0), 0),
     }
   }
 
   // Saldo inicial: todo lo de los años anteriores desde PRIMER_ANIO; saldo final: hasta el 31/12 del año
-  const vacio = { usd: 0, ars: 0, reservas: 0, gastosArs: 0, sinPagar: 0, porCobrarUsd: 0, porCobrarArs: 0 }
+  const vacio = { usd: 0, ars: 0, reservas: 0, gastosUsd: 0, sinPagar: 0, porCobrarUsd: 0, porCobrarArs: 0 }
   const filas = useMemo(() => casas.map(c => ({
     casa: c, ...calcular(c.id, desde, hasta),
     inicial: anio > PRIMER_ANIO ? calcular(c.id, `${PRIMER_ANIO}-01-01`, `${anio - 1}-12-31`) : vacio,
     acum: calcular(c.id, `${PRIMER_ANIO}-01-01`, hasta),
   })),
-    [casas, reservas, cobros, gastos, desde, hasta]) // eslint-disable-line react-hooks/exhaustive-deps
+    [casas, reservas, cobros, gastos, desde, hasta, dolar]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Años con movimientos desde PRIMER_ANIO, más el actual
   const anios = useMemo(() => {
@@ -120,13 +122,14 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
     return [...set].filter(a => a >= PRIMER_ANIO).sort((a, b) => b - a)
   }, [cobros, gastos])
 
-  type Montos = { usd: number; ars: number; gastosArs: number; sinPagar: number; reservas: number; porCobrarUsd: number; porCobrarArs: number }
+  type Montos = { usd: number; ars: number; gastosUsd: number; sinPagar: number; reservas: number; porCobrarUsd: number; porCobrarArs: number }
   const sumar = (lista: Montos[]) =>
-    lista.reduce((a, f) => ({ usd: a.usd + f.usd, ars: a.ars + f.ars, gastosArs: a.gastosArs + f.gastosArs, sinPagar: a.sinPagar + f.sinPagar, reservas: a.reservas + f.reservas, porCobrarUsd: a.porCobrarUsd + f.porCobrarUsd, porCobrarArs: a.porCobrarArs + f.porCobrarArs }),
-      { usd: 0, ars: 0, gastosArs: 0, sinPagar: 0, reservas: 0, porCobrarUsd: 0, porCobrarArs: 0 })
+    lista.reduce((a, f) => ({ usd: a.usd + f.usd, ars: a.ars + f.ars, gastosUsd: a.gastosUsd + f.gastosUsd, sinPagar: a.sinPagar + f.sinPagar, reservas: a.reservas + f.reservas, porCobrarUsd: a.porCobrarUsd + f.porCobrarUsd, porCobrarArs: a.porCobrarArs + f.porCobrarArs }),
+      { usd: 0, ars: 0, gastosUsd: 0, sinPagar: 0, reservas: 0, porCobrarUsd: 0, porCobrarArs: 0 })
   const total = { ...sumar(filas), inicial: sumar(filas.map(f => f.inicial)), acum: sumar(filas.map(f => f.acum)) }
-  const enUsd = (f: { usd: number; ars: number; gastosArs: number }) => dolar ? f.usd + (f.ars - f.gastosArs) / dolar : null
-  const enArs = (f: { usd: number; ars: number; gastosArs: number }) => dolar ? f.usd * dolar + f.ars - f.gastosArs : null
+  // Lo cobrado en pesos se pasa con el dólar de hoy; los gastos ya vienen en dólares con su propio dólar
+  const enUsd = (f: { usd: number; ars: number; gastosUsd: number }) => dolar ? f.usd + f.ars / dolar - f.gastosUsd : (f.ars ? null : f.usd - f.gastosUsd)
+  const enArs = (f: { usd: number; ars: number; gastosUsd: number }) => { const u = enUsd(f); return u !== null && dolar ? u * dolar : null }
   const dmy = (iso: string) => iso.split('-').reverse().join('/')
 
   const Fila = ({ f, nombre, fuerte = false }: { f: typeof total; nombre: string; fuerte?: boolean }) => {
@@ -146,9 +149,9 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
             </span>
           )}
         </td>
-        <td className="px-3 py-2 text-right tabular-nums text-costa-coral-dark">{f.gastosArs ? `$ ${fmt(f.gastosArs)}` : '–'}
-          {f.sinPagar > 0 && <span className="block text-[0.75em] font-normal text-costa-gris">$ {fmt(f.sinPagar)} sin pagar</span>}
-          {dolar > 0 && f.gastosArs > 0 && <span className="block text-[0.75em] font-normal text-costa-gris">≈ U$D {fmt(f.gastosArs / dolar)}</span>}
+        <td className="px-3 py-2 text-right tabular-nums text-costa-coral-dark">{f.gastosUsd ? `U$D ${fmt(f.gastosUsd)}` : '–'}
+          {f.sinPagar > 0 && <span className="block text-[0.75em] font-normal text-costa-gris">U$D {fmt(f.sinPagar)} sin pagar</span>}
+          {f.gastosUsd > 0 && <span className="block text-[0.75em] font-normal text-costa-gris">cada gasto con su dólar</span>}
         </td>
         <td className={`px-3 py-2 text-right tabular-nums text-base ${ru === null ? 'text-costa-gris' : ru >= 0 ? 'text-costa-esmeralda' : 'text-red-700'}`}>
           {ru === null ? '–' : `U$D ${fmt(ru)}`}
@@ -212,7 +215,7 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
       </div>
       <p className="mt-2 text-[0.75em] text-costa-gris">
         {dolar
-          ? `Pasado a una moneda con el dólar ${manual ? 'que escribiste' : `${TIPOS_DOLAR.find(d => d.k === tipoDolar)?.t.toLowerCase()} de hoy`}: $ ${fmt(dolar)}${!manual && fechaCotizacion ? ` (actualizado ${dmy(fechaCotizacion)})` : ''}.`
+          ? `Los gastos van en dólares, cada uno con el dólar del día en que se pagó. Lo cobrado en pesos y el equivalente en pesos, con el dólar ${manual ? 'que escribiste' : `${TIPOS_DOLAR.find(d => d.k === tipoDolar)?.t.toLowerCase()} de hoy`}: $ ${fmt(dolar)}${!manual && fechaCotizacion ? ` (actualizado ${dmy(fechaCotizacion)})` : ''}.`
           : 'No se pudo traer la cotización: escribila a mano para ver el resultado en una sola moneda.'}
         {' '}Los gastos salen de la sección Gastos; lo cobrado, de los pagos registrados en cada reserva.
       </p>

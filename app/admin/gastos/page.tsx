@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, InputNumber } from '@/components/ui'
 import { Plus, Pencil, Trash2, Upload, ChevronDown, ChevronUp, Check, Zap, RotateCcw } from 'lucide-react'
 import { ElectricidadTab } from '@/components/ElectricidadTab'
+import { dolarBlueDe, gastoEnUsd, importeGasto, sumaGastos, esUsd } from '@/lib/gastosMoneda'
 
 interface Propiedad {
   id: string
@@ -43,6 +44,8 @@ interface Gasto {
   fecha_vencimiento: string | null
   pagado: boolean
   detalle: DetalleExpensa[] | null
+  moneda?: 'ARS' | 'USD' | null
+  cotizacion?: number | null
   propiedades?: Propiedad
 }
 
@@ -71,7 +74,11 @@ const initialForm = {
   monto: 0,
   fecha: new Date().toISOString().split('T')[0],
   observaciones: '',
+  moneda: 'ARS' as 'ARS' | 'USD',
+  cotizacion: 0,
 }
+
+const fmtNum = (v: number) => new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Math.round(v))
 
 const initialNuevoProveedor = {
   nombre: '',
@@ -96,6 +103,10 @@ function AdministracionContent() {
   const [nuevoProveedor, setNuevoProveedor] = useState(initialNuevoProveedor)
   const [mostrarNuevoProveedor, setMostrarNuevoProveedor] = useState(false)
   const [proveedorConfirmado, setProveedorConfirmado] = useState(false)
+  // Dólar del día del gasto: se completa solo con el blue de la fecha salvo que lo cambien a mano
+  const [cotizacionManual, setCotizacionManual] = useState(false)
+  const [buscandoDolar, setBuscandoDolar] = useState(false)
+  const [dolarHoy, setDolarHoy] = useState<number | null>(null)
 
   // Estados para importador de expensas Eidico
   const [importModalOpen, setImportModalOpen] = useState(false)
@@ -166,6 +177,23 @@ function AdministracionContent() {
   })
 
   useEffect(() => {
+    dolarBlueDe(new Date().toISOString().slice(0, 10)).then(setDolarHoy)
+  }, [])
+
+  // Al cambiar la fecha del gasto se trae el blue de ese día
+  useEffect(() => {
+    if (!modalOpen || cotizacionManual || !form.fecha) return
+    let vivo = true
+    setBuscandoDolar(true)
+    dolarBlueDe(form.fecha).then(v => {
+      if (!vivo) return
+      setBuscandoDolar(false)
+      if (v) setForm(f => ({ ...f, cotizacion: v }))
+    })
+    return () => { vivo = false }
+  }, [modalOpen, form.fecha, cotizacionManual])
+
+  useEffect(() => {
     if (isDemo) {
       setGastos(demoGastos as unknown as Gasto[])
       setPropiedades(demoPropiedades.map(p => ({ id: p.id, nombre: p.nombre })))
@@ -215,11 +243,15 @@ function AdministracionContent() {
         monto: gasto.monto || 0,
         fecha: gasto.fecha || '',
         observaciones: gasto.descripcion || '',
+        moneda: gasto.moneda === 'USD' ? 'USD' : 'ARS',
+        cotizacion: Number(gasto.cotizacion) || 0,
       })
+      setCotizacionManual(Number(gasto.cotizacion) > 0)
       setProveedorConfirmado(!!gasto.proveedor)
     } else {
       setEditingId(null)
       setForm(initialForm)
+      setCotizacionManual(false)
       setProveedorConfirmado(false)
     }
     setMostrarNuevoProveedor(false)
@@ -284,6 +316,8 @@ function AdministracionContent() {
       monto: Number(form.monto),
       fecha: form.fecha,
       descripcion: form.observaciones || null,
+      moneda: form.moneda,
+      cotizacion: Number(form.cotizacion) > 0 ? Number(form.cotizacion) : null,
     }
 
     if (editingId) {
@@ -474,9 +508,12 @@ function AdministracionContent() {
     }))
 
     // Crear un solo registro agrupado
+    const fechaHoy = new Date().toISOString().split('T')[0]
     const gastoAgrupado = {
       propiedad_id: importPropiedadId,
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: fechaHoy,
+      moneda: 'ARS',
+      cotizacion: await dolarBlueDe(fechaHoy),
       tipo: 'expensa',
       concepto: `Expensas ${periodo}`,
       monto: totalMonto,
@@ -530,8 +567,15 @@ function AdministracionContent() {
   }
 
   // Cálculos
-  const totalGastos = gastosFiltrados.reduce((acc, g) => acc + (g.monto || 0), 0)
-  const totalPendiente = gastosFiltrados.filter(g => !g.pagado).reduce((acc, g) => acc + (g.monto || 0), 0)
+  const totalGastos = sumaGastos(gastosFiltrados)
+  const totalPendiente = sumaGastos(gastosFiltrados.filter(g => !g.pagado))
+  const enDolares = (lista: Gasto[]) => lista.reduce((a, g) => a + (gastoEnUsd(g, dolarHoy) || 0), 0)
+  const totalUsd = enDolares(gastosFiltrados)
+  const pendienteUsd = enDolares(gastosFiltrados.filter(g => !g.pagado))
+  // Equivalente en la otra moneda del formulario
+  const equivalente = Number(form.cotizacion) > 0 && Number(form.monto) > 0
+    ? (form.moneda === 'USD' ? Number(form.monto) * Number(form.cotizacion) : Number(form.monto) / Number(form.cotizacion))
+    : null
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-costa-gris">Cargando...</div></div>
@@ -595,13 +639,15 @@ function AdministracionContent() {
         <Card>
           <CardContent className="py-3">
             <p className="text-xs text-costa-gris">Total Gastos</p>
-            <p className="text-xl font-bold text-costa-navy">{formatMonto(totalGastos)}</p>
+            <p className="text-xl font-bold text-costa-navy">{totalGastos}</p>
+            {totalUsd > 0 && <p className="text-xs text-costa-gris">≈ U$D {fmtNum(totalUsd)}, cada gasto con su dólar</p>}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-3">
             <p className="text-xs text-costa-gris">Pendiente de Pago</p>
-            <p className="text-xl font-bold text-costa-coral">{formatMonto(totalPendiente)}</p>
+            <p className="text-xl font-bold text-costa-coral">{totalPendiente}</p>
+            {pendienteUsd > 0 && <p className="text-xs text-costa-gris">≈ U$D {fmtNum(pendienteUsd)}</p>}
           </CardContent>
         </Card>
       </div>
@@ -673,7 +719,12 @@ function AdministracionContent() {
                     </div>
                     <p className="text-sm text-costa-gris">{gasto.propiedades?.nombre || '-'}</p>
                   </div>
-                  <p className="font-bold text-costa-navy text-lg">{formatMonto(gasto.monto)}</p>
+                  <div className="text-right">
+                    <p className="font-bold text-costa-navy text-lg">{importeGasto(gasto)}</p>
+                    {!esUsd(gasto) && gastoEnUsd(gasto, dolarHoy) !== null && (
+                      <p className="text-xs text-costa-gris">≈ U$D {fmtNum(gastoEnUsd(gasto, dolarHoy) as number)}{gasto.cotizacion ? ` (dólar $ ${fmtNum(gasto.cotizacion)})` : ''}</p>
+                    )}
+                  </div>
                 </div>
                 {gasto.descripcion && (
                   <p className="text-sm text-costa-navy mb-2">{gasto.descripcion}</p>
@@ -720,7 +771,9 @@ function AdministracionContent() {
                     <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Detalle</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Fecha</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Monto</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Importe</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Dólar</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">En dólares</th>
                     <th className="px-4 py-2 text-center text-xs font-medium text-costa-gris uppercase">Estado</th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Acciones</th>
                   </tr>
@@ -750,7 +803,9 @@ function AdministracionContent() {
                         <td className="px-4 py-3 text-costa-navy">{gasto.descripcion || '-'}</td>
                         <td className="px-4 py-3 text-costa-gris">{gasto.propiedades?.nombre || '-'}</td>
                         <td className="px-4 py-3 text-costa-gris">{formatFecha(gasto.fecha)}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-costa-navy">{formatMonto(gasto.monto)}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-costa-navy whitespace-nowrap">{importeGasto(gasto)}</td>
+                        <td className="px-4 py-3 text-right text-xs text-costa-gris whitespace-nowrap">{gasto.cotizacion ? `$ ${fmtNum(gasto.cotizacion)}` : esUsd(gasto) ? '–' : <span title="Sin dólar guardado: se usa el de hoy">hoy</span>}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-costa-navy whitespace-nowrap">{gastoEnUsd(gasto, dolarHoy) !== null ? `U$D ${fmtNum(gastoEnUsd(gasto, dolarHoy) as number)}` : '–'}</td>
                         <td className="px-4 py-3 text-center">
                           <Badge variant={gasto.pagado ? 'success' : 'warning'}>
                             {gasto.pagado ? 'Pagado' : 'Pendiente'}
@@ -782,7 +837,7 @@ function AdministracionContent() {
                       {/* Fila expandible con detalle */}
                       {gasto.detalle && gasto.detalle.length > 0 && expandedGastos.has(gasto.id) && (
                         <tr className="bg-costa-beige/20">
-                          <td colSpan={7} className="px-4 py-3">
+                          <td colSpan={9} className="px-4 py-3">
                             <div className="ml-8 border-l-2 border-costa-navy/20 pl-4">
                               <p className="text-xs font-medium text-costa-gris mb-2">Detalle de conceptos:</p>
                               <div className="space-y-1">
@@ -935,13 +990,50 @@ function AdministracionContent() {
             )}
           </div>
 
+          {/* Moneda */}
+          <div>
+            <label className="block text-sm font-medium text-costa-navy mb-1">Moneda</label>
+            <div className="grid grid-cols-2 rounded-lg border border-costa-beige overflow-hidden">
+              {(['ARS', 'USD'] as const).map(m => (
+                <button key={m} type="button" onClick={() => setForm({ ...form, moneda: m })}
+                  className={`py-2 text-sm font-semibold ${form.moneda === m ? 'bg-costa-esmeralda text-white' : 'bg-white text-costa-gris'}`}>
+                  {m === 'ARS' ? 'Pesos' : 'Dólares'}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Monto y Fecha */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-costa-navy mb-1">Importe</label>
-              <InputNumber value={form.monto} onChange={(val) => setForm({ ...form, monto: val })} />
+              <label className="block text-sm font-medium text-costa-navy mb-1">Importe en {form.moneda === 'USD' ? 'dólares' : 'pesos'}</label>
+              <InputNumber value={form.monto} onChange={(val) => setForm({ ...form, monto: val })} decimales={form.moneda === 'USD' ? 2 : 0} />
             </div>
             <Input label="Fecha" type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} required />
+          </div>
+
+          {/* Dólar del día y equivalente */}
+          <div className="rounded-lg border border-costa-beige bg-costa-arena/40 px-3 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-costa-gris">
+                Dólar blue del {form.fecha ? formatFecha(form.fecha) : '–'}
+                <span className="block">{buscandoDolar ? 'buscando…' : cotizacionManual ? 'escrito a mano' : 'lo completa solo, lo podés cambiar'}</span>
+              </p>
+              <div className="flex items-center gap-2">
+                {cotizacionManual && (
+                  <button type="button" className="text-xs text-costa-esmeralda hover:underline" onClick={() => setCotizacionManual(false)}>volver al blue</button>
+                )}
+                <div className="w-28">
+                  <InputNumber value={form.cotizacion || ''} onChange={(val) => { setCotizacionManual(true); setForm({ ...form, cotizacion: val }) }} placeholder="$" />
+                </div>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between border-t border-dashed border-costa-beige pt-2">
+              <span className="text-xs text-costa-gris">Equivale a</span>
+              <span className="text-lg font-bold text-costa-esmeralda">
+                {equivalente === null ? '–' : form.moneda === 'USD' ? `$ ${fmtNum(equivalente)}` : `U$D ${fmtNum(equivalente)}`}
+              </span>
+            </div>
           </div>
 
           {/* Detalle */}

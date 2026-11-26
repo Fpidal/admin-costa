@@ -19,6 +19,7 @@ import { EvolucionTemporadas } from '@/components/EvolucionTemporadas'
 import { normalizarReglas, COLUMNAS_REGLAS } from '@/lib/preciosReglas'
 import type { PriceRule } from '@/lib/priceRules'
 import { metricas, nochesPorMes, demandaTemporada, nochesDe, MESES_CORTOS, type ReservaEst } from '@/lib/estadisticas'
+import { sumaGastos, importeGasto } from '@/lib/gastosMoneda'
 
 // Informes: cuánto rinde cada temporada, qué meses y fechas se piden más,
 // cómo se compara una casa con la otra, cómo cambian precios y totales de una
@@ -34,7 +35,7 @@ interface Reserva extends ReservaEst {
   inquilinos?: { nombre: string }
 }
 interface Cobro { reserva_id: number | string; monto: number; moneda: string; concepto: string; aplicar_a: string; fecha?: string | null }
-interface Gasto { id: number | string; concepto: string; monto: number; fecha: string | null; fecha_vencimiento: string | null; pagado: boolean; propiedad_id: string | null }
+interface Gasto { id: number | string; concepto: string; monto: number; fecha: string | null; fecha_vencimiento: string | null; pagado: boolean; propiedad_id: string | null; moneda?: string | null; cotizacion?: number | null }
 
 const importe = (v: number, moneda: string) =>
   `${moneda === 'USD' ? 'U$D' : '$'} ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Math.round(v))}`
@@ -83,7 +84,7 @@ function ResumenContent() {
         supabase.from('reservas').select('*, propiedades(nombre), inquilinos(nombre)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio'),
         supabase.from('cobros').select('reserva_id, monto, moneda, concepto, aplicar_a, fecha, reservas!inner(eliminado_at)').eq('user_id', userId).is('reservas.eliminado_at', null),
         supabase.from('propiedades').select('id, nombre, lote').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
-        supabase.from('gastos').select('id, concepto, monto, fecha, fecha_vencimiento, pagado, propiedad_id').eq('user_id', userId).is('eliminado_at', null),
+        supabase.from('gastos').select('id, concepto, monto, fecha, fecha_vencimiento, pagado, propiedad_id, moneda, cotizacion').eq('user_id', userId).is('eliminado_at', null),
       ])
       if (r.data) setReservas(r.data)
       if (c.data) setCobros(c.data)
@@ -156,7 +157,7 @@ function ResumenContent() {
     return true
   }
   const gastosPagados = gastos.filter(g => g.pagado && enPeriodo(g.fecha || g.fecha_vencimiento))
-  const gastosCasa = (id: string) => gastosPagados.filter(g => String(g.propiedad_id) === id).reduce((a, g) => a + (g.monto || 0), 0)
+  const gastosCasa = (id: string) => gastosPagados.filter(g => String(g.propiedad_id) === id)
 
   const proximas = reservas.filter(r => r.estado !== 'cancelada' && r.estado !== 'cerrada' && r.fecha_inicio.slice(0, 10) >= hoy).slice(0, 5)
   const gastosPendientes = gastos.filter(g => !g.pagado).sort((a, b) => (a.fecha_vencimiento || '').localeCompare(b.fecha_vencimiento || '')).slice(0, 5)
@@ -172,7 +173,7 @@ function ResumenContent() {
     { label: 'Estadía promedio', valor: i => porCasa[i].estadiaPromedio ? `${porCasa[i].estadiaPromedio} noches` : '–' },
     { label: 'Personas por reserva', valor: i => porCasa[i].personasPromedio ? String(porCasa[i].personasPromedio) : '–' },
     { label: 'Anticipación al reservar', valor: i => porCasa[i].anticipacionPromedio !== null ? `${porCasa[i].anticipacionPromedio} días` : '–' },
-    { label: 'Gastos pagados', valor: (_: number, id: string) => { const g = gastosCasa(id); return g ? importe(g, 'ARS') : '–' } },
+    { label: 'Gastos pagados', valor: (_: number, id: string) => { const g = gastosCasa(id); return g.length ? sumaGastos(g) : '–' } },
   ]
 
   const selectClase = 'rounded-lg border border-costa-borde bg-costa-superficie px-2.5 py-1.5 text-sm font-semibold text-costa-navy'
@@ -354,7 +355,7 @@ function ResumenContent() {
                     <li key={String(g.id)} className="flex items-center gap-3 px-6 py-2.5 text-sm">
                       <span className="flex-1 min-w-0 truncate text-costa-navy">{g.concepto}{g.propiedad_id && <span className="text-costa-gris"> · {nombreDe(String(g.propiedad_id))}</span>}</span>
                       {g.fecha_vencimiento && <span className={`shrink-0 tabular-nums ${vencido ? 'font-semibold text-red-700' : 'text-costa-gris'}`}>{vencido ? 'venció ' : 'vence '}{formatFecha(g.fecha_vencimiento)}</span>}
-                      <span className="shrink-0 font-semibold tabular-nums text-costa-navy">{importe(g.monto || 0, 'ARS')}</span>
+                      <span className="shrink-0 font-semibold tabular-nums text-costa-navy">{importeGasto(g)}</span>
                     </li>
                   )
                 })}

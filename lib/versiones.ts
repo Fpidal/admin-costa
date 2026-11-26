@@ -18,6 +18,7 @@ export const VERSIONES: Version[] = [
       'Informes: noches sin confirmar aparte (y la ocupación contándolas), temporada "en curso" con variación parcial, y precio cobrado mes por mes (dic, ene, feb)',
       'Balance del año (económico): lo cobrado de las reservas que entran en el año, aunque la seña se haya cobrado antes, menos los gastos del año, desde 2026, con saldo inicial (lo que viene del año anterior) y saldo al 31/12',
       'Balance: siempre se puede ver el año que viene (arranca con el saldo de este) y lo que falta cobrar de las reservas confirmadas de cada año',
+      'Gastos en pesos o en dólares: al cargar uno se completa solo el dólar blue de ese día y te muestra cuánto es en dólares; el balance del año suma cada gasto con su propio dólar',
       'Informes: bloque Fuera de temporada por año, con cada reserva y el fin de semana largo en el que cayó',
       'Link para que el huésped cargue nombre, apellido, edad y DNI de sus acompañantes, y la lista para mandar al barrio',
       'Detalle de la reserva con noches × precio por noche y cada servicio (limpieza final, lavadero)',
