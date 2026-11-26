@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { parseFechaLocal } from '@/lib/fechas'
+import { parseFechaLocal, aFechaISO } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { getDemoReservaById, getDemoCobrosByReservaId, getDemoLiquidacionByReservaId, demoReservas } from '@/lib/demoData'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
@@ -116,7 +116,7 @@ const FormatMontoStyled = ({ monto, moneda = 'ARS' }: { monto: number, moneda?: 
 }
 
 const formatFecha = (fecha: string) => {
-  return parseFechaLocal(fecha).toLocaleDateString('es-AR')
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 const calcularNoches = (inicio: string, fin: string) => {
@@ -394,6 +394,39 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
   const descuentosEnUSD = cotizacion > 0 ? totalDescuentosPesos / cotizacion : 0
   const montoDevolver = cobradoDeposito - descuentosEnUSD
 
+  /* Montos sugeridos para cobrar en un toque: lo que falta en cada moneda y,
+     si todavía no entró nada, la seña del 50% que fija el contrato */
+  const montosSugeridos: { label: string; monto: number; moneda: string; concepto: string }[] = []
+  if (reserva && !isCerrada) {
+    const nadaCobrado = Object.values(cobradoOperacion).every(v => Math.round(v) === 0)
+    const totalMoneda = pactadoOperacion[monedaAlquiler] || 0
+    if (nadaCobrado && totalMoneda > 0) {
+      montosSugeridos.push({ label: 'Seña 50%', monto: Math.round(totalMoneda / 2), moneda: monedaAlquiler, concepto: 'seña' })
+    }
+    for (const m of [...monedasOperacion].reverse()) {
+      if (Math.round(saldoOperacion[m]) > 0) {
+        montosSugeridos.push({ label: nadaCobrado ? 'Total' : 'Saldo', monto: Math.round(saldoOperacion[m]), moneda: m, concepto: nadaCobrado ? 'seña' : 'liquidacion' })
+      }
+    }
+  }
+
+  function usarMontoSugerido(s: { monto: number; moneda: string; concepto: string }) {
+    setCobroForm(f => ({ ...f, aplicar_a: 'alquiler', monto: s.monto, moneda: s.moneda, concepto: s.concepto }))
+  }
+
+  // Desde los avisos de cobranza se llega con ?registrar=saldo: se abre el
+  // pago con el saldo ya cargado y se limpia el parámetro para no reabrirlo
+  const registrarDesdeAviso = searchParams.get('registrar') === 'saldo'
+  useEffect(() => {
+    if (!registrarDesdeAviso || loading || !reserva) return
+    const saldo = montosSugeridos.find(m => m.label === 'Saldo') || montosSugeridos[montosSugeridos.length - 1]
+    setEditingCobroId(null)
+    setCobroForm({ ...initialCobroForm, fecha: aFechaISO(new Date()), ...(saldo ? { aplicar_a: 'alquiler', monto: saldo.monto, moneda: saldo.moneda, concepto: saldo.concepto } : {}) })
+    setModalOpen(true)
+    router.replace(window.location.pathname + (isDemo ? '?demo=true' : ''), { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registrarDesdeAviso, loading, reserva])
+
   function openCobroModal(cobro?: Cobro) {
     if (cobro) {
       setEditingCobroId(cobro.id)
@@ -408,7 +441,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       })
     } else {
       setEditingCobroId(null)
-      setCobroForm(initialCobroForm)
+      setCobroForm({ ...initialCobroForm, fecha: aFechaISO(new Date()) })
     }
     setModalOpen(true)
   }
@@ -1031,6 +1064,20 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       {/* Modal nuevo cobro */}
       <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditingCobroId(null); setCobroForm(initialCobroForm); }} title={editingCobroId ? "Editar Pago" : "Registrar Pago"}>
         <form onSubmit={handleSaveCobro} className="space-y-4">
+          {!editingCobroId && montosSugeridos.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-costa-gris">Cargar:</span>
+              {montosSugeridos.map(s => {
+                const activo = cobroForm.monto === s.monto && cobroForm.moneda === s.moneda && cobroForm.aplicar_a === 'alquiler'
+                return (
+                  <button key={`${s.label}-${s.moneda}`} type="button" onClick={() => usarMontoSugerido(s)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${activo ? 'bg-costa-navy text-white border-costa-navy' : 'text-costa-navy border-costa-navy/25 hover:bg-costa-navy/5'}`}>
+                    {s.label} · {s.moneda === 'USD' ? 'U$D' : '$'} {new Intl.NumberFormat('es-AR').format(s.monto)}
+                  </button>
+                )
+              })}
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Select
               label="Aplicar a"

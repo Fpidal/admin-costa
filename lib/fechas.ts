@@ -12,7 +12,7 @@ export const parseFechaLocal = (fecha: string) => {
   return new Date(a, (m || 1) - 1, d || 1)
 }
 
-export const formatFecha = (fecha: string) => parseFechaLocal(fecha).toLocaleDateString('es-AR')
+export const formatFecha = (fecha: string) => parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 
 /**
  * Fecha local -> 'YYYY-MM-DD' para comparar contra columnas `date`.

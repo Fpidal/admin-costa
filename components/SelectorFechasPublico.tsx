@@ -106,8 +106,8 @@ export function SelectorFechasPublico({
           <p className="text-sm text-costa-navy">
             Mostrando disponibilidad para{' '}
             <span className="font-semibold">
-              {parseFechaLocal(fechasActivas.checkIn).toLocaleDateString('es-AR')} -{' '}
-              {parseFechaLocal(fechasActivas.checkOut).toLocaleDateString('es-AR')}
+              {parseFechaLocal(fechasActivas.checkIn).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })} -{' '}
+              {parseFechaLocal(fechasActivas.checkOut).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
             </span>
           </p>
         </div>

@@ -90,7 +90,7 @@ const formatMonto = (monto: number) => {
 }
 
 const formatFecha = (fecha: string) => {
-  return parseFechaLocal(fecha).toLocaleDateString('es-AR')
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 const initialForm = {
@@ -515,7 +515,7 @@ function InquilinosContent() {
                     <strong>Motivo:</strong> {listaNegraAlert.motivo}
                   </p>
                   <p className="text-red-500 text-sm mt-1">
-                    Registrado el: {parseFechaLocal(listaNegraAlert.fecha).toLocaleDateString('es-AR')}
+                    Registrado el: {parseFechaLocal(listaNegraAlert.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </p>
                 </div>
               </div>

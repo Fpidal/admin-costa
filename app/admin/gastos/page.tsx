@@ -61,7 +61,7 @@ const formatMonto = (monto: number) => {
 }
 
 const formatFecha = (fecha: string) => {
-  return parseFechaLocal(fecha).toLocaleDateString('es-AR')
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 const initialForm = {

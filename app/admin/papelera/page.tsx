@@ -166,7 +166,7 @@ export default function PapeleraPage() {
     }
   }
 
-  const formatFecha = (fecha: string) => parseFechaLocal(fecha).toLocaleDateString('es-AR')
+  const formatFecha = (fecha: string) => parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
   const formatFechaHora = (fecha: string) => new Date(fecha).toLocaleString('es-AR')
 
   const totalItems = reservas.length + inquilinos.length + propiedades.length + gastos.length

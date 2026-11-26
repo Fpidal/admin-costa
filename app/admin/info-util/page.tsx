@@ -374,7 +374,7 @@ export default function InfoUtilPage() {
 
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Costa Esmeralda  |  ${listaNegra.length} registros  |  Generado: ${new Date().toLocaleDateString('es-AR')}`, pageWidth / 2, 35, { align: 'center' })
+    doc.text(`Costa Esmeralda  |  ${listaNegra.length} registros  |  Generado: ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`, pageWidth / 2, 35, { align: 'center' })
 
     y = 55
 
@@ -703,7 +703,7 @@ export default function InfoUtilPage() {
                             )}
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs">
-                            {parseFechaLocal(item.fecha).toLocaleDateString('es-AR')}
+                            {parseFechaLocal(item.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex justify-end gap-1">

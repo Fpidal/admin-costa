@@ -7,7 +7,7 @@ import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock, AlertTriangle, Download } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock, AlertTriangle, Download, MessageCircle } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
@@ -16,6 +16,9 @@ import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
 import { montosReserva, sumarMontos, monedasCon, filtrarReservas, describirPeriodo, temporadaDe, temporadaActual, etiquetaTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
+import { AvisosCobranza } from '@/components/AvisosCobranza'
+import { vencimientoSaldo, nombreCasa as casaDeReserva } from '@/lib/cobranza'
+import { linkWhatsApp, mensajeConfirmacion, mensajeRecordatorioSaldo, mensajeIngreso } from '@/lib/whatsapp'
 import { DATOS_LOCADOR_DEMO, DATOS_LOCADOR_VACIOS, camposFaltantes, type DatosLocador } from '@/lib/datosLocador'
 
 interface Propiedad {
@@ -223,7 +226,7 @@ const MontosResumen = ({ montos, className = '' }: { montos: PorMoneda, classNam
 }
 
 const formatFecha = (fecha: string) => {
-  return parseFechaLocal(fecha).toLocaleDateString('es-AR')
+  return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
 // Supabase devuelve los `time` como HH:MM:SS; en pantalla y en los PDF va HH:MM
@@ -308,6 +311,8 @@ function ReservasContent() {
   // Filtro de la pestaña Reservas: casa y período. Lo usan los recuadros, la
   // tabla y el reporte PDF
   const [filtro, setFiltro] = useState<FiltroReservas>(FILTRO_INICIAL)
+  // Reserva con el menú de mensajes de WhatsApp abierto
+  const [whatsappAbierto, setWhatsappAbierto] = useState<number | null>(null)
 
   useEffect(() => {
     if (isDemo) {
@@ -779,7 +784,7 @@ function ReservasContent() {
     doc.setFontSize(9)
     doc.setFont('helvetica', 'normal')
     doc.text(`N° ${numDetalle}`, pageWidth - 15, 19, { align: 'right' })
-    doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR')}`, pageWidth - 15, 25, { align: 'right' })
+    doc.text(`Fecha: ${new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`, pageWidth - 15, 25, { align: 'right' })
 
     y = 38
 
@@ -1441,6 +1446,26 @@ function ReservasContent() {
     setFiltro({ ...filtro, tipo, valor })
   }
 
+  // Los tres mensajes de WhatsApp de una reserva, con sus datos ya puestos
+  function mensajesWhatsApp(reserva: Reserva) {
+    const { cobrado, saldo } = montosReserva(reserva, cobros)
+    const datos = {
+      huesped: reserva.inquilinos?.nombre,
+      casa: casaDeReserva(reserva),
+      fecha_inicio: reserva.fecha_inicio,
+      fecha_fin: reserva.fecha_fin,
+      horario_ingreso: reserva.horario_ingreso,
+      cobrado,
+      saldo,
+      vencimientoSaldo: vencimientoSaldo(reserva.fecha_inicio),
+    }
+    const tel = reserva.inquilinos?.telefono
+    const lista = [{ label: 'Confirmación', href: linkWhatsApp(tel, mensajeConfirmacion(datos)) }]
+    if (monedasCon(saldo).some(m => saldo[m] > 0)) lista.push({ label: 'Recordar saldo', href: linkWhatsApp(tel, mensajeRecordatorioSaldo(datos)) })
+    lista.push({ label: 'Info para el ingreso', href: linkWhatsApp(tel, mensajeIngreso(datos, URL_INFO_UTIL)) })
+    return lista
+  }
+
   function descargarReporte() {
     generarReporteReservasPDF({
       reservas: reservasReporte,
@@ -1518,6 +1543,8 @@ function ReservasContent() {
 
       {activeTab === 'reservas' && (
         <>
+      <AvisosCobranza reservas={reservas} cobros={cobros} isDemo={isDemo} linkInfoUtil={URL_INFO_UTIL} onEditar={openModal} />
+
       {/* Filtro: casa y período */}
       <Card className="mb-3">
         <CardContent className="py-3">
@@ -1689,9 +1716,24 @@ function ReservasContent() {
                     <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
                       <Button variant="ghost" size="sm" title="Cobros"><Wallet size={16} className="text-costa-olivo" /></Button>
                     </Link>
+                    {reserva.estado !== 'cancelada' && (
+                      <Button variant="ghost" size="sm" title="WhatsApp" onClick={() => setWhatsappAbierto(whatsappAbierto === reserva.id ? null : reserva.id)}>
+                        <MessageCircle size={16} className="text-costa-olivo" />
+                      </Button>
+                    )}
                     <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={16} /></Button>
                     <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={16} className="text-costa-gris" /></Button>
                   </div>
+                  {whatsappAbierto === reserva.id && (
+                    <div className="flex flex-col gap-2 pt-2">
+                      {mensajesWhatsApp(reserva).map(m => (
+                        <a key={m.label} href={m.href} target="_blank" rel="noopener noreferrer" onClick={() => setWhatsappAbierto(null)}
+                          className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white bg-costa-olivo">
+                          <MessageCircle size={15} /> {m.label}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )
@@ -1782,6 +1824,14 @@ function ReservasContent() {
                             </Link>
                             {reserva.estado !== 'cancelada' && (
                               <button
+                                onClick={() => setWhatsappAbierto(whatsappAbierto === reserva.id ? null : reserva.id)}
+                                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-colors ${whatsappAbierto === reserva.id ? 'bg-costa-olivo text-white border-costa-olivo' : 'text-costa-olivo border-costa-olivo/30 hover:bg-costa-olivo/10'}`}
+                              >
+                                <MessageCircle size={13} /> WhatsApp
+                              </button>
+                            )}
+                            {reserva.estado !== 'cancelada' && (
+                              <button
                                 onClick={() => generarContratoPDF(reserva)}
                                 className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
                               >
@@ -1809,6 +1859,17 @@ function ReservasContent() {
                               <Trash2 size={13} /> Eliminar
                             </button>
                           </div>
+                          {whatsappAbierto === reserva.id && (
+                            <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                              <span className="text-xs text-costa-gris">Mensaje:</span>
+                              {mensajesWhatsApp(reserva).map(m => (
+                                <a key={m.label} href={m.href} target="_blank" rel="noopener noreferrer" onClick={() => setWhatsappAbierto(null)}
+                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-costa-olivo bg-costa-olivo/10 hover:bg-costa-olivo/20">
+                                  <MessageCircle size={12} /> {m.label}
+                                </a>
+                              ))}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     </tbody>
