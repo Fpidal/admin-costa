@@ -17,9 +17,9 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Dashboard**: Resumen de reservas, ingresos y ocupación
 - **Propiedades**: CRUD completo con fotos (hasta 16), amenities, precio de alquiler y de venta, y toggle de publicación
 - **Piezas gráficas**: Generador de avisos de venta y alquiler (post 4:5, story 9:16 y ficha A4 en PDF)
-- **Temporada** (inicio): avisos de cobranza, ocupación con huecos para ofrecer por WhatsApp y **resultado del año** (cobrado menos gastos, con dólar del día blue/MEP/oficial)
+- **Temporada** (inicio): avisos de cobranza, ocupación con huecos para ofrecer por WhatsApp y **resultado por año calendario** por casa: pagos de alquiler y servicios cobrados en el año (sin depósitos) menos todos los gastos del año (expensas, mantenimiento, etc.), más el **acumulado** de todos los años; en dólares y pesos con el dólar del día (blue/MEP/oficial) o uno a mano
 - **Precios alquileres**: ver abajo
-- **Reservas**: Vigentes / Cerradas / Pagos en dos columnas (lista por fecha + detalle), resumen en cuadro, calendario de 3 meses con colores por casa (solo Vigentes) y reporte PDF que pregunta el período (temporada, desde hoy o rango) con calendario y precio por noche. PDF de contrato y recibo en verde esmeralda
+- **Reservas**: Vigentes / Cerradas / Pagos en dos columnas (lista por fecha + detalle), resumen en cuadro, calendario de 3 meses con colores por casa (solo Vigentes), detalle con noches × precio por noche y cada servicio (limpieza final, lavadero, extras) y reporte PDF que pregunta el período (temporada, desde hoy o rango) con calendario y precio por noche. PDF de contrato y recibo en verde esmeralda
 - **Cobros**: Dos bloques — alquiler y servicios (con subtotales por moneda) y depósito en garantía, que se lleva aparte por no ser ingreso
 - **Calendario de Reservas**: Vista mensual con indicadores de feriados
 - **Inquilinos**: Base de datos de inquilinos con validación contra lista negra

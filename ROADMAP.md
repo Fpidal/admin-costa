@@ -14,10 +14,11 @@
 ### Reservas y reportes
 - Calendario de 3 meses en Vigentes (azul Golf, bordó Deportiva, barra = sin confirmar)
 - Reporte PDF: elige período, calendario en la misma hoja si entra, columna "por noche"
+- Detalle de la reserva: noches × precio por noche y cada servicio con cargo (limpieza final, lavadero, extras)
 - PDFs (reserva, contrato, recibo, info útil) con los colores del panel
 
 ### Temporada
-- Resultado del año de alquiler por casa (cobrado − gastos) con dólar automático (dolarapi.com) o a mano
+- Resultado por año calendario por casa (pagos cobrados en el año − todos los gastos del año) y columna de acumulado de todos los años, con dólar automático (dolarapi.com) o a mano
 
 ### Otros
 - Pagos: alquiler y depósito con conceptos propios; depósito muestra recibido, devuelto y en garantía
