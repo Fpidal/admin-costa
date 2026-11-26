@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, MapPin, Bed, Bath, Car, Pencil, Trash2, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, Share2, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react'
+import { Plus, MapPin, Bed, Bath, Car, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { CalendarioPrecios } from '@/components/CalendarioPrecios'
 import { PanelReglasPrecios } from '@/components/PanelReglasPrecios'
@@ -952,28 +952,28 @@ function PropiedadesContent() {
                       </a>
                     </div>
 
-                    {/* Fila 2: Acciones */}
-                    <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" onClick={() => compartirWhatsApp(propiedad)} title="Compartir por WhatsApp">
-                        <Share2 size={16} className="text-costa-olivo" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        title="Calendario de precios"
+                    {/* Fila 2: Acciones, con texto en vez de íconos sueltos */}
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button type="button" onClick={() => compartirWhatsApp(propiedad)}
+                        className="rounded-lg border border-green-200 bg-green-50 px-2 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100 transition-colors">
+                        Compartir
+                      </button>
+                      <button type="button"
                         onClick={() => {
                           setSelectedPropiedadId(String(propiedad.id))
                           setActiveTab('precios')
                         }}
-                      >
-                        <DollarSign size={16} className="text-costa-navy" />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => openModal(propiedad)} title="Editar">
-                        <Pencil size={16} />
-                      </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleDelete(propiedad.id)} title="Eliminar">
-                        <Trash2 size={16} className="text-costa-coral" />
-                      </Button>
+                        className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 transition-colors">
+                        Precios
+                      </button>
+                      <button type="button" onClick={() => openModal(propiedad)}
+                        className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+                        Editar
+                      </button>
+                      <button type="button" onClick={() => handleDelete(propiedad.id)}
+                        className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors">
+                        Eliminar
+                      </button>
                     </div>
                   </div>
                 </div>

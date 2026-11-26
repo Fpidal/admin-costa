@@ -1430,7 +1430,8 @@ function ReservasContent() {
   const enVista = (r: Reserva) => vista === 'cerradas' ? r.estado === 'cerrada' : r.estado !== 'cerrada'
   const reservasResumen = reservasReporte.filter(enVista)
   const cerradasPeriodo = reservasReporte.filter(r => r.estado === 'cerrada').length
-  const reservasLista = reservasFiltradas.filter(enVista)
+  // Siempre por fecha de ingreso, de la más próxima a la más lejana
+  const reservasLista = reservasFiltradas.filter(enVista).sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))
   // Pagos de las reservas del filtro (vigentes y cerradas)
   const idsFiltradas = new Set(reservasFiltradas.map(r => r.id))
   const cobrosVista = cobros.filter(c => idsFiltradas.has(c.reserva_id))
@@ -1657,10 +1658,10 @@ function ReservasContent() {
                       {reserva.estado}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-costa-gris mb-3">
-                    <Calendar size={12} />
-                    <span>{formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}</span>
-                    <span className="text-costa-navy font-medium">({noches}n)</span>
+                  <div className="flex items-center gap-2 text-sm text-costa-navy mb-3">
+                    <Calendar size={14} className="text-costa-gris" />
+                    <span className="font-semibold tabular-nums">{formatFecha(reserva.fecha_inicio)} → {formatFecha(reserva.fecha_fin)}</span>
+                    <span className="text-costa-gris text-xs">{noches}n</span>
                     <span className="flex items-center gap-1 ml-2">
                       <Users size={12} />
                       {reserva.cantidad_personas || 1}
@@ -1758,10 +1759,10 @@ function ReservasContent() {
                           <span className="text-costa-navy text-sm">{reserva.inquilinos?.nombre || '-'}</span>
                         </td>
                         <td className="px-3 py-2">
-                          <div className="text-costa-gris text-xs">
-                            {formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}
-                            <span className="ml-1 text-costa-navy">({noches}n)</span>
+                          <div className="text-sm font-semibold text-costa-navy tabular-nums whitespace-nowrap">
+                            {formatFecha(reserva.fecha_inicio)} <span className="text-costa-gris font-normal">→</span> {formatFecha(reserva.fecha_fin)}
                           </div>
+                          <div className="text-xs text-costa-gris">{noches} noche{noches !== 1 ? 's' : ''}</div>
                         </td>
                         <td className="px-2 py-2 text-center text-costa-navy text-sm">
                           {reserva.cantidad_personas || 1}
@@ -1798,14 +1799,14 @@ function ReservasContent() {
                         <td colSpan={8} className="px-3 pb-2 pt-0">
                           <div className="flex flex-wrap items-center justify-center gap-2">
                             <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-olivo border border-costa-olivo/30 hover:bg-costa-olivo/10 transition-colors">
+                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 transition-colors">
                                 <Wallet size={13} /> Cobros
                               </span>
                             </Link>
                             {reserva.estado !== 'cancelada' && (
                               <button
                                 onClick={() => setWhatsappAbierto(whatsappAbierto === reserva.id ? null : reserva.id)}
-                                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-colors ${whatsappAbierto === reserva.id ? 'bg-costa-olivo text-white border-costa-olivo' : 'text-costa-olivo border-costa-olivo/30 hover:bg-costa-olivo/10'}`}
+                                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-colors ${whatsappAbierto === reserva.id ? 'bg-green-600 text-white border-green-600' : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}
                               >
                                 <MessageCircle size={13} /> WhatsApp
                               </button>
@@ -1813,7 +1814,7 @@ function ReservasContent() {
                             {reserva.estado !== 'cancelada' && (
                               <button
                                 onClick={() => generarContratoPDF(reserva)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100 transition-colors"
                               >
                                 <FileSignature size={13} /> Contrato PDF
                               </button>
@@ -1821,20 +1822,20 @@ function ReservasContent() {
                             {reserva.estado !== 'cancelada' && (
                               <button
                                 onClick={() => generarReciboPDF(reserva)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-navy border border-costa-navy/20 hover:bg-costa-navy/5 transition-colors"
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 transition-colors"
                               >
                                 <FileText size={13} /> {reserva.estado === 'pendiente' ? 'Cotización PDF' : 'Reserva PDF'}
                               </button>
                             )}
                             <button
                               onClick={() => openModal(reserva)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-gris border border-costa-gris/25 hover:bg-costa-beige transition-colors"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition-colors"
                             >
                               <Pencil size={13} /> Editar
                             </button>
                             <button
                               onClick={() => handleDelete(reserva.id)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-coral border border-costa-coral/30 hover:bg-costa-coral/10 transition-colors"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 transition-colors"
                             >
                               <Trash2 size={13} /> Eliminar
                             </button>
