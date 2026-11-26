@@ -28,6 +28,7 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Usuarios**: Panel de administración de usuarios (solo admin)
 - **Info útil**: Información de servicios, contactos y lista negra
 - **Papelera**: Recuperación de elementos eliminados (soft delete)
+- **Versiones**: historial de cambios del sistema (`lib/versiones.ts`), con la versión actual al pie del menú
 
 ### Precios alquileres (Casas → Precios alquileres)
 - **Calendario mensual** de lunes a domingo con el precio por noche de cada casa (ambas o una sola), botón Hoy y buscador de fecha

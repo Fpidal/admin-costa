@@ -26,6 +26,7 @@
 - Migración `sql/23-link-huespedes.sql` (código por reserva + 2 funciones; la tabla no se abre sin login)
 
 ### Otros
+- Sección Versiones (Más → Versiones) con el historial de cambios
 - Huéspedes: el historial de reservas de cada huésped se rompía (campos de fecha viejos); corregido
 - Pagos: alquiler y depósito con conceptos propios; depósito muestra recibido, devuelto y en garantía
 - Piezas gráficas: compartir por WhatsApp (imagen adjunta en el celular)

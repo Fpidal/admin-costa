@@ -160,3 +160,7 @@ CREATE TABLE contactos (
 ## Deploy
 
 Push a main → Vercel hace deploy automático
+
+## Historial de versiones
+
+Con cada cambio que se sube, agregar una línea en `lib/versiones.ts` (en la versión de arriba, o una versión nueva si es un cambio grande), en palabras simples para Francisco. Se ve en el panel en Más → Versiones y al pie del menú.

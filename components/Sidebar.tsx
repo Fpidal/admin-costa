@@ -20,7 +20,9 @@ import {
   Images,
   UserCog,
   Sun,
+  History,
 } from 'lucide-react'
+import { VERSION_ACTUAL } from '@/lib/versiones'
 import { useState } from 'react'
 import { CampanitaMensajes } from './CampanitaMensajes'
 
@@ -41,6 +43,7 @@ const navigationMas = [
   { name: 'Info útil', href: '/admin/info-util', icon: Info },
   { name: 'Mis datos', href: '/admin/mis-datos', icon: UserCog },
   { name: 'Papelera', href: '/admin/papelera', icon: Trash2 },
+  { name: 'Versiones', href: '/admin/versiones', icon: History },
 ]
 
 interface SidebarProps {
@@ -213,6 +216,9 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
               </div>
             </div>
           )}
+          <Link href={getHref('/admin/versiones')} className="block px-4 pb-2 text-center text-[0.65rem] text-white/45 hover:text-white/80">
+            Versión {VERSION_ACTUAL}
+          </Link>
 
         </div>
       </aside>
