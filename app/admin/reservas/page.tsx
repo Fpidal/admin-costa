@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { parseFechaLocal, aFechaISO } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, Calendar, Pencil, Trash2, Users, ChevronDown, ChevronUp, Check, Zap, Wallet, AlertTriangle, Download } from 'lucide-react'
+import { Plus, Calendar, Pencil, Trash2, Users, ChevronDown, ChevronUp, Check, Zap, AlertTriangle, Download } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
@@ -261,8 +261,6 @@ function ReservasContent() {
   // Una sola lista: vigentes, cerradas (antes "Pasados") o los pagos recibidos
   // (antes "Cobros"). La gestión de cada reserva vive en su ficha de cobros
   const [vista, setVista] = useState<'vigentes' | 'cerradas' | 'pagos'>('vigentes')
-  // Reserva elegida en "Pagos recibidos" (por defecto, la del pago más reciente)
-  const [pagoSel, setPagoSel] = useState<string | null>(null)
   // Reserva elegida en la lista (por defecto, la primera) y avisos desplegados
   const [reservaSel, setReservaSel] = useState<number | null>(null)
   const [avisosAbiertos, setAvisosAbiertos] = useState(false)
@@ -1537,8 +1535,12 @@ function ReservasContent() {
         </Button>
       </div>
 
-      {vista !== 'pagos' && (() => {
-        const lista = reservasLista
+      {(() => {
+        // En "Pagos" la lista son las reservas del filtro que tienen pagos
+        const conPagos = new Set(cobrosVista.map(c => c.reserva_id))
+        const lista = vista === 'pagos'
+          ? reservasFiltradas.filter(r => conPagos.has(r.id)).sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))
+          : reservasLista
         const elegida = lista.find(r => r.id === reservaSel) || lista[0]
         const avisos = vista === 'vigentes' ? armarAvisos(reservas, cobros) : []
         const saldosUrgentes = avisos.filter(a => a.tipo === 'saldo' && a.urgencia !== 'normal')
@@ -1693,6 +1695,18 @@ function ReservasContent() {
         return (
           <>
             {/* Números del filtro, en un renglón */}
+            {vista === 'pagos' ? (() => {
+              const sumar = (deposito: boolean) => cobrosVista.filter(c => (c.aplicar_a === 'deposito') === deposito)
+                .reduce((acc, c) => { acc[c.moneda] = (acc[c.moneda] || 0) + (c.concepto === 'devolucion_sena' ? -c.monto : c.monto); return acc }, {} as PorMoneda)
+              const dep = sumar(true)
+              return (
+                <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-costa-gris">
+                  <span><b className="text-costa-navy">{cobrosVista.length}</b> pago{cobrosVista.length !== 1 ? 's' : ''} en {lista.length} reserva{lista.length !== 1 ? 's' : ''}</span>
+                  <span>Cobrado <b className="text-costa-olivo tabular-nums">{montosTexto(sumar(false)) || 'U$D 0'}</b></span>
+                  {monedasCon(dep).length > 0 && <span>Depósitos en garantía <b className="text-costa-navy tabular-nums">{montosTexto(dep)}</b></span>}
+                </div>
+              )
+            })() : (
             <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-costa-gris">
               <span><b className="text-costa-navy">{reservasResumen.length}</b> reserva{reservasResumen.length !== 1 ? 's' : ''}</span>
               <span>Total <b className="text-costa-navy tabular-nums">{montosTexto(resumen.total) || 'U$D 0'}</b></span>
@@ -1701,6 +1715,7 @@ function ReservasContent() {
               {pendientes > 0 && <span className="font-semibold text-red-700">{pendientes} sin confirmar · {montosTexto(totalAConfirmar)}</span>}
               {vista === 'vigentes' && cerradasPeriodo > 0 && <span>· {cerradasPeriodo} cerrada{cerradasPeriodo !== 1 ? 's' : ''} en el período</span>}
             </div>
+            )}
 
             {/* Avisos plegados en una línea */}
             {avisos.length > 0 && (
@@ -1724,20 +1739,20 @@ function ReservasContent() {
             )}
 
             {lista.length === 0 ? (
-              <Card><CardContent className="py-12 text-center text-costa-gris">No hay reservas {vista} para este filtro</CardContent></Card>
+              <Card><CardContent className="py-12 text-center text-costa-gris">{vista === 'pagos' ? 'No hay pagos para este filtro' : `No hay reservas ${vista} para este filtro`}</CardContent></Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-start">
                 {/* Lista por fecha */}
                 <div className="overflow-hidden rounded-xl border border-costa-borde bg-costa-superficie">
                   <div className="flex justify-between border-b border-costa-borde px-4 py-2 text-xs font-semibold text-costa-gris">
-                    <span>Por fecha de ingreso</span><span>{vista === 'cerradas' ? 'Total' : 'Saldo'}</span>
+                    <span>Por fecha de ingreso</span><span>{vista === 'cerradas' ? 'Total' : vista === 'pagos' ? 'Cobrado' : 'Saldo'}</span>
                   </div>
                   <ul>
                     {lista.map(r => {
                       const activa = elegida?.id === r.id
                       const ini = parseFechaLocal(r.fecha_inicio)
-                      const { total, saldo } = montosReserva(r, cobros)
-                      const monto = vista === 'cerradas' || r.estado === 'pendiente' ? total : positivos(saldo)
+                      const { total, saldo, cobrado } = montosReserva(r, cobros)
+                      const monto = vista === 'pagos' ? cobrado : vista === 'cerradas' || r.estado === 'pendiente' ? total : positivos(saldo)
                       return (
                         <li key={r.id} className="border-b border-costa-borde/60 last:border-0">
                           <button type="button" onClick={() => setReservaSel(r.id)}
@@ -1751,7 +1766,7 @@ function ReservasContent() {
                               <span className="block text-xs text-costa-gris tabular-nums">{formatFecha(r.fecha_inicio).slice(0, 5)} → {formatFecha(r.fecha_fin)} · {calcularNoches(r.fecha_inicio, r.fecha_fin)} noches</span>
                             </span>
                             <span className="shrink-0 text-right">
-                              <span className={`block text-sm font-bold tabular-nums ${r.estado === 'pendiente' ? 'text-costa-gris' : 'text-costa-navy'}`}>{montosTexto(monto) || '–'}</span>
+                              <span className={`block text-sm font-bold tabular-nums ${vista === 'pagos' ? 'text-costa-olivo' : r.estado === 'pendiente' ? 'text-costa-gris' : 'text-costa-navy'}`}>{montosTexto(monto) || '–'}</span>
                               {etiqueta(r)}
                             </span>
                           </button>
@@ -1772,103 +1787,6 @@ function ReservasContent() {
               </div>
             )}
           </>
-        )
-      })()}
-
-      {/* Pagos recibidos: lista de reservas a la izquierda y sus pagos a la derecha */}
-      {vista === 'pagos' && (() => {
-        const grupos = Object.entries(
-          cobrosVista.reduce((acc, c) => {
-            const k = String(c.reserva_id)
-            ;(acc[k] ||= []).push(c)
-            return acc
-          }, {} as Record<string, Cobro[]>)
-        )
-          .map(([id, lista]) => ({ id, lista: [...lista].sort((a, b) => a.fecha.localeCompare(b.fecha)), reserva: reservas.find(r => String(r.id) === id) }))
-          .sort((a, b) => (b.lista[b.lista.length - 1]?.fecha || '').localeCompare(a.lista[a.lista.length - 1]?.fecha || ''))
-        // Suma por moneda: la devolución resta; el depósito se muestra aparte
-        const sumar = (lista: Cobro[], deposito: boolean) => lista
-          .filter(c => (c.aplicar_a === 'deposito') === deposito)
-          .reduce((acc, c) => { acc[c.moneda] = (acc[c.moneda] || 0) + (c.concepto === 'devolucion_sena' ? -c.monto : c.monto); return acc }, {} as Record<string, number>)
-        const textoMontos = (o: Record<string, number>) => monedasCon(o).map(m => formatMonto(o[m], m)).join(' + ') || '–'
-        const sel = grupos.find(g => g.id === pagoSel) || grupos[0]
-        return (
-          <Card>
-            <CardHeader className="flex items-baseline justify-between gap-2">
-              <CardTitle>Pagos recibidos</CardTitle>
-              <span className="text-xs text-costa-gris">{cobrosVista.length} pago{cobrosVista.length !== 1 ? 's' : ''} en {grupos.length} reserva{grupos.length !== 1 ? 's' : ''}</span>
-            </CardHeader>
-            <CardContent className="p-0">
-              {grupos.length === 0 ? (
-                <div className="py-8 text-center text-gray-500">No hay pagos para este filtro</div>
-              ) : (
-                <div className="grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-                  {/* Reservas con pagos */}
-                  <ul className="divide-y divide-costa-borde/60 md:border-r md:border-costa-borde">
-                    {grupos.map(g => {
-                      const activo = sel?.id === g.id
-                      return (
-                        <li key={g.id}>
-                          <button type="button" onClick={() => setPagoSel(g.id)}
-                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${activo ? 'bg-costa-esmeralda-suave' : 'hover:bg-costa-arena/60'}`}>
-                            <span className="min-w-0 flex-1">
-                              <span className={`block truncate font-semibold ${activo ? 'text-costa-esmeralda' : 'text-costa-navy'}`}>{g.reserva?.inquilinos?.nombre?.trim() || '-'}</span>
-                              <span className="block truncate text-xs text-costa-gris">
-                                {g.reserva?.propiedades?.nombre}{g.reserva && <> · {formatFecha(g.reserva.fecha_inicio)} → {formatFecha(g.reserva.fecha_fin)}</>}
-                                {g.reserva?.estado === 'cerrada' && ' · cerrada'}
-                              </span>
-                            </span>
-                            <span className="shrink-0 text-right">
-                              <span className="block font-semibold tabular-nums text-costa-navy">{textoMontos(sumar(g.lista, false))}</span>
-                              <span className="block text-xs text-costa-gris">{g.lista.length} pago{g.lista.length !== 1 ? 's' : ''}</span>
-                            </span>
-                          </button>
-                        </li>
-                      )
-                    })}
-                  </ul>
-
-                  {/* Pagos de la reserva elegida */}
-                  {sel && (
-                    <div className="p-4 md:sticky md:top-4 self-start">
-                      <div className="flex items-start justify-between gap-3 mb-3">
-                        <div className="min-w-0">
-                          <p className="font-bold text-costa-esmeralda truncate">{sel.reserva?.inquilinos?.nombre?.trim() || '-'}</p>
-                          <p className="text-xs text-costa-gris">{sel.reserva?.propiedades?.nombre}{sel.reserva && <> · {formatFecha(sel.reserva.fecha_inicio)} → {formatFecha(sel.reserva.fecha_fin)}</>}</p>
-                        </div>
-                        <Link href={`/admin/reservas/${sel.id}/cobros${isDemo ? '?demo=true' : ''}`}
-                          className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-costa-borde px-2.5 py-1 text-xs font-semibold text-costa-esmeralda hover:bg-costa-esmeralda-suave">
-                          <Wallet size={13} /> Ver ficha
-                        </Link>
-                      </div>
-                      <table className="w-full text-sm">
-                        <tbody>
-                          {sel.lista.map(c => (
-                            <tr key={c.id} className="border-b border-costa-borde/50 last:border-0">
-                              <td className="py-1.5 pr-2 tabular-nums text-costa-gris whitespace-nowrap">{formatFecha(c.fecha)}</td>
-                              <td className="py-1.5 pr-2 text-costa-navy">
-                                {conceptosCobro[c.concepto] || 'Pago'}
-                                <span className="text-xs text-costa-gris"> · {mediosCobro[c.medio_pago] || c.medio_pago}{c.aplicar_a === 'deposito' ? ' · depósito' : ''}</span>
-                              </td>
-                              <td className={`py-1.5 text-right font-semibold tabular-nums whitespace-nowrap ${c.concepto === 'devolucion_sena' ? 'text-costa-coral-dark' : c.aplicar_a === 'deposito' ? 'text-costa-gris' : 'text-costa-olivo'}`}>
-                                {c.concepto === 'devolucion_sena' ? '− ' : ''}{formatMonto(c.monto, c.moneda)}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      <div className="mt-3 space-y-1 rounded-lg bg-costa-arena/70 px-3 py-2 text-sm">
-                        <div className="flex justify-between"><span className="text-costa-gris">Cobrado por alquiler y servicios</span><span className="font-bold tabular-nums text-costa-olivo">{textoMontos(sumar(sel.lista, false))}</span></div>
-                        {sel.lista.some(c => c.aplicar_a === 'deposito') && (
-                          <div className="flex justify-between"><span className="text-costa-gris">Depósito en garantía</span><span className="font-semibold tabular-nums text-costa-navy">{textoMontos(sumar(sel.lista, true))}</span></div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
         )
       })()}
 
