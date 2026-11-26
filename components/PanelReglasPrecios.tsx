@@ -19,7 +19,6 @@ import {
   AlertTriangle,
   Save,
   Sparkles,
-  ArrowUpDown,
   Check,
   Copy
 } from 'lucide-react'
@@ -147,10 +146,6 @@ export function PanelReglasPrecios({
       r.id === ruleId ? { ...r, active: !r.active } : r
     ))
     setHasChanges(true)
-  }
-
-  function handleSortByPriority() {
-    setLocalRules(prev => [...prev].sort((a, b) => b.priority - a.priority))
   }
 
   async function handleSaveAll() {
@@ -340,7 +335,7 @@ export function PanelReglasPrecios({
     <div className="space-y-4">
       {/* Header con botones */}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="font-semibold text-costa-navy">Reglas de Precios</h3>
+        <h3 className="font-semibold text-costa-esmeralda">Reglas de precios <span className="text-xs font-normal text-costa-gris">· de mayor a menor precio</span></h3>
         <div className="flex flex-wrap gap-2">
           <Button variant="secondary" size="sm" onClick={() => setIsPresetModalOpen(true)}>
             <Sparkles size={14} />
@@ -352,9 +347,6 @@ export function PanelReglasPrecios({
               Aplicar a Todas
             </Button>
           )}
-          <Button variant="secondary" size="sm" onClick={handleSortByPriority}>
-            <ArrowUpDown size={14} />
-          </Button>
           <Button size="sm" onClick={openAddModal}>
             <Plus size={14} />
             Agregar
@@ -381,14 +373,12 @@ export function PanelReglasPrecios({
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-costa-beige">
+            <tr className="border-b border-costa-borde">
               <th className="text-left py-2 px-2 font-medium text-costa-gris">Activa</th>
               <th className="text-left py-2 px-2 font-medium text-costa-gris">Nombre</th>
-              <th className="text-center py-2 px-2 font-medium text-costa-gris">Cat.</th>
               <th className="text-right py-2 px-2 font-medium text-costa-gris">USD/noche</th>
               <th className="text-left py-2 px-2 font-medium text-costa-gris">Fechas</th>
               <th className="text-left py-2 px-2 font-medium text-costa-gris">Días</th>
-              <th className="text-center py-2 px-2 font-medium text-costa-gris">Prio</th>
               <th className="text-center py-2 px-2 font-medium text-costa-gris">Min.</th>
               <th className="text-right py-2 px-2 font-medium text-costa-gris">Acciones</th>
             </tr>
@@ -396,13 +386,12 @@ export function PanelReglasPrecios({
           <tbody>
             {localRules.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-8 text-center text-costa-gris">
+                <td colSpan={7} className="py-8 text-center text-costa-gris">
                   No hay reglas configuradas. Agregue una regla o aplique un preset.
                 </td>
               </tr>
             ) : (
-              localRules.map((rule) => {
-                const colors = CATEGORY_COLORS[rule.category]
+              [...localRules].sort((a, b) => b.price_per_night - a.price_per_night).map((rule) => {
                 return (
                   <tr
                     key={rule.id}
@@ -412,25 +401,18 @@ export function PanelReglasPrecios({
                       <button
                         onClick={() => handleToggleActive(rule.id!)}
                         className={`w-5 h-5 rounded flex items-center justify-center ${
-                          rule.active ? 'bg-costa-olivo text-white' : 'bg-gray-200'
+                          rule.active ? 'bg-costa-esmeralda text-white' : 'bg-gray-200'
                         }`}
                       >
                         {rule.active && <Check size={12} />}
                       </button>
                     </td>
                     <td className="py-2 px-2 font-medium">{rule.name}</td>
-                    <td className="py-2 px-2 text-center">
-                      <span
-                        className={`w-3 h-3 rounded-full inline-block ${colors.solid}`}
-                        title={CATEGORY_LABELS[rule.category]}
-                      />
-                    </td>
-                    <td className="py-2 px-2 text-right font-mono">${rule.price_per_night}</td>
+                    <td className="py-2 px-2 text-right font-bold text-costa-esmeralda">U$D {rule.price_per_night}</td>
                     <td className="py-2 px-2 text-xs">
                       {formatDateDisplay(rule.start_date)} → {formatDateDisplay(rule.end_date)}
                     </td>
                     <td className="py-2 px-2 text-xs">{getDaysLabel(rule.applies_to_days)}</td>
-                    <td className="py-2 px-2 text-center font-mono text-xs">{rule.priority}</td>
                     <td className="py-2 px-2 text-center">{rule.min_nights || '-'}</td>
                     <td className="py-2 px-2">
                       <div className="flex justify-end gap-1">

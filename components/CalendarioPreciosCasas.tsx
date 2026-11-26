@@ -65,8 +65,6 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
   const [guardando, setGuardando] = useState(false)
   const [aviso, setAviso] = useState('')
 
-  useEffect(() => { if (casaInicial) setVerCasa(casaInicial) }, [casaInicial])
-
   const ids = useMemo(() => casas.map(c => String(c.id)), [casas])
 
   const cargar = useCallback(async () => {
@@ -122,20 +120,39 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     return r ? (r.estado === 'pendiente' ? 'pend' : 'res') : null
   }
 
-  // Tramos: reglas que tocan el mes visto ±1, agrupadas por nombre y fechas
-  const primerDia = isoDe(anio, mes, 1)
-  const ultimoDia = isoDe(anio, mes, new Date(anio, mes + 1, 0).getDate())
-  const ventanaDesde = isoDe(mes === 0 ? anio - 1 : anio, (mes + 11) % 12, 1)
-  const ventanaHasta = isoDe(mes === 11 ? anio + 1 : anio, (mes + 1) % 12, 28)
+  // Tramos del año de alquiler que se está viendo (marzo a febrero), para que la
+  // lista no cambie con cada mes. Se agrupan por fechas (no por nombre: cada
+  // casa puede llamar distinto al mismo tramo) y van de mayor a menor precio.
+  const anioCiclo = mes >= 2 ? anio : anio - 1
+  const cicloDesde = `${anioCiclo}-03-01`
+  const cicloHasta = `${anioCiclo + 1}-02-28`
   const tramos = useMemo(() => {
     const grupos = new Map<string, { nombre: string; desde: string; hasta: string; dias: string[]; porCasa: Record<string, PriceRule> }>()
-    reglas.filter(r => r.end_date >= ventanaDesde && r.start_date <= ventanaHasta).forEach(r => {
-      const k = `${r.name}|${r.start_date}|${r.end_date}`
+    reglas.filter(r => r.end_date >= cicloDesde && r.start_date <= cicloHasta).forEach(r => {
+      const dias = [...(r.applies_to_days || [])].sort()
+      const k = `${r.start_date}|${r.end_date}|${dias.join(',')}`
       if (!grupos.has(k)) grupos.set(k, { nombre: r.name, desde: r.start_date, hasta: r.end_date, dias: r.applies_to_days || [], porCasa: {} })
-      grupos.get(k)!.porCasa[r.property_id] = r
+      const g = grupos.get(k)!
+      g.porCasa[r.property_id] = r
+      if (r.name.length < g.nombre.length) g.nombre = r.name
     })
-    return [...grupos.values()].sort((a, b) => a.desde.localeCompare(b.desde) || a.hasta.localeCompare(b.hasta))
-  }, [reglas, ventanaDesde, ventanaHasta])
+    const maxPrecio = (t: { porCasa: Record<string, PriceRule> }) => Math.max(...Object.values(t.porCasa).map(r => r.price_per_night))
+    return [...grupos.values()].sort((a, b) => maxPrecio(b) - maxPrecio(a))
+  }, [reglas, cicloDesde, cicloHasta])
+
+  // Reglas que de verdad ponen el precio de algún día del mes visto
+  const usadasEnMes = useMemo(() => {
+    const usadas = new Set<string>()
+    const dias = new Date(anio, mes + 1, 0).getDate()
+    for (const c of casasVisibles) {
+      const propias = reglas.filter(r => r.property_id === String(c.id))
+      for (let d = 1; d <= dias; d++) {
+        const r = precioDelDia(propias, isoDe(anio, mes, d), new Date(anio, mes, d).getDay())
+        if (r?.id) usadas.add(r.id)
+      }
+    }
+    return usadas
+  }, [reglas, casasVisibles, anio, mes])
 
   function irA(iso: string) {
     setAnio(Number(iso.slice(0, 4)))
@@ -320,9 +337,9 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
         <div className="rounded-2xl border border-costa-borde bg-costa-superficie p-4 space-y-4">
           <div>
             <h4 className="text-sm font-bold text-costa-esmeralda">Precios por tramo</h4>
-            <p className="text-xs text-costa-gris mb-2">U$D por noche. Cambiá el número y se guarda solo. Resaltados, los del mes que estás viendo.</p>
+            <p className="text-xs text-costa-gris mb-2">De marzo {anioCiclo} a febrero {anioCiclo + 1}, de mayor a menor precio, en U$D por noche. Cambiá el número y se guarda solo. Resaltados, los que caen en {MESES[mes].toLowerCase()}.</p>
             {tramos.length === 0 ? (
-              <p className="text-xs text-costa-gris py-3">No hay tramos cargados cerca de este mes.</p>
+              <p className="text-xs text-costa-gris py-3">No hay precios cargados para este año. Probá con “Copiar de la temporada anterior”.</p>
             ) : (
               <table className="w-full text-xs">
                 <thead>
@@ -333,13 +350,13 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                 </thead>
                 <tbody>
                   {tramos.map(t => {
-                    const activo = t.hasta >= primerDia && t.desde <= ultimoDia
+                    const activo = Object.values(t.porCasa).some(r => r.id && usadasEnMes.has(r.id))
                     return (
                       <tr key={`${t.nombre}${t.desde}${t.hasta}`} className={`border-b border-[#f1ebe2] last:border-0 ${activo ? 'bg-[#fbf3e8]' : ''}`}>
                         <td className="py-1.5 pr-1">
                           <span className="font-semibold text-costa-esmeralda">{t.nombre}</span>
                           <span className="block text-[10px] text-costa-gris">
-                            {dm(t.desde)} al {dm(t.hasta)}{t.dias.length ? ` · solo ${t.dias.join(', ')}` : ''}
+                            {dmy(t.desde)} al {dmy(t.hasta)}{t.dias.length ? ` · solo ${t.dias.join(', ')}` : ''}
                           </span>
                         </td>
                         {casasVisibles.map(c => {
