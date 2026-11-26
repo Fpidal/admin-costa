@@ -3,12 +3,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { demoGastos } from '@/lib/demoData'
-import { montosReserva } from '@/lib/resumenReservas'
 
-// Resultado del año de alquiler que termina con la temporada elegida (de marzo
-// a fin de febrero): lo cobrado de alquiler menos los gastos de cada casa. Los
-// gastos están en pesos y lo cobrado mayormente en dólares, así que se pasa
-// todo a una moneda con el dólar del día (o el que se escriba a mano).
+// Resultado por año calendario: lo cobrado de alquiler y servicios en el año
+// (según la fecha de cada pago, sin depósitos) menos los gastos del año de cada
+// casa, más el acumulado de todos los años. Los gastos están en pesos y lo
+// cobrado mayormente en dólares: se pasa todo con el dólar del día o uno a mano.
 
 interface ReservaR { id: number; propiedad_id: string; fecha_inicio: string; fecha_fin: string; estado: string; precio_noche: number | null; moneda: string | null; [k: string]: unknown }
 interface CobroR { reserva_id: number; monto: number; moneda: string; concepto: string; aplicar_a: string; fecha?: string | null }
@@ -23,20 +22,19 @@ const TIPOS_DOLAR = [
 
 const fmt = (v: number) => new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Math.round(v))
 
-export function ResultadoTemporada({ temporada, reservas, cobros, casas, userId, isDemo }: {
-  temporada: number
+export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: {
+  temporada?: number
   reservas: ReservaR[]
   cobros: CobroR[]
   casas: Casa[]
   userId?: string | null
   isDemo: boolean
 }) {
-  // Por año calendario (1/1 al 31/12, lo cobrado según la fecha de cada pago) o
-  // por año de alquiler (marzo a febrero, según el ingreso de cada reserva)
-  const [modo, setModo] = useState<'anio' | 'alquiler'>('anio')
+  // Resultado por año calendario (1/1 al 31/12): pagos cobrados en el año menos
+  // gastos del año. Al lado, el acumulado de todos los años juntos.
   const [anio, setAnio] = useState(new Date().getFullYear())
-  const desde = modo === 'anio' ? `${anio}-01-01` : `${temporada}-03-01`
-  const hasta = modo === 'anio' ? `${anio}-12-31` : `${temporada + 1}-02-${(temporada + 1) % 4 === 0 ? 29 : 28}`
+  const desde = `${anio}-01-01`
+  const hasta = `${anio}-12-31`
   const [gastos, setGastos] = useState<GastoR[]>([])
   const [tipoDolar, setTipoDolar] = useState<'blue' | 'bolsa' | 'oficial'>('blue')
   const [cotizacion, setCotizacion] = useState<number | null>(null)
@@ -49,12 +47,12 @@ export function ResultadoTemporada({ temporada, reservas, cobros, casas, userId,
       if (isDemo) { setGastos(demoGastos as unknown as GastoR[]); return }
       if (!userId) return
       const { data } = await supabase.from('gastos').select('propiedad_id, monto, fecha, pagado')
-        .eq('user_id', userId).is('eliminado_at', null).gte('fecha', desde).lte('fecha', hasta)
+        .eq('user_id', userId).is('eliminado_at', null)
       if (vivo) setGastos((data || []) as GastoR[])
     }
     cargar()
     return () => { vivo = false }
-  }, [userId, isDemo, desde, hasta])
+  }, [userId, isDemo])
 
   // Dólar del día (venta) desde dolarapi.com: solo se pide la cotización, no se manda ningún dato
   useEffect(() => {
@@ -68,47 +66,52 @@ export function ResultadoTemporada({ temporada, reservas, cobros, casas, userId,
 
   const dolar = Number(manual) > 0 ? Number(manual) : cotizacion || 0
 
-  const filas = useMemo(() => casas.map(c => {
-    let usd = 0, ars = 0, cantidad = 0
-    if (modo === 'anio') {
-      // Pagos de alquiler y servicios (no depósitos) cobrados en el año
-      const ids = new Set(reservas.filter(r => String(r.propiedad_id) === c.id && r.estado !== 'cancelada').map(r => r.id))
-      const conPago = new Set<number>()
-      cobros.forEach(cb => {
-        const f = (cb.fecha || '').slice(0, 10)
-        if (!ids.has(cb.reserva_id) || cb.aplicar_a === 'deposito' || f < desde || f > hasta) return
-        const v = (cb.concepto === 'devolucion_sena' ? -1 : 1) * Number(cb.monto || 0)
-        if (cb.moneda === 'USD') usd += v; else ars += v
-        conPago.add(cb.reserva_id)
-      })
-      cantidad = conPago.size
-    } else {
-      const delAnio = reservas.filter(r => String(r.propiedad_id) === c.id && r.estado !== 'cancelada'
-        && r.fecha_inicio >= desde && r.fecha_inicio <= hasta)
-      delAnio.forEach(r => {
-        const { cobrado } = montosReserva(r as never, cobros as never)
-        usd += cobrado.USD || 0
-        ars += cobrado.ARS || 0
-      })
-      cantidad = delAnio.length
+  // Cobrado y gastos de una casa entre dos fechas (sin límite si no se pasan)
+  const calcular = (casaId: string, d?: string, h?: string) => {
+    const dentro = (f: string) => (!d || f >= d) && (!h || f <= h)
+    const ids = new Set(reservas.filter(r => String(r.propiedad_id) === casaId && r.estado !== 'cancelada').map(r => r.id))
+    let usd = 0, ars = 0
+    const conPago = new Set<number>()
+    cobros.forEach(cb => {
+      const f = (cb.fecha || '').slice(0, 10)
+      if (!ids.has(cb.reserva_id) || cb.aplicar_a === 'deposito' || !f || !dentro(f)) return
+      const v = (cb.concepto === 'devolucion_sena' ? -1 : 1) * Number(cb.monto || 0)
+      if (cb.moneda === 'USD') usd += v; else ars += v
+      conPago.add(cb.reserva_id)
+    })
+    const propios = gastos.filter(g => String(g.propiedad_id) === casaId && dentro(String(g.fecha).slice(0, 10)))
+    return {
+      usd, ars, reservas: conPago.size,
+      gastosArs: propios.reduce((a, g) => a + Number(g.monto), 0),
+      sinPagar: propios.filter(g => !g.pagado).reduce((a, g) => a + Number(g.monto), 0),
     }
-    const propios = gastos.filter(g => String(g.propiedad_id) === c.id)
-    const gastosArs = propios.reduce((a, g) => a + Number(g.monto), 0)
-    const sinPagar = propios.filter(g => !g.pagado).reduce((a, g) => a + Number(g.monto), 0)
-    return { casa: c, reservas: cantidad, usd, ars, gastosArs, sinPagar }
-  }), [casas, reservas, cobros, gastos, desde, hasta, modo])
+  }
 
-  const total = filas.reduce((a, f) => ({ usd: a.usd + f.usd, ars: a.ars + f.ars, gastosArs: a.gastosArs + f.gastosArs, sinPagar: a.sinPagar + f.sinPagar, reservas: a.reservas + f.reservas }),
-    { usd: 0, ars: 0, gastosArs: 0, sinPagar: 0, reservas: 0 })
+  const filas = useMemo(() => casas.map(c => ({ casa: c, ...calcular(c.id, desde, hasta), acum: calcular(c.id) })),
+    [casas, reservas, cobros, gastos, desde, hasta]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Años con movimientos, más el actual
+  const anios = useMemo(() => {
+    const set = new Set<number>([new Date().getFullYear()])
+    cobros.forEach(c => c.fecha && set.add(Number(String(c.fecha).slice(0, 4))))
+    gastos.forEach(g => g.fecha && set.add(Number(String(g.fecha).slice(0, 4))))
+    return [...set].sort((a, b) => b - a)
+  }, [cobros, gastos])
+  const primerAnio = anios[anios.length - 1]
+
+  const sumar = (lista: { usd: number; ars: number; gastosArs: number; sinPagar: number; reservas: number }[]) =>
+    lista.reduce((a, f) => ({ usd: a.usd + f.usd, ars: a.ars + f.ars, gastosArs: a.gastosArs + f.gastosArs, sinPagar: a.sinPagar + f.sinPagar, reservas: a.reservas + f.reservas }),
+      { usd: 0, ars: 0, gastosArs: 0, sinPagar: 0, reservas: 0 })
+  const total = { ...sumar(filas), acum: sumar(filas.map(f => f.acum)) }
   const enUsd = (f: { usd: number; ars: number; gastosArs: number }) => dolar ? f.usd + (f.ars - f.gastosArs) / dolar : null
   const enArs = (f: { usd: number; ars: number; gastosArs: number }) => dolar ? f.usd * dolar + f.ars - f.gastosArs : null
   const dmy = (iso: string) => iso.split('-').reverse().join('/')
 
   const Fila = ({ f, nombre, fuerte = false }: { f: typeof total; nombre: string; fuerte?: boolean }) => {
-    const ru = enUsd(f), ra = enArs(f)
+    const ru = enUsd(f), ra = enArs(f), au = enUsd(f.acum), aa = enArs(f.acum)
     return (
       <tr className={`border-b border-costa-borde/60 ${fuerte ? 'bg-costa-arena/50 font-bold' : ''}`}>
-        <td className="px-3 py-2 text-costa-navy">{nombre}<span className="block text-[0.75em] font-normal text-costa-gris">{f.reservas} reserva{f.reservas !== 1 ? 's' : ''}{modo === 'anio' ? ' con pagos' : ''}</span></td>
+        <td className="px-3 py-2 text-costa-navy">{nombre}<span className="block text-[0.75em] font-normal text-costa-gris">{f.reservas} reserva{f.reservas !== 1 ? 's' : ''} con pagos</span></td>
         <td className="px-3 py-2 text-right tabular-nums text-costa-olivo">{f.usd ? `U$D ${fmt(f.usd)}` : '–'}{f.ars ? <span className="block">$ {fmt(f.ars)}</span> : null}</td>
         <td className="px-3 py-2 text-right tabular-nums text-costa-coral-dark">{f.gastosArs ? `$ ${fmt(f.gastosArs)}` : '–'}
           {f.sinPagar > 0 && <span className="block text-[0.75em] font-normal text-costa-gris">$ {fmt(f.sinPagar)} sin pagar</span>}
@@ -117,6 +120,10 @@ export function ResultadoTemporada({ temporada, reservas, cobros, casas, userId,
         <td className={`px-3 py-2 text-right tabular-nums text-base ${ru === null ? 'text-costa-gris' : ru >= 0 ? 'text-costa-esmeralda' : 'text-red-700'}`}>
           {ru === null ? '–' : `U$D ${fmt(ru)}`}
           {ra !== null && <span className="block text-[0.75em] font-normal text-costa-gris">$ {fmt(ra)}</span>}
+        </td>
+        <td className={`px-3 py-2 text-right tabular-nums border-l border-costa-borde ${au === null ? 'text-costa-gris' : au >= 0 ? 'text-costa-esmeralda' : 'text-red-700'}`}>
+          {au === null ? '–' : `U$D ${fmt(au)}`}
+          {aa !== null && <span className="block text-[0.75em] font-normal text-costa-gris">$ {fmt(aa)}</span>}
         </td>
       </tr>
     )
@@ -127,22 +134,14 @@ export function ResultadoTemporada({ temporada, reservas, cobros, casas, userId,
       <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
         <div>
           <h3 className="text-base font-bold text-costa-esmeralda flex flex-wrap items-center gap-2">
-            Resultado
-            {modo === 'anio' ? (
-              <select value={anio} onChange={e => setAnio(Number(e.target.value))}
-                className="h-8 rounded-lg border border-costa-borde bg-white px-2 text-sm font-bold text-costa-esmeralda">
-                {[0, 1, 2, 3].map(k => new Date().getFullYear() - k).map(a => <option key={a} value={a}>{a}</option>)}
-              </select>
-            ) : <span>{temporada}/{String(temporada + 1).slice(2)}</span>}
-            <span className="inline-flex rounded-lg border border-costa-borde bg-white p-0.5 text-xs font-semibold">
-              <button type="button" onClick={() => setModo('anio')} className={`px-2 py-1 rounded-md ${modo === 'anio' ? 'bg-costa-esmeralda text-white' : 'text-costa-gris'}`}>Año (ene–dic)</button>
-              <button type="button" onClick={() => setModo('alquiler')} className={`px-2 py-1 rounded-md ${modo === 'alquiler' ? 'bg-costa-esmeralda text-white' : 'text-costa-gris'}`}>Año de alquiler (mar–feb)</button>
-            </span>
+            Resultado del año
+            <select value={anio} onChange={e => setAnio(Number(e.target.value))}
+              className="h-8 rounded-lg border border-costa-borde bg-white px-2 text-sm font-bold text-costa-esmeralda">
+              {anios.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
           </h3>
           <p className="text-xs text-costa-gris mt-1">
-            Del {dmy(desde)} al {dmy(hasta)}: {modo === 'anio'
-              ? 'los pagos de alquiler y servicios cobrados en el año (sin depósitos) menos los gastos del año de cada casa.'
-              : 'lo cobrado de las reservas que ingresan en ese período (sin depósitos) menos los gastos de cada casa.'}
+            Del {dmy(desde)} al {dmy(hasta)}: los pagos de alquiler y servicios cobrados en el año (sin depósitos) menos los gastos del año de cada casa. A la derecha, el acumulado desde {primerAnio}.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -164,7 +163,8 @@ export function ResultadoTemporada({ temporada, reservas, cobros, casas, userId,
               <th className="px-3 py-1.5 text-left font-semibold">Casa</th>
               <th className="px-3 py-1.5 text-right font-semibold">Cobrado</th>
               <th className="px-3 py-1.5 text-right font-semibold">Gastos</th>
-              <th className="px-3 py-1.5 text-right font-semibold">Resultado</th>
+              <th className="px-3 py-1.5 text-right font-semibold">Resultado {anio}</th>
+              <th className="px-3 py-1.5 text-right font-semibold border-l border-costa-borde">Acumulado</th>
             </tr>
           </thead>
           <tbody>
