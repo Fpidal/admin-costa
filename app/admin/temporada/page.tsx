@@ -19,6 +19,7 @@ import { vencimientoSaldo } from '@/lib/cobranza'
 import { ocupacionTemporada } from '@/lib/ocupacion'
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
 import type { ServicioExtra } from '@/lib/serviciosReserva'
+import { ResultadoTemporada } from '@/components/ResultadoTemporada'
 import { precioEstadia, normalizarReglas, COLUMNAS_REGLAS } from '@/lib/preciosReglas'
 import type { PriceRule } from '@/lib/priceRules'
 import { parseFechaLocal } from '@/lib/fechas'
@@ -368,6 +369,12 @@ function TemporadaContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Resultado del año de alquiler: cobrado menos gastos */}
+      <div className="mt-4">
+        <ResultadoTemporada temporada={temporada} reservas={reservas as never} cobros={cobros as never}
+          casas={propiedades.map(p => ({ id: String(p.id), nombre: p.nombre }))} userId={userId} isDemo={isDemo} />
+      </div>
     </div>
   )
 }
