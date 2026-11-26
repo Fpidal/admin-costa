@@ -15,6 +15,8 @@ export const VERSIONES: Version[] = [
     cambios: [
       'Resumen pasa a llamarse Informes y va en el menú principal; el resultado del año se mudó de Temporada a Informes',
       'Informes: evolución por temporada con precio de lista, cobrado por noche, ocupación y total, y la variación contra la temporada anterior',
+      'Informes: noches sin confirmar aparte (y la ocupación contándolas), temporada "en curso" con variación parcial, y precio cobrado mes por mes (dic, ene, feb)',
+      'Informes: bloque Fuera de temporada por año, con cada reserva y el fin de semana largo en el que cayó',
       'Link para que el huésped cargue nombre, apellido, edad y DNI de sus acompañantes, y la lista para mandar al barrio',
       'Detalle de la reserva con noches × precio por noche y cada servicio (limpieza final, lavadero)',
       'Resultado por año calendario en Temporada, con columna de acumulado de todos los años',
