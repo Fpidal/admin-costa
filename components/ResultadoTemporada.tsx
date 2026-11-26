@@ -5,9 +5,11 @@ import { supabase } from '@/lib/supabase'
 import { demoGastos } from '@/lib/demoData'
 import { montosReserva } from '@/lib/resumenReservas'
 
-// Balance del año (caja): lo cobrado de alquiler y servicios en el año (según
-// la fecha de cada pago, sin depósitos) menos los gastos del año de cada casa.
-// Arranca en 2026: el saldo de un año pasa como saldo inicial del siguiente.
+// Balance económico del año: los ingresos de las reservas que entran en el año
+// (todo lo cobrado de alquiler y servicios, sin depósitos, aunque la seña se
+// haya cobrado el año anterior) menos los gastos del año de cada casa.
+// Arranca en 2026, que también toma la temporada que empezó en dic 2025. El
+// saldo de un año pasa como saldo inicial del siguiente.
 // Los gastos están en pesos y lo cobrado mayormente en dólares: se pasa todo
 // con el dólar del día o uno a mano.
 
@@ -72,12 +74,14 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
   // Cobrado y gastos de una casa entre dos fechas (sin límite si no se pasan)
   const calcular = (casaId: string, d?: string, h?: string) => {
     const dentro = (f: string) => (!d || f >= d) && (!h || f <= h)
-    const ids = new Set(reservas.filter(r => String(r.propiedad_id) === casaId && r.estado !== 'cancelada').map(r => r.id))
+    // Ingresos por fecha de entrada de la reserva; el primer año absorbe lo anterior
+    const desdeIngreso = d && d > `${PRIMER_ANIO}-01-01` ? d : undefined
+    const entraEn = (f: string) => (!desdeIngreso || f >= desdeIngreso) && (!h || f <= h)
+    const ids = new Set(reservas.filter(r => String(r.propiedad_id) === casaId && r.estado !== 'cancelada' && entraEn(r.fecha_inicio.slice(0, 10))).map(r => r.id))
     let usd = 0, ars = 0
     const conPago = new Set<number>()
     cobros.forEach(cb => {
-      const f = (cb.fecha || '').slice(0, 10)
-      if (!ids.has(cb.reserva_id) || cb.aplicar_a === 'deposito' || !f || !dentro(f)) return
+      if (!ids.has(cb.reserva_id) || cb.aplicar_a === 'deposito') return
       const v = (cb.concepto === 'devolucion_sena' ? -1 : 1) * Number(cb.monto || 0)
       if (cb.moneda === 'USD') usd += v; else ars += v
       conPago.add(cb.reserva_id)
@@ -85,7 +89,7 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
     const propios = gastos.filter(g => String(g.propiedad_id) === casaId && dentro(String(g.fecha).slice(0, 10)))
     // Por cobrar: saldo de las reservas confirmadas que entran en el período (lo que falta que entre)
     let porCobrarUsd = 0, porCobrarArs = 0
-    reservas.filter(r => String(r.propiedad_id) === casaId && r.estado === 'confirmada' && dentro(r.fecha_inicio.slice(0, 10)))
+    reservas.filter(r => String(r.propiedad_id) === casaId && r.estado === 'confirmada' && entraEn(r.fecha_inicio.slice(0, 10)))
       .forEach(r => {
         const { saldo } = montosReserva(r as never, cobros)
         porCobrarUsd += Math.max(0, saldo.USD || 0); porCobrarArs += Math.max(0, saldo.ARS || 0)
@@ -173,7 +177,7 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
             </select>
           </h3>
           <p className="text-xs text-costa-gris mt-1">
-            Del {dmy(desde)} al {dmy(hasta)}: lo que entró en el año (pagos de alquiler y servicios, sin depósitos) menos los gastos del año de cada casa. El saldo final pasa como saldo inicial del año siguiente; el balance arranca en {PRIMER_ANIO}. En naranja, lo que falta cobrar de las reservas confirmadas que entran en el año.
+            Del {dmy(desde)} al {dmy(hasta)}: lo cobrado de las reservas que entran en el año (alquiler y servicios, sin depósitos, aunque la seña se haya cobrado antes) menos los gastos del año de cada casa. El saldo final pasa como saldo inicial del año siguiente; el balance arranca en {PRIMER_ANIO} e incluye la temporada que empezó en diciembre de {PRIMER_ANIO - 1}. En naranja, lo que falta cobrar de las reservas confirmadas del año.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">
@@ -194,7 +198,7 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
             <tr className="border-b border-costa-borde text-[0.7em] uppercase tracking-wider text-costa-gris">
               <th className="px-3 py-1.5 text-left font-semibold">Casa</th>
               <th className="px-3 py-1.5 text-right font-semibold border-r border-costa-borde">Saldo inicial</th>
-              <th className="px-3 py-1.5 text-right font-semibold">Cobrado</th>
+              <th className="px-3 py-1.5 text-right font-semibold">Ingresos</th>
               <th className="px-3 py-1.5 text-right font-semibold">Gastos</th>
               <th className="px-3 py-1.5 text-right font-semibold">Resultado {anio}</th>
               <th className="px-3 py-1.5 text-right font-semibold border-l border-costa-borde">Saldo al 31/12</th>
