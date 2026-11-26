@@ -106,7 +106,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
 
       {/* Sidebar */}
       <aside className={`
-        fixed lg:sticky lg:top-0 lg:self-start inset-y-0 left-0 z-40 h-screen
+        fixed inset-y-0 left-0 z-40 h-dvh
         w-64 shrink-0 bg-costa-esmeralda text-white
         transform transition-transform duration-200 ease-in-out
         shadow-lg
@@ -137,7 +137,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
               <Globe size={14} />
               Ver sitio
             </Link>
-            {!isDemo && <CampanitaMensajes />}
+            {!isDemo && <CampanitaMensajes abrirHacia="derecha" />}
             {onLogout && !isDemo && (
               <button
                 onClick={onLogout}

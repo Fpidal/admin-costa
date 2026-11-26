@@ -5,7 +5,7 @@ import { Bell } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import { useMensajes } from '@/hooks/useMensajes'
 
-export function CampanitaMensajes() {
+export function CampanitaMensajes({ abrirHacia = 'izquierda' }: { abrirHacia?: 'izquierda' | 'derecha' }) {
   const { userId } = useAuth()
   const { mensajes, noLeidos, marcarLeido } = useMensajes(userId)
   const [open, setOpen] = useState(false)
@@ -50,7 +50,7 @@ export function CampanitaMensajes() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-lg shadow-xl border border-costa-beige z-50">
+        <div className={`absolute ${abrirHacia === 'derecha' ? 'left-0' : 'right-0'} mt-2 w-80 max-h-96 overflow-y-auto bg-white rounded-lg shadow-xl border border-costa-beige z-50`}>
           <div className="px-4 py-3 border-b border-costa-beige">
             <h3 className="text-sm font-bold text-costa-navy">Mensajes</h3>
           </div>
