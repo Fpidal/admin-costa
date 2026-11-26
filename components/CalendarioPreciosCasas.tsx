@@ -400,7 +400,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
 
           {/* Feriados, dentro del mismo recuadro del calendario */}
           <div className="mt-4 border-t border-costa-borde pt-3">
-            <PanelFeriados year={anio} />
+            <PanelFeriados key={anio} year={anio} />
           </div>
         </div>
 

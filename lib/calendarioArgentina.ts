@@ -264,13 +264,19 @@ export function obtenerFinesDeSemanaLargos(year: number): Array<{
     if (dia === 1) {
       const inicio = new Date(fechaBase)
       inicio.setDate(fechaBase.getDate() - 2) // Sábado
+      // Si el martes también es feriado (Carnaval), el finde llega hasta el martes
+      const martes = new Date(fechaBase)
+      martes.setDate(fechaBase.getDate() + 1)
+      const martesStr = martes.toISOString().split('T')[0]
+      const sigueMartes = feriadosMap.has(martesStr)
       fdsLargos.push({
-        nombre: feriado.nombre,
+        nombre: sigueMartes && /carnaval/i.test(feriado.nombre) ? 'Carnaval' : feriado.nombre,
         fechaInicio: inicio.toISOString().split('T')[0],
-        fechaFin: feriado.fecha,
-        dias: 3
+        fechaFin: sigueMartes ? martesStr : feriado.fecha,
+        dias: sigueMartes ? 4 : 3
       })
       procesados.add(feriado.fecha)
+      if (sigueMartes) procesados.add(martesStr)
     }
     // Si es viernes, verificar sábado y domingo siguientes
     else if (dia === 5) {
@@ -294,7 +300,10 @@ export function obtenerFinesDeSemanaLargos(year: number): Array<{
         const domingo = new Date(fechaBase)
         domingo.setDate(fechaBase.getDate() + 3)
         fdsLargos.push({
-          nombre: `${feriado.nombre} + ${feriadosMap.get(viernesStr)?.nombre}`,
+          // Jueves y Viernes Santo (o Malvinas que cae en Jueves Santo) es Semana Santa
+          nombre: /santo/i.test(`${feriado.nombre} ${feriadosMap.get(viernesStr)?.nombre}`)
+            ? 'Semana Santa'
+            : `${feriado.nombre} + ${feriadosMap.get(viernesStr)?.nombre}`,
           fechaInicio: feriado.fecha,
           fechaFin: domingo.toISOString().split('T')[0],
           dias: 4

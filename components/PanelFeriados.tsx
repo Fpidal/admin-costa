@@ -18,7 +18,9 @@ interface PanelFeriadosProps {
   onFeriadosChange?: (feriados: FeriadoCustom[]) => void
 }
 
-export function PanelFeriados({ year, onFeriadosChange }: PanelFeriadosProps) {
+export function PanelFeriados({ year: anioInicial, onFeriadosChange }: PanelFeriadosProps) {
+  // Se puede pasar de año desde el propio panel
+  const [year, setYear] = useState(anioInicial)
   const { userId } = useAuth()
   const [expanded, setExpanded] = useState(false)
   const [feriadosCustom, setFeriadosCustom] = useState<FeriadoCustom[]>([])
@@ -171,7 +173,14 @@ export function PanelFeriados({ year, onFeriadosChange }: PanelFeriadosProps) {
         >
           <div className="flex items-center gap-2">
             <Flag size={16} className="text-[#c8692b]" />
-            <span className="text-sm font-bold text-costa-esmeralda">Feriados {year}</span>
+            <span className="text-sm font-bold text-costa-esmeralda">Feriados</span>
+            <span className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+              <span role="button" tabIndex={0} aria-label="Año anterior" onClick={() => setYear(year - 1)}
+                className="w-6 h-6 rounded-md border border-costa-borde flex items-center justify-center text-costa-esmeralda hover:bg-costa-arena">‹</span>
+              <span className="text-sm font-bold text-costa-esmeralda w-10 text-center">{year}</span>
+              <span role="button" tabIndex={0} aria-label="Año siguiente" onClick={() => setYear(year + 1)}
+                className="w-6 h-6 rounded-md border border-costa-borde flex items-center justify-center text-costa-esmeralda hover:bg-costa-arena">›</span>
+            </span>
             <span className="text-xs text-costa-gris bg-costa-arena px-2 py-0.5 rounded-full">
               {feriados.length} feriados
             </span>
@@ -206,7 +215,7 @@ export function PanelFeriados({ year, onFeriadosChange }: PanelFeriadosProps) {
                   <div className="font-semibold text-costa-esmeralda">{fds.nombre}</div>
                   <div className="text-costa-gris mt-0.5">
                     {formatFecha(fds.fechaInicio)} → {formatFecha(fds.fechaFin)}
-                    <span className="ml-2 px-1.5 py-0.5 bg-[#f6e1cf] rounded text-[#8a3f12] font-semibold">
+                    <span className="ml-2 px-1.5 py-0.5 bg-[#f6e1cf] rounded text-[#8a3f12] font-semibold whitespace-nowrap">
                       {fds.dias} días
                     </span>
                   </div>
