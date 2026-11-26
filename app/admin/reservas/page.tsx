@@ -1634,6 +1634,15 @@ function ReservasContent() {
                 </div>
               </div>
 
+              {/* De qué se compone el total: noches × precio y cada servicio */}
+              <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-costa-gris -mt-1">
+                <span>Alquiler <b className="text-costa-navy tabular-nums">{noches} × {formatMonto(r.precio_noche || 0, r.moneda || 'USD')}</b> = <span className="tabular-nums">{formatMonto(noches * (r.precio_noche || 0), r.moneda || 'USD')}</span></span>
+                {serviciosConPrecio(r).map(sv => (
+                  <span key={sv.label}>{sv.label} <b className="text-costa-navy tabular-nums">{formatMonto(sv.monto, sv.moneda)}</b></span>
+                ))}
+                {serviciosConPrecio(r).length === 0 && <span>Sin limpieza ni servicios con cargo</span>}
+              </div>
+
               {r.estado !== 'cancelada' && (
                 <ol className="flex flex-wrap items-center gap-y-1 text-xs">
                   {pasos.map((p, i) => (
