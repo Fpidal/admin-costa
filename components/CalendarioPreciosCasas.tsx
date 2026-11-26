@@ -178,6 +178,21 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     if (error) { setAviso('No se pudo guardar: ' + error.message); cargar() } else { setAviso('Precio guardado'); onCambio?.() }
   }
 
+  // Casillero vacío de un tramo: crea la regla para esa casa copiando el tramo de la otra
+  async function agregarPrecio(base: PriceRule, casaId: string, valor: string) {
+    const precio = Number(valor)
+    if (!precio || !userId) return
+    const fila = {
+      property_id: casaId, name: base.name, category: base.category, price_per_night: precio,
+      start_date: base.start_date, end_date: base.end_date, applies_to_days: base.applies_to_days || [],
+      min_nights: base.min_nights, priority: base.priority, active: true, user_id: userId,
+    }
+    const { error } = await supabase.from('price_rules').insert(fila)
+    if (error) { setAviso('No se pudo guardar: ' + error.message); return }
+    setAviso('Precio guardado')
+    await cargar(); onCambio?.()
+  }
+
   async function aplicarRango() {
     if (!selA || !userId) return
     const hasta = selB || selA
@@ -337,7 +352,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
         <div className="rounded-2xl border border-costa-borde bg-costa-superficie p-4 space-y-4">
           <div>
             <h4 className="text-sm font-bold text-costa-esmeralda">Precios por tramo</h4>
-            <p className="text-xs text-costa-gris mb-2">De marzo {anioCiclo} a febrero {anioCiclo + 1}, de mayor a menor precio, en U$D por noche. Cambiá el número y se guarda solo. Resaltados, los que caen en {MESES[mes].toLowerCase()}.</p>
+            <p className="text-xs text-costa-gris mb-2">De marzo {anioCiclo} a febrero {anioCiclo + 1}, de mayor a menor precio, en U$D por noche. Cambiá el número y se guarda solo; los casilleros punteados no tienen precio todavía. Resaltados, los que caen en {MESES[mes].toLowerCase()}.</p>
             {tramos.length === 0 ? (
               <p className="text-xs text-costa-gris py-3">No hay precios cargados para este año. Probá con “Copiar de la temporada anterior”.</p>
             ) : (
@@ -367,7 +382,11 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                                 <input type="number" defaultValue={r.price_per_night} key={`${r.id}-${r.price_per_night}`} disabled={isDemo}
                                   onBlur={e => cambiarPrecio(r, e.target.value)}
                                   className="w-16 rounded-md border border-costa-borde bg-white px-1.5 py-1 text-right font-bold text-costa-esmeralda" />
-                              ) : <span className="text-costa-gris">—</span>}
+                              ) : (
+                                <input type="number" placeholder="—" disabled={isDemo} title="Sin precio: escribilo y se guarda"
+                                  onBlur={e => agregarPrecio(Object.values(t.porCasa)[0], String(c.id), e.target.value)}
+                                  className="w-16 rounded-md border border-dashed border-[#c8692b] bg-white px-1.5 py-1 text-right font-bold text-costa-esmeralda placeholder:text-[#c8692b]" />
+                              )}
                             </td>
                           )
                         })}
