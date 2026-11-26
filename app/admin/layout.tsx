@@ -652,15 +652,9 @@ function AdminLayoutContent({
 
   return (
     <>
-      {/* Fondo de playa fijo */}
-      <div
-        className="fixed inset-0 -z-10 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: 'url(https://dpghrdgippisgzvlahwi.supabase.co/storage/v1/object/public/Imagenes/foto%20playa%20costa.JPG)' }}
-      >
-        <div className="absolute inset-0 bg-costa-beige/80" />
-      </div>
-
-      <div className="flex min-h-screen max-w-full">
+      {/* Fondo arena liso: la foto de la playa competía con tablas y montos.
+          La imagen sigue en Supabase Storage por si se quiere volver a usar */}
+      <div className="tema-admin flex min-h-screen max-w-full">
         <Sidebar onLogout={handleLogout} isDemo={isDemo} isAdmin={isAdmin} userName={userName} userEmail={userEmail} />
         <main className="flex-1 lg:ml-0 min-w-0">
           <div className="p-4 lg:p-8 pt-20 lg:pt-8 max-w-full">

@@ -15,6 +15,14 @@
   --costa-gris: #6b7c93;
   --costa-olivo: #5c6b4a;
   --costa-olivo-light: #7a8c66;
+
+  /* Panel de administración (opción intermedia: arena + menú esmeralda) */
+  --costa-esmeralda: #14504c;
+  --costa-esmeralda-light: #1d635e;
+  --costa-esmeralda-suave: #e3efec;
+  --costa-arena: #f4eee6;
+  --costa-superficie: #fffdf9;
+  --costa-borde: #e8dfd2;
 }
 
 @theme inline {
@@ -34,6 +42,20 @@
   --color-costa-gris: var(--costa-gris);
   --color-costa-olivo: var(--costa-olivo);
   --color-costa-olivo-light: var(--costa-olivo-light);
+  --color-costa-esmeralda: var(--costa-esmeralda);
+  --color-costa-esmeralda-light: var(--costa-esmeralda-light);
+  --color-costa-esmeralda-suave: var(--costa-esmeralda-suave);
+  --color-costa-arena: var(--costa-arena);
+  --color-costa-superficie: var(--costa-superficie);
+  --color-costa-borde: var(--costa-borde);
+}
+
+/* Panel de administración: Manrope en todo y cifras alineadas para montos y
+   fechas. La página pública sigue con su letra. */
+.tema-admin {
+  font-family: var(--font-manrope), system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  background: var(--costa-arena);
 }
 
 body {

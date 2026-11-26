@@ -59,15 +59,15 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
   return (
     <>
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-3 bg-white shadow-md">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between h-14 px-3 bg-costa-esmeralda text-white shadow-md">
         <button
-          className="p-2 rounded-lg hover:bg-gray-100 flex-shrink-0"
+          className="p-2 rounded-lg hover:bg-white/10 flex-shrink-0"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
         <div className="flex items-center gap-2 min-w-0 flex-1 justify-center">
-          <span className="text-base font-semibold text-costa-navy truncate" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</span>
+          <span className="text-base font-bold text-white truncate">Admin Costa</span>
           {isDemo && (
             <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full flex-shrink-0">DEMO</span>
           )}
@@ -78,7 +78,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
             {onLogout && (
               <button
                 onClick={onLogout}
-                className="p-2 rounded-lg text-costa-coral hover:bg-costa-coral/10"
+                className="p-2 rounded-lg text-white/80 hover:bg-white/10"
                 title="Cerrar sesión"
               >
                 <LogOut size={20} />
@@ -100,33 +100,32 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-40
-        w-64 bg-gradient-to-b from-costa-beige-light/95 to-costa-beige/90 backdrop-blur-sm
-        border-r border-costa-beige
+        w-64 bg-costa-esmeralda text-white
         transform transition-transform duration-200 ease-in-out
         shadow-lg
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-24 flex flex-col items-center justify-center px-4 border-b border-costa-beige text-center">
-            <h1 className="text-2xl font-semibold tracking-wide" style={{ fontFamily: 'var(--font-playfair)', color: '#1e3a5f' }}>Admin Costa</h1>
+          <div className="h-24 flex flex-col items-center justify-center px-4 border-b border-white/15 text-center">
+            <h1 className="text-2xl font-bold tracking-tight text-white">Admin Costa</h1>
             {isDemo ? (
               <div className="flex items-center gap-1.5 mt-2 px-3 py-1 bg-amber-100 rounded-full">
                 <Eye size={14} className="text-amber-600" />
                 <span className="text-xs font-medium text-amber-700">Modo Demo</span>
               </div>
             ) : (
-              <p className="text-sm font-normal mt-2" style={{ color: '#6b7c8a' }}>
+              <p className="text-xs font-semibold uppercase tracking-widest mt-1 text-white/60">
                 Administrada por sus dueños
               </p>
             )}
           </div>
 
           {/* Quick actions */}
-          <div className="px-3 py-3 border-b border-costa-beige flex gap-2">
+          <div className="px-3 py-3 border-b border-white/15 flex gap-2">
             <Link
               href={isDemo ? "/?demo=true" : "/"}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-costa-gris hover:text-costa-navy hover:bg-costa-white/50 rounded-lg transition-colors border border-costa-beige"
+              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-white/20"
             >
               <Globe size={14} />
               Ver sitio
@@ -135,7 +134,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
             {onLogout && !isDemo && (
               <button
                 onClick={onLogout}
-                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-costa-coral hover:bg-costa-coral/10 rounded-lg transition-colors border border-costa-coral/30"
+                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-white/20"
               >
                 <LogOut size={14} />
                 Salir
@@ -153,15 +152,15 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
                   href={getHref(item.href)}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-3 text-sm font-medium
-                    transition-all duration-200
+                    flex items-center gap-3 px-4 py-2.5 text-sm rounded-lg
+                    transition-colors duration-150
                     ${isActive
-                      ? 'bg-costa-white/80 text-costa-navy border-l-4 border-costa-navy rounded-r-lg shadow-sm'
-                      : 'text-costa-navy hover:bg-costa-white/50 rounded-lg border-l-4 border-transparent'
+                      ? 'bg-costa-superficie text-costa-esmeralda font-bold shadow-sm'
+                      : 'text-white/80 font-medium hover:bg-white/10 hover:text-white'
                     }
                   `}
                 >
-                  <item.icon size={20} className={isActive ? 'text-costa-coral' : 'text-costa-gris'} />
+                  <item.icon size={19} className={isActive ? 'text-costa-esmeralda' : 'text-white/60'} />
                   {item.name}
                 </Link>
               )
@@ -170,16 +169,16 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
 
           {/* Usuario logueado */}
           {!isDemo && (userName || userEmail) && (
-            <div className="px-3 py-3 border-t border-costa-beige">
-              <div className="flex items-center gap-3 px-3 py-2 bg-costa-white/50 rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-costa-navy text-white flex items-center justify-center text-sm font-medium">
+            <div className="px-3 py-3 border-t border-white/15">
+              <div className="flex items-center gap-3 px-3 py-2 bg-white/10 rounded-lg">
+                <div className="w-8 h-8 rounded-full bg-costa-superficie text-costa-esmeralda flex items-center justify-center text-sm font-bold">
                   {userName ? userName.charAt(0).toUpperCase() : userEmail.charAt(0).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   {userName && (
-                    <p className="text-sm font-medium text-costa-navy truncate">{userName}</p>
+                    <p className="text-sm font-semibold text-white truncate">{userName}</p>
                   )}
-                  <p className="text-xs text-costa-gris truncate">{userEmail}</p>
+                  <p className="text-xs text-white/60 truncate">{userEmail}</p>
                 </div>
               </div>
             </div>

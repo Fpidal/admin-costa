@@ -12,13 +12,13 @@ export function Button({
   className = '',
   ...props
 }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed'
+  const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-lg transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed'
 
   const variants = {
-    primary: 'bg-costa-coral text-white hover:bg-costa-coral-dark active:bg-costa-coral-dark shadow-md',
-    secondary: 'bg-costa-navy text-white hover:bg-costa-navy-light active:bg-costa-navy shadow-md',
-    danger: 'bg-costa-coral text-white hover:bg-costa-coral-dark active:bg-costa-coral-dark',
-    ghost: 'text-costa-navy hover:bg-costa-beige active:bg-costa-beige-light',
+    primary: 'bg-costa-esmeralda text-white hover:bg-costa-esmeralda-light active:bg-costa-esmeralda shadow-sm',
+    secondary: 'bg-costa-superficie text-costa-navy border border-costa-borde hover:bg-costa-arena active:bg-costa-arena',
+    danger: 'bg-costa-coral-dark text-white hover:bg-costa-coral active:bg-costa-coral-dark',
+    ghost: 'text-costa-navy hover:bg-costa-arena active:bg-costa-beige-light',
   }
 
   const sizes = {

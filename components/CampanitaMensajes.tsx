@@ -38,7 +38,7 @@ export function CampanitaMensajes() {
     <div className="relative" ref={ref}>
       <button
         onClick={toggleOpen}
-        className="relative p-2 rounded-lg hover:bg-costa-white/50 text-costa-navy"
+        className="relative p-2 rounded-lg hover:bg-white/10 text-white/80 hover:text-white"
         title="Mensajes"
       >
         <Bell size={20} />

@@ -104,7 +104,7 @@ export function AvisosCobranza<R extends ReservaAviso>({ reservas, cobros, isDem
                 <div className="flex flex-wrap gap-1.5 sm:justify-end">
                   {a.tipo === 'saldo' && (
                     <>
-                      <Link href={`/admin/reservas/${r.id}/cobros?registrar=saldo${sufijoDemo}`} className={`${boton} text-white bg-costa-navy border-costa-navy hover:bg-costa-navy-light`}>
+                      <Link href={`/admin/reservas/${r.id}/cobros?registrar=saldo${sufijoDemo}`} className={`${boton} text-white bg-costa-esmeralda border-costa-esmeralda hover:bg-costa-esmeralda-light`}>
                         <Wallet size={13} /> Registrar pago
                       </Link>
                       <a href={linkWhatsApp(tel(a), mensajeRecordatorioSaldo(datos(a)))} target="_blank" rel="noopener noreferrer" className={`${boton} text-costa-olivo border-costa-olivo/40 hover:bg-costa-olivo/10`}>
