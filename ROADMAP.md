@@ -1,5 +1,39 @@
 # Admin Costa - Hoja de Ruta
 
+## Actualizaciones Recientes (Noviembre 2026)
+
+### Página pública nueva
+- Estilo revista (Fraunces + Manrope, verde y papel), portada y propiedades que entran en una pantalla cada una
+- Buscador de fechas en la sección de propiedades; cada casa muestra total y disponibilidad con los precios reales
+- Ficha completa por casa, link `/casa/[id]` con vista previa en WhatsApp, barrio, cómo llegar y cómo reservar
+
+### Precios
+- Precios alquileres: calendario mensual por casa, tabla de tramos fija y editable, tramo de fines de semana largos, precios por temporada
+- Web pública, ofertas y Nueva reserva calculan con `price_rules` (migración `sql/22-precios-publicos.sql`, ya aplicada)
+
+### Reservas y reportes
+- Calendario de 3 meses en Vigentes (azul Golf, bordó Deportiva, barra = sin confirmar)
+- Reporte PDF: elige período, calendario en la misma hoja si entra, columna "por noche"
+- PDFs (reserva, contrato, recibo, info útil) con los colores del panel
+
+### Temporada
+- Resultado del año de alquiler por casa (cobrado − gastos) con dólar automático (dolarapi.com) o a mano
+
+### Otros
+- Pagos: alquiler y depósito con conceptos propios; depósito muestra recibido, devuelto y en garantía
+- Piezas gráficas: compartir por WhatsApp (imagen adjunta en el celular)
+- Menú lateral fijo; campana de mensajes abre a la derecha
+
+## Próximos pasos
+
+- [ ] Link para que el huésped cargue acompañantes, DNI y patente (para la autorización del barrio). Falta confirmar qué datos pide el barrio; requiere tabla nueva (SQL a mano)
+- [ ] Lectura del medidor de luz con foto desde el celular (Supabase Storage)
+- [ ] Precio sugerido para huecos cortos
+- [ ] Revisar con Francisco la lista de amenities del barrio y las indicaciones de cómo llegar en la web
+- [ ] Tarjetas de reservas en celular con texto en vez de íconos
+- [ ] Borrar la página vieja `app/admin/propiedades/[id]/precios` (quedó con el panel de reglas anterior)
+- [ ] Ordenar el código de `app/admin/reservas/page.tsx` (estructural, después del verano)
+
 ## Actualizaciones Recientes (Septiembre 2026)
 
 ### Reservas - alta del titular sin salir del modal
@@ -173,7 +207,7 @@
 
 ## Stack Tecnológico
 
-- **Frontend**: Next.js 14, React, TypeScript
+- **Frontend**: Next.js 16, React 19, TypeScript
 - **Estilos**: Tailwind CSS
 - **Base de datos**: Supabase (PostgreSQL)
 - **Deploy**: Vercel

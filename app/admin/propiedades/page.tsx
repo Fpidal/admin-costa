@@ -800,7 +800,7 @@ function PropiedadesContent() {
 
                 <div className="p-4 flex flex-col flex-1">
                   <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-lg font-bold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>{propiedad.nombre}{propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}</h3>
+                    <h3 className="text-lg font-bold text-costa-navy" style={{ fontFamily: 'var(--font-fraunces)' }}>{propiedad.nombre}{propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}</h3>
                     {propiedad.estado === 'alquilada' || reservaActual ? (
                       <span className="px-2 py-0.5 bg-costa-coral text-white text-xs rounded-full">
                         Alquilada

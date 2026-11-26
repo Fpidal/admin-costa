@@ -4,20 +4,22 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 
 ## Funcionalidades
 
-### Landing Page
-- Visualización de propiedades disponibles (solo las publicadas)
-- Detalle completo de cada propiedad (amenities, fotos, descripción)
-- Filtro por barrio
-- Formulario de consulta vía WhatsApp
-- Compartir propiedades en redes sociales
-- Modo demo con datos ficticios
+### Página pública
+- **Portada en una pantalla**: presentación institucional, datos del lugar (playa, bosque, barrio cerrado, golf, distancia) y foto de portada (`public/portada.jpg`)
+- **Propiedades en una pantalla**: buscador de llegada, salida, personas y barrio arriba; cada casa (de a dos por fila) muestra fotos, cifras, amenities, precio "desde", total de las fechas elegidas y si está libre
+- **Precios reales**: salen de Casas → Precios alquileres (`price_rules`, lectura pública solo de columnas y casas publicadas, ver `sql/22`)
+- **Ficha completa** de cada casa (todas las fotos, descripción, amenities, compartir) que abre también el link `/casa/[id]`
+- **Link para compartir** `/casa/[id]` con vista previa de WhatsApp (foto, título y datos)
+- **El barrio** (amenities de Costa Esmeralda), **cómo llegar** (mapa esquemático + Google Maps) y **cómo reservar**
+- Consulta por WhatsApp con casa, fechas, personas y link; español / inglés; modo demo (`?demo=true`)
 
 ### Panel de Administración
 - **Dashboard**: Resumen de reservas, ingresos y ocupación
 - **Propiedades**: CRUD completo con fotos (hasta 16), amenities, precio de alquiler y de venta, y toggle de publicación
 - **Piezas gráficas**: Generador de avisos de venta y alquiler (post 4:5, story 9:16 y ficha A4 en PDF)
-- **Calendario de Precios**: Sistema de reglas de precio por temporada con prioridades
-- **Reservas**: Gestión de reservas con generación de PDF de contrato y recibo. Precio por noche con decimales; limpieza final y lavadero con moneda propia
+- **Temporada** (inicio): avisos de cobranza, ocupación con huecos para ofrecer por WhatsApp y **resultado del año** (cobrado menos gastos, con dólar del día blue/MEP/oficial)
+- **Precios alquileres**: ver abajo
+- **Reservas**: Vigentes / Cerradas / Pagos en dos columnas (lista por fecha + detalle), resumen en cuadro, calendario de 3 meses con colores por casa (solo Vigentes) y reporte PDF que pregunta el período (temporada, desde hoy o rango) con calendario y precio por noche. PDF de contrato y recibo en verde esmeralda
 - **Cobros**: Dos bloques — alquiler y servicios (con subtotales por moneda) y depósito en garantía, que se lleva aparte por no ser ingreso
 - **Calendario de Reservas**: Vista mensual con indicadores de feriados
 - **Inquilinos**: Base de datos de inquilinos con validación contra lista negra
@@ -26,14 +28,14 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Info útil**: Información de servicios, contactos y lista negra
 - **Papelera**: Recuperación de elementos eliminados (soft delete)
 
-### Sistema de Precios
-- **Reglas de precio**: Configuración por temporada, fechas especiales y días de la semana
-- **Categorías**: Muy alta, alta, media y baja temporada con colores distintivos
-- **Prioridades**: Sistema de prioridad para resolver conflictos entre reglas
-- **Presets personalizables**: Configuración "Verano Costa Esmeralda" con multiplicadores editables
-- **Multiplicadores**: Ajustables por temporada (Fiestas x1.8, Enero x1.5, Feb x1.3, etc.)
-- **Cobertura**: Métricas de cobertura y días sin precio configurado
-- **Acceso integrado**: Solapa de precios dentro de la página de propiedades
+### Precios alquileres (Casas → Precios alquileres)
+- **Calendario mensual** de lunes a domingo con el precio por noche de cada casa (ambas o una sola), botón Hoy y buscador de fecha
+- **Colores**: un verde en cuatro intensidades según el precio; reservada en gris, sin confirmar punteada, feriados con la fila del número resaltada
+- **Precios por tramo**: tabla fija (Fiestas, Temporada alta, Febrero, Semana Santa, Carnaval, Feriados largos, Temporada baja) editable en el lugar; casilleros punteados para cargar lo que falta
+- **Nuevo tramo** con nombre y fechas, o **fines de semana largos** sin fechas (toma los feriados de cada año, fuera de temporada)
+- **Precios por temporada**: comparativo de las últimas temporadas por casa, editable, con el promedio cobrado en las reservas
+- **Un solo cálculo** (`lib/preciosReglas.ts`) para el calendario, la web pública, las ofertas de Temporada y Nueva reserva
+- **Feriados** dentro del mismo recuadro, con selector de año; fines de semana largos por racha de días libres (ej. Memoria + Semana Santa = 5 días)
 
 ### Calendario Argentina
 - **Feriados oficiales**: Cálculo automático de feriados inamovibles y trasladables

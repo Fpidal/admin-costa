@@ -1379,7 +1379,7 @@ export default function PiezasPage() {
               style={{ backgroundImage: p.imagen_url ? `url(${p.imagen_url})` : undefined }}
             />
             <div className="min-w-0">
-              <div className="font-semibold text-sm text-costa-navy truncate" style={{ fontFamily: 'var(--font-playfair)' }}>
+              <div className="font-semibold text-sm text-costa-navy truncate" style={{ fontFamily: 'var(--font-fraunces)' }}>
                 {p.nombre}
               </div>
               <div className="text-xs text-costa-gris">

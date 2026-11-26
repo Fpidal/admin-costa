@@ -1,30 +1,29 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+// Página pública (sin login): presenta Costa Esmeralda y las propiedades
+// publicadas. Las fechas se eligen en la sección de propiedades y cada casa
+// muestra si está libre y el total con sus precios (Casas → Precios alquileres).
+
+import './publica.css'
+import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { parseFechaLocal } from '@/lib/fechas'
-import { demoPropiedades, demoReservas } from '@/lib/demoData'
-import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, ChevronRight, X, CheckCircle, Calendar, Shield, Flag, Trophy, Dumbbell, UtensilsCrossed, Car, ShoppingCart, TreePine, Stethoscope, Phone, ThermometerSun, Zap, WashingMachine, Ruler, LandPlot, Eye, Globe } from 'lucide-react'
-import { useLanguage } from '@/hooks/useLanguage'
 import Link from 'next/link'
-import { SelectorFechasPublico } from '@/components/SelectorFechasPublico'
-import { formatPrecio } from '@/lib/calcularPrecio'
-import { precioEstadia, normalizarReglas, COLUMNAS_REGLAS } from '@/lib/preciosReglas'
+import { supabase } from '@/lib/supabase'
+import { demoPropiedades, demoReservas } from '@/lib/demoData'
+import { useLanguage } from '@/hooks/useLanguage'
+import { precioEstadia, normalizarReglas, COLUMNAS_REGLAS, FERIADO_LARGO } from '@/lib/preciosReglas'
+import type { PriceRule } from '@/lib/priceRules'
 
 interface Propiedad {
-  id: number
+  id: string | number
   nombre: string
-  lote: string
-  direccion: string
-  referencia: string
-  telefono_contacto: string
-  tipo: string
-  estado: string
+  lote: string | null
+  referencia: string | null
+  telefono_contacto: string | null
   capacidad: number
   habitaciones: number
   banos: number
-  plantas: number
+  plantas: number | null
   toilette: boolean
   cochera: boolean
   pileta: boolean
@@ -37,1652 +36,466 @@ interface Propiedad {
   lavavajillas: boolean
   grupo_electrogeno: boolean
   fogonero: boolean
-  metros_cubiertos: number
-  metros_semicubiertos: number
-  metros_lote: number
-  descripcion: string
-  imagenes: string[]
+  metros_cubiertos: number | null
+  metros_lote: number | null
+  descripcion: string | null
+  imagenes: string[] | null
   imagen_url: string | null
 }
+interface Reserva { propiedad_id: string | number; fecha_inicio: string; fecha_fin: string; estado: string }
 
-interface Reserva {
-  id: number
-  propiedad_id: number
-  fecha_inicio: string
-  fecha_fin: string
-  estado: string
+// ---------- Textos ES / EN ----------
+const TX = {
+  es: {
+    marcaSub: 'Directo con los dueños', nav: ['Propiedades', 'El barrio', 'Cómo llegar', 'Cómo reservar'], acceso: 'Acceso dueños',
+    over: 'Costa Esmeralda · Buenos Aires', h1a: 'Casas para tus vacaciones, entre ', h1b: 'pinos', h1c: ' y mar.',
+    sub: 'Alquileres temporarios en Costa Esmeralda, administrados directamente por sus dueños. Propiedades seleccionadas, equipadas y con atención personal de principio a fin.',
+    hechos: [['Playa amplia', 'sin edificios'], ['Bosque y médanos', 'calles de arena'], ['Barrio cerrado', 'seguridad 24 h'], ['Golf y deportes', 'dentro del barrio'], ['A 380 km de CABA', 'por Ruta 2 y 11'], ['Trato directo', 'sin comisiones']],
+    cta: 'Ver propiedades y precios', cta2: 'Conocer el barrio', pie: 'La playa de Costa Esmeralda',
+    props: 'Propiedades', elegi: 'Elegí tu casa', llegada: 'Llegada', salida: 'Salida', personas: 'Personas', barrio: 'Barrio', todos: 'Todos',
+    verPrecios: 'Ver precios', limpiar: 'Limpiar', vacio: 'No hay propiedades para esa búsqueda.',
+    personasC: 'personas', dormC: 'dormitorios', banosC: 'baños', m2C: 'm² cubiertos',
+    desde: '/ noche, desde', noches: (n: number) => `${n} noche${n !== 1 ? 's' : ''} en tus fechas`, consultaPrecio: 'Consultá el precio',
+    libre: (a: string, b: string) => `Libre del ${a} al ${b}`, ocupada: 'Ocupada algunas noches · consultanos', elegiFechas: 'Elegí fechas para ver el total',
+    capacidad: (n: number) => `Hasta ${n} personas`, consultar: 'Consultar', verFicha: 'Ver ficha completa', compartir: 'Compartir', copiado: 'Link copiado',
+    lote: 'Lote', plantas: 'plantas',
+    barrioTit: 'Todo lo que tiene Costa Esmeralda', barrioSub: 'Un barrio cerrado frente al mar donde las vacaciones se resuelven adentro: playa, deporte, compras y naturaleza, sin usar el auto.',
+    amen: [['Playa con paradores', 'Kilómetros de costa y guardavidas'], ['Golf', 'Cancha propia dentro del barrio'], ['Club hípico', 'Cabalgatas y equitación'], ['Tenis y pádel', 'Canchas en la zona deportiva'], ['Club house', 'Restaurante y encuentro'], ['Área comercial', 'Proveeduría, cafés y servicios'], ['Bicisendas y senderos', 'Para recorrer el bosque'], ['Seguridad 24 h', 'Acceso controlado y vigilancia']],
+    llegarOver: 'Cómo llegar', llegarTit: 'A unas 4 horas de Buenos Aires',
+    ruta: [['Ruta 2 hacia la costa', 'Desde CABA, autopista hasta pasar Dolores.'], ['Ruta 11 (Interbalnearia)', 'Hacia el sur, pasando Mar de Ajó.'], ['Entrada a Costa Esmeralda', 'Sobre la Ruta 11, al norte de Pinamar. Al confirmar te mandamos la ubicación exacta de la casa.']],
+    abrirMaps: 'Abrir en Google Maps', esquema: 'Esquema, no a escala',
+    reservarOver: 'Cómo reservar', reservarTit: 'Simple y por escrito',
+    pasos: [['Consultás', 'Nos escribís por WhatsApp con tus fechas. Respondemos en el día.'], ['Señás el 50 %', 'Por transferencia. Te enviamos la confirmación de la reserva.'], ['Llegás', 'Abonás el saldo antes de ingresar y la casa te espera lista.']],
+    footer: 'Alquileres temporarios administrados por sus dueños — Costa Esmeralda, Buenos Aires', respondemos: 'Respondemos en el día',
+  },
+  en: {
+    marcaSub: 'Direct with the owners', nav: ['Homes', 'The area', 'Getting there', 'How to book'], acceso: 'Owners',
+    over: 'Costa Esmeralda · Buenos Aires', h1a: 'Holiday homes between ', h1b: 'pines', h1c: ' and sea.',
+    sub: 'Vacation rentals in Costa Esmeralda, managed directly by their owners. Selected, fully equipped homes with personal attention from start to finish.',
+    hechos: [['Wide beach', 'no buildings'], ['Forest and dunes', 'sand streets'], ['Gated community', '24 h security'], ['Golf and sports', 'inside the area'], ['380 km from Buenos Aires', 'Routes 2 and 11'], ['Direct deal', 'no fees']],
+    cta: 'See homes and prices', cta2: 'About the area', pie: 'The beach at Costa Esmeralda',
+    props: 'Homes', elegi: 'Choose your home', llegada: 'Check-in', salida: 'Check-out', personas: 'Guests', barrio: 'Area', todos: 'All',
+    verPrecios: 'See prices', limpiar: 'Clear', vacio: 'No homes match your search.',
+    personasC: 'guests', dormC: 'bedrooms', banosC: 'bathrooms', m2C: 'm² built',
+    desde: '/ night, from', noches: (n: number) => `${n} night${n !== 1 ? 's' : ''} on your dates`, consultaPrecio: 'Ask for the price',
+    libre: (a: string, b: string) => `Available ${a} – ${b}`, ocupada: 'Some nights taken · ask us', elegiFechas: 'Choose dates to see the total',
+    capacidad: (n: number) => `Up to ${n} guests`, consultar: 'Ask', verFicha: 'See full details', compartir: 'Share', copiado: 'Link copied',
+    lote: 'Lot', plantas: 'floors',
+    barrioTit: 'Everything Costa Esmeralda offers', barrioSub: 'A gated beachfront community where holidays happen inside: beach, sports, shops and nature, no car needed.',
+    amen: [['Beach clubs', 'Miles of coast and lifeguards'], ['Golf', 'Its own course'], ['Riding club', 'Horse rides and lessons'], ['Tennis and padel', 'Courts in the sports area'], ['Club house', 'Restaurant and meeting point'], ['Shopping area', 'Grocery, cafés and services'], ['Bike paths and trails', 'Through the forest'], ['24 h security', 'Controlled access']],
+    llegarOver: 'Getting there', llegarTit: 'About 4 hours from Buenos Aires',
+    ruta: [['Route 2 to the coast', 'From Buenos Aires, highway past Dolores.'], ['Route 11 (Interbalnearia)', 'South, past Mar de Ajó.'], ['Costa Esmeralda entrance', 'On Route 11, north of Pinamar. We send the exact location once booked.']],
+    abrirMaps: 'Open in Google Maps', esquema: 'Sketch, not to scale',
+    reservarOver: 'How to book', reservarTit: 'Simple and in writing',
+    pasos: [['Ask', 'Message us on WhatsApp with your dates. We reply the same day.'], ['Pay 50 %', 'By bank transfer. We send you the booking confirmation.'], ['Arrive', 'Pay the balance before check-in and the house is ready.']],
+    footer: 'Vacation rentals managed by their owners — Costa Esmeralda, Buenos Aires', respondemos: 'We reply the same day',
+  },
 }
 
-const barrios = [
-  'Todos',
-  'Deportiva 1',
-  'Deportiva 2',
-  'Golf 1',
-  'Golf 2',
-  'Bosque',
-  'Senderos 1',
-  'Senderos 2',
-  'Senderos 3',
-  'Senderos 4',
-  'Residencial 1',
-  'Residencial 2',
-  'Maritimo 1',
-  'Maritimo 2',
-  'Maritimo 3',
+const fotosDe = (p: Propiedad) => (p.imagenes?.length ? p.imagenes : p.imagen_url ? [p.imagen_url] : [])
+const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
+const fmt = (n: number) => new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Math.round(n))
+const hoyISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+
+// Teléfono para WhatsApp: solo números y con 54 adelante
+function telWA(tel: string | null | undefined) {
+  if (!tel) return '541160473922'
+  let t = tel.replace(/[\s\-+()]/g, '')
+  if (t.startsWith('0')) t = t.slice(1)
+  if (!t.startsWith('54')) t = '54' + t
+  return t
+}
+
+function amenitiesDe(p: Propiedad, en: boolean): [string, boolean][] {
+  const L = (es: string, i: string) => (en ? i : es)
+  const lista: [string, boolean][] = []
+  if (p.pileta_climatizada) lista.push([L('Pileta climatizada', 'Heated pool'), true])
+  else if (p.pileta) lista.push([L('Pileta', 'Pool'), true])
+  if (p.aire_acondicionado) lista.push([L('Aire acondicionado', 'Air conditioning'), true])
+  if (p.grupo_electrogeno) lista.push([L('Grupo electrógeno', 'Power generator'), true])
+  if (p.calefaccion) lista.push([L('Calefacción', 'Heating'), false])
+  if (p.parrilla) lista.push([L('Parrilla', 'Grill'), false])
+  if (p.fogonero) lista.push([L('Fogonero', 'Fire pit'), false])
+  if (p.wifi) lista.push(['WiFi', false])
+  if (p.lavadero) lista.push([L('Lavadero', 'Laundry'), false])
+  if (p.lavavajillas) lista.push([L('Lavavajillas', 'Dishwasher'), false])
+  if (p.cochera) lista.push([L('Cochera', 'Garage'), false])
+  if (p.metros_lote) lista.push([`${L('Lote', 'Lot')} ${fmt(p.metros_lote)} m²`, false])
+  return lista
+}
+
+const IcoWA = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm4.5 12.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.3-.4.8-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2l-.4-.2Z" /></svg>
+)
+
+const ICONOS_HECHOS = [
+  'M2 17c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 6 0M2 21c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 6 0',
+  'M12 2 6 11h3l-4 6h14l-4-6h3zM12 17v5',
+  'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zm-3 9 2 2 4-4',
+  'M7 21V4l9 4-9 4',
+  'M4 20 10 4l4 8 6-4-4 12z',
+  'M21 12a9 9 0 1 1-3-6.7M21 4v5h-5',
 ]
-
-// Formatear teléfono para WhatsApp (sin +, espacios ni guiones, con código de país)
-const formatWhatsApp = (telefono: string | null | undefined): string => {
-  if (!telefono) return '541160473922' // Default
-  // Limpiar: quitar +, espacios, guiones, paréntesis
-  let limpio = telefono.replace(/[\s\-\+\(\)]/g, '')
-  // Si empieza con 0, quitarlo (ej: 011 -> 11)
-  if (limpio.startsWith('0')) limpio = limpio.substring(1)
-  // Si no empieza con 54, agregarlo
-  if (!limpio.startsWith('54')) limpio = '54' + limpio
-  return limpio
-}
-
-/** Mensaje de consulta por WhatsApp: casa, link a sus fotos y, si buscó fechas, cuáles */
-function mensajeConsulta(
-  p: { id: string | number; nombre: string; lote?: string | null },
-  idioma: string,
-  fechas: { checkIn: string; checkOut: string } | null,
-) {
-  const dmy = (iso: string) => iso.split('-').reverse().join('/')
-  const link = typeof window !== 'undefined' ? `${window.location.origin}/casa/${p.id}` : ''
-  if (idioma === 'es') {
-    const casa = `${p.nombre}${p.lote ? ` (Lote ${p.lote})` : ''}`
-    const cuando = fechas ? ` del ${dmy(fechas.checkIn)} al ${dmy(fechas.checkOut)}` : ''
-    return `¡Hola! Vi en la web ${casa} en Costa Esmeralda y quería consultar disponibilidad y precio${cuando}. Somos ___ personas. ${link}`
-  }
-  const casa = `${p.nombre}${p.lote ? ` (Lot ${p.lote})` : ''}`
-  const cuando = fechas ? ` from ${dmy(fechas.checkIn)} to ${dmy(fechas.checkOut)}` : ''
-  return `Hi! I saw ${casa} in Costa Esmeralda on your website and would like to ask about availability and price${cuando}. We are ___ people. ${link}`
-}
+const ICONOS_BARRIO = [
+  'M2 18c2 1.5 4 1.5 6 0s4-1.5 6 0 4 1.5 6 0M6 15V8h12v7M4 8h16L12 3z',
+  'M8 21V3l9 4-9 4M5 21h14',
+  'M5 20c0-6 3-9 7-10l2-5 2 3 3 1-2 3c-1 3-2 5-5 8M9 20h8',
+  'M9 4a5 5 0 1 0 0 10A5 5 0 0 0 9 4zm3.5 8.5 7 7',
+  'M3 21h18M5 21V10l7-6 7 6v11M10 21v-6h4v6',
+  'M4 7h16l-1 13H5zM9 7a3 3 0 0 1 6 0',
+  'M6 14a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm12 0a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM6 17l4-7h5l3 7M10 10 9 7H7',
+  'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z',
+]
 
 function LandingContent() {
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
-  const { language, toggleLanguage, t } = useLanguage()
+  const { language, toggleLanguage } = useLanguage()
+  const en = language === 'en'
+  const t = en ? TX.en : TX.es
 
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
-  const [loading, setLoading] = useState(true)
-  const [imageIndexes, setImageIndexes] = useState<Record<number, number>>({})
-  const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
-  const [servicioModal, setServicioModal] = useState<string | null>(null)
-  const [filtroBarrio, setFiltroBarrio] = useState('Todos')
-  const [propiedadModal, setPropiedadModal] = useState<Propiedad | null>(null)
-  const [modalImageIndex, setModalImageIndex] = useState(0)
-
-  // Hero slideshow
-  const [heroImageIndex, setHeroImageIndex] = useState(0)
-  const heroImages = [
-    'https://dpghrdgippisgzvlahwi.supabase.co/storage/v1/object/public/Imagenes/foto%20playa%20costa.JPG',
-    'https://costa-esmeralda.com.ar/wp-content/uploads/2021/06/naturaleza.jpg',
-    'https://costa-esmeralda.com.ar/wp-content/uploads/2024/04/Cancha-de-Polo-02-scaled.jpg',
-  ]
-
-  // Sticky header
-  const [showStickyHeader, setShowStickyHeader] = useState(false)
-
-  // Estado para búsqueda de fechas y precios
-  const [fechasBusqueda, setFechasBusqueda] = useState<{ checkIn: string; checkOut: string } | null>(null)
-  const [preciosCalculados, setPreciosCalculados] = useState<Record<number, { total: number; noches: number; promedio: number; disponible: boolean }>>({})
-  const [loadingPrecios, setLoadingPrecios] = useState(false)
-
-  // Filtrar propiedades por barrio
-  const propiedadesFiltradas = filtroBarrio === 'Todos'
-    ? propiedades
-    : propiedades.filter(p => p.nombre === filtroBarrio)
-
-  // Datos de contacto para cada servicio
-  const serviciosContacto: Record<string, { titulo: string, contactos: { nombre: string, telefono: string }[] }> = {
-    'seguridad': {
-      titulo: 'Seguridad 24 hs',
-      contactos: [
-        { nombre: 'Central de Seguridad', telefono: '2254-123456' },
-        { nombre: 'Guardia de acceso', telefono: '2254-123457' },
-      ]
-    },
-    'medicos': {
-      titulo: 'Ambulancia y Médicos',
-      contactos: [
-        { nombre: 'Emergencias médicas', telefono: '2254-601696' },
-        { nombre: 'Médico 24 hs', telefono: '2254-601696' },
-      ]
-    },
-    'golf': {
-      titulo: 'Campo de Golf',
-      contactos: [
-        { nombre: 'Pro Shop / Reservas', telefono: '2254-123460' },
-      ]
-    },
-    'polo': {
-      titulo: 'Cancha de Polo',
-      contactos: [
-        { nombre: 'Reservas', telefono: '2254-123461' },
-      ]
-    },
-    'deportivo': {
-      titulo: 'Centro Deportivo',
-      contactos: [
-        { nombre: 'Recepción', telefono: '2254-123462' },
-      ]
-    },
-    'restaurantes': {
-      titulo: 'Restaurantes y Club House',
-      contactos: [
-        { nombre: 'Club House', telefono: '2254-123463' },
-        { nombre: 'Reservas restaurante', telefono: '2254-123464' },
-      ]
-    },
-    'cuatriciclos': {
-      titulo: 'Cuatriciclos y UTVs',
-      contactos: [
-        { nombre: 'Alquiler', telefono: '2254-123465' },
-      ]
-    },
-    'cabalgatas': {
-      titulo: 'Cabalgatas',
-      contactos: [
-        { nombre: 'Reservas paseos', telefono: '2254-123466' },
-      ]
-    },
-    'proveeduria': {
-      titulo: 'Proveeduría',
-      contactos: [
-        { nombre: 'Proveeduría Costa', telefono: '2254-123467' },
-        { nombre: 'Carnicería', telefono: '2254-123468' },
-      ]
-    },
-  }
+  const [reglas, setReglas] = useState<PriceRule[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [llegada, setLlegada] = useState('')
+  const [salida, setSalida] = useState('')
+  const [personas, setPersonas] = useState(2)
+  const [barrio, setBarrio] = useState('')
+  const [fotoIdx, setFotoIdx] = useState<Record<string, number>>({})
+  const [ficha, setFicha] = useState<Propiedad | null>(null)
+  const [fichaFoto, setFichaFoto] = useState(0)
+  const [copiado, setCopiado] = useState(false)
 
   useEffect(() => {
-    if (isDemo) {
-      // Convertir IDs de demo a números para compatibilidad
-      setPropiedades(demoPropiedades.map((p, idx) => ({
-        ...p,
-        id: idx + 1
-      })) as unknown as Propiedad[])
-      setReservas(demoReservas.map((r, idx) => ({
-        id: idx + 1,
-        propiedad_id: parseInt(r.propiedad_id.replace('demo-prop-', '')),
-        fecha_inicio: r.fecha_inicio,
-        fecha_fin: r.fecha_fin,
-        estado: r.estado
-      })) as Reserva[])
-      setLoading(false)
-      return
-    }
-    async function fetchData() {
-      const [resPropiedades, resReservas] = await Promise.all([
-        supabase.from('propiedades').select('*').neq('publicada', false).order('nombre'),
-        supabase.from('reservas').select('id, propiedad_id, fecha_inicio, fecha_fin, estado').in('estado', ['confirmada', 'pendiente'])
+    async function cargar() {
+      if (isDemo) {
+        setPropiedades(demoPropiedades as unknown as Propiedad[])
+        setReservas(demoReservas as unknown as Reserva[])
+        setCargando(false)
+        return
+      }
+      const [p, r] = await Promise.all([
+        supabase.from('propiedades').select('*').neq('publicada', false).is('eliminado_at', null).order('nombre'),
+        supabase.from('reservas').select('propiedad_id, fecha_inicio, fecha_fin, estado').in('estado', ['confirmada', 'pendiente']).gte('fecha_fin', hoyISO()),
       ])
-      if (resPropiedades.data) setPropiedades(resPropiedades.data)
-      if (resReservas.data) setReservas(resReservas.data)
-      setLoading(false)
+      const props = (p.data || []) as Propiedad[]
+      setPropiedades(props)
+      setReservas((r.data || []) as Reserva[])
+      if (props.length) {
+        const { data } = await supabase.from('price_rules').select(COLUMNAS_REGLAS).in('property_id', props.map(x => x.id)).gte('end_date', hoyISO())
+        setReglas(normalizarReglas(data || []))
+      }
+      setCargando(false)
     }
-    fetchData()
+    cargar()
   }, [isDemo])
 
-  // Link compartido (/casa/[id]): abrir la ficha de esa casa
+  // Link compartido (/casa/[id] → /?casa=id): abrir la ficha de esa casa
   const casaCompartida = searchParams.get('casa')
   useEffect(() => {
-    if (!casaCompartida || propiedades.length === 0) return
-    const casa = propiedades.find(p => String(p.id) === casaCompartida)
-    if (casa) { setPropiedadModal(casa); setModalImageIndex(0) }
+    if (!casaCompartida || !propiedades.length) return
+    const p = propiedades.find(x => String(x.id) === casaCompartida)
+    if (p) { setFicha(p); setFichaFoto(0) }
   }, [casaCompartida, propiedades])
 
-  // Bloquear scroll del body cuando lightbox está abierto
   useEffect(() => {
-    if (lightbox) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => {
-      document.body.style.overflow = ''
-    }
-  }, [lightbox])
+    if (!ficha) return
+    const cerrar = (e: KeyboardEvent) => { if (e.key === 'Escape') setFicha(null) }
+    document.addEventListener('keydown', cerrar)
+    document.body.style.overflow = 'hidden'
+    return () => { document.removeEventListener('keydown', cerrar); document.body.style.overflow = '' }
+  }, [ficha])
 
-  // Hero slideshow automático
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setHeroImageIndex((prev) => (prev + 1) % heroImages.length)
-    }, 5000) // Cambiar cada 5 segundos
-    return () => clearInterval(interval)
-  }, [heroImages.length])
+  const barrios = useMemo(() => [...new Set(propiedades.map(p => p.nombre))].sort(), [propiedades])
+  const hayFechas = !!llegada && !!salida && salida > llegada
 
-  // Sticky header al scrollear
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowStickyHeader(window.scrollY > 400)
-    }
-    window.addEventListener('scroll', handleScroll)
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [])
-
-  // Buscar precios cuando se seleccionan fechas
-  useEffect(() => {
-    if (!fechasBusqueda || propiedades.length === 0) return
-    if (isDemo) {
-      // En modo demo, generar precios ficticios
-      const calculados: Record<number, { total: number; noches: number; promedio: number; disponible: boolean }> = {}
-      const checkIn = new Date(fechasBusqueda.checkIn)
-      const checkOut = new Date(fechasBusqueda.checkOut)
-      const noches = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24))
-
-      propiedades.forEach(p => {
-        // Precio demo aleatorio entre 150 y 300 USD
-        const precioNoche = 150 + Math.floor(Math.random() * 150)
-        calculados[p.id] = {
-          total: precioNoche * noches,
-          noches,
-          promedio: precioNoche,
-          disponible: Math.random() > 0.2 // 80% disponible
-        }
-      })
-      setPreciosCalculados(calculados)
-      return
-    }
-
-    async function fetchPreciosYCalcular() {
-      setLoadingPrecios(true)
-      try {
-        // Precios de las casas publicadas (Casas → Precios alquileres)
-        const { data: filas } = await supabase
-          .from('price_rules')
-          .select(COLUMNAS_REGLAS)
-          .in('property_id', propiedades.map(p => p.id))
-          .gte('end_date', fechasBusqueda!.checkIn)
-          .lte('start_date', fechasBusqueda!.checkOut)
-
-        const reglas = normalizarReglas(filas || [])
-        const calculados: Record<number, { total: number; noches: number; promedio: number; disponible: boolean }> = {}
-        propiedades.forEach(prop => {
-          const propias = reglas.filter(r => String(r.property_id) === String(prop.id))
-          if (!propias.length) return
-          const resultado = precioEstadia(fechasBusqueda!.checkIn, fechasBusqueda!.checkOut, propias)
-          if (!resultado.completo) return
-          calculados[prop.id] = {
-            total: resultado.total,
-            noches: resultado.noches,
-            promedio: resultado.precioPromedio,
-            disponible: true,
-          }
-        })
-        setPreciosCalculados(calculados)
-      } catch (error) {
-        console.error('Error al cargar precios:', error)
-      }
-      setLoadingPrecios(false)
-    }
-
-    fetchPreciosYCalcular()
-  }, [fechasBusqueda, propiedades, isDemo])
-
-  // Handlers para el selector de fechas
-  const handleBuscarFechas = (checkIn: string, checkOut: string) => {
-    setFechasBusqueda({ checkIn, checkOut })
-  }
-
-  const handleLimpiarFechas = () => {
-    setFechasBusqueda(null)
-    setPreciosCalculados({})
-  }
-
-  // Check if property is currently reserved (today)
-  const estaReservada = (propiedadId: number) => {
-    const hoy = new Date()
-    hoy.setHours(0, 0, 0, 0)
-    return reservas.some(r => {
-      if (r.propiedad_id !== propiedadId) return false
-      const inicio = parseFechaLocal(r.fecha_inicio)
-      const fin = parseFechaLocal(r.fecha_fin)
-      return hoy >= inicio && hoy <= fin
+  const tarjetas = useMemo(() => propiedades
+    .filter(p => !barrio || p.nombre === barrio)
+    .map(p => {
+      const propias = reglas.filter(r => String(r.property_id) === String(p.id))
+      // "Desde": el precio más bajo cargado de acá en adelante (sin el de fines de semana largos)
+      const precios = propias.filter(r => r.active && !r.applies_to_days?.includes(FERIADO_LARGO)).map(r => r.price_per_night)
+      const desde = precios.length ? Math.min(...precios) : 0
+      const est = hayFechas ? precioEstadia(llegada, salida, propias) : null
+      const ocupada = hayFechas && reservas.some(r => String(r.propiedad_id) === String(p.id) && r.fecha_inicio < salida && r.fecha_fin > llegada)
+      return { p, desde, est, ocupada, entra: (p.capacidad || 0) >= personas }
     })
+    .sort((a, b) => Number(b.entra) - Number(a.entra) || Number(a.ocupada) - Number(b.ocupada)),
+  [propiedades, reglas, reservas, barrio, llegada, salida, hayFechas, personas])
+
+  const conPrecio = tarjetas.map(x => x.desde).filter(Boolean)
+  const desdeGeneral = conPrecio.length ? Math.min(...conPrecio) : 0
+
+  function mensaje(p: Propiedad) {
+    const link = typeof window !== 'undefined' ? `${window.location.origin}/casa/${p.id}` : ''
+    const casa = `${p.nombre}${p.lote ? ` (${t.lote} ${p.lote})` : ''}`
+    const fechas = hayFechas ? (en ? ` from ${dm(llegada)} to ${dm(salida)}` : ` del ${dm(llegada)} al ${dm(salida)}`) : ''
+    return en
+      ? `Hi! I saw ${casa} in Costa Esmeralda on your website and would like to ask about availability and price${fechas}. We are ${personas} people. ${link}`
+      : `¡Hola! Vi en la web ${casa} en Costa Esmeralda y quería consultar disponibilidad y precio${fechas}. Somos ${personas} personas. ${link}`
+  }
+  const linkWA = (p: Propiedad) => `https://wa.me/${telWA(p.telefono_contacto)}?text=${encodeURIComponent(mensaje(p))}`
+
+  function moverFoto(id: string, total: number, d: number) {
+    setFotoIdx(prev => ({ ...prev, [id]: ((prev[id] || 0) + d + total) % total }))
   }
 
-  // Check if property is reserved for specific dates (overlapping)
-  const estaReservadaEnFechas = (propiedadId: number, checkIn: string, checkOut: string) => {
-    const busquedaInicio = parseFechaLocal(checkIn)
-    const busquedaFin = parseFechaLocal(checkOut)
-
-    return reservas.some(r => {
-      if (r.propiedad_id !== propiedadId) return false
-      if (r.estado !== 'confirmada' && r.estado !== 'pendiente') return false
-
-      const reservaInicio = parseFechaLocal(r.fecha_inicio)
-      const reservaFin = parseFechaLocal(r.fecha_fin)
-
-      // Como en un hotel: el día de salida de uno puede ser el de entrada de otro
-      return reservaInicio < busquedaFin && reservaFin > busquedaInicio
-    })
+  async function compartir(p: Propiedad) {
+    const url = `${window.location.origin}/casa/${p.id}`
+    if (navigator.share) { try { await navigator.share({ title: p.nombre, url }) } catch { /* cancelado */ } return }
+    await navigator.clipboard.writeText(url)
+    setCopiado(true); setTimeout(() => setCopiado(false), 2000)
   }
 
-  // Filter properties by availability for selected dates
-  const propiedadesDisponibles = fechasBusqueda
-    ? propiedadesFiltradas.filter(p => !estaReservadaEnFechas(p.id, fechasBusqueda.checkIn, fechasBusqueda.checkOut))
-    : propiedadesFiltradas
+  const primera = propiedades[0]
 
   return (
-    <div className="min-h-screen">
-      {/* Sticky Header - siempre visible en móvil, aparece al scroll en desktop */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 translate-y-0 opacity-100 ${!showStickyHeader && 'md:-translate-y-full md:opacity-0'}`}>
-        <div className="bg-white/95 backdrop-blur-sm shadow-md">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <span className="text-xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
-              Admin Costa
-            </span>
-            <div className="flex items-center gap-4">
-              {/* Selector de idioma */}
-              <button
-                onClick={toggleLanguage}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-costa-gris hover:text-costa-navy transition-colors"
-                title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
-              >
-                <Globe size={16} />
-                {language === 'es' ? 'EN' : 'ES'}
-              </button>
-              <a
-                href="#propiedades"
-                className="px-4 py-2 bg-costa-navy text-white text-sm font-medium rounded-lg hover:bg-costa-navy/90 transition-colors"
-              >
-                {t('viewProperties')}
-              </a>
-              <Link
-                href={isDemo ? "/admin?demo=true" : "/admin"}
-                className="px-4 py-2 text-sm text-costa-navy hover:text-costa-navy/70 transition-colors"
-              >
-                {t('accessOwners')}
-              </Link>
-            </div>
-          </div>
+    <div className="pub">
+      <header><div className="wrap">
+        <Link className="marca" href={isDemo ? '/?demo=true' : '/'}>Alquileres Costa Esmeralda<small>{t.marcaSub}</small></Link>
+        <nav className="hnav">{['#casas', '#barrio', '#llegar', '#reservar'].map((h, i) => <a key={h} href={h}>{t.nav[i]}</a>)}</nav>
+        <div className="hder">
+          <button type="button" onClick={toggleLanguage} aria-label="Idioma">{en ? <>ES / <b>EN</b></> : <><b>ES</b> / EN</>}</button>
+          <Link href={isDemo ? '/admin?demo=true' : '/admin'}>{t.acceso}</Link>
         </div>
-      </header>
+      </div></header>
 
-      {/* Demo Banner */}
-      {isDemo && (
-        <div className="bg-amber-100 text-amber-800 text-center py-2 text-sm font-medium">
-          🔍 Modo Demo - Datos ficticios de ejemplo
-        </div>
-      )}
-
-      {/* Hero Section con Slideshow */}
-      <section className="relative h-[60vh] md:h-[70vh] min-h-[400px] md:min-h-[500px] flex items-center justify-center overflow-hidden pt-60 md:pt-0">
-        {/* Background Slideshow */}
-        {heroImages.map((img, idx) => (
-          <div
-            key={idx}
-            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ${idx === heroImageIndex ? 'opacity-100' : 'opacity-0'}`}
-            style={{ backgroundImage: `url(${img})` }}
-          >
-            <div className="absolute inset-0 bg-gradient-to-b from-costa-navy/60 via-costa-navy/40 to-costa-navy/70" />
+      <main>
+        {/* Portada: todo a la vista sin bajar */}
+        <section className="wrap hero">
+          <div className="intro">
+            <div className="over">{t.over}</div>
+            <h1>{t.h1a}<em>{t.h1b}</em>{t.h1c}</h1>
+            <p className="sub">{t.sub}</p>
+            <ul className="hechos">
+              {t.hechos.map(([b, s], i) => (
+                <li key={b}><svg className="ico" viewBox="0 0 24 24"><path d={ICONOS_HECHOS[i]} /></svg><span><b>{b}</b>{s}</span></li>
+              ))}
+            </ul>
+            <div className="ctas"><a className="cta" href="#casas">{t.cta}</a><a className="cta2" href="#barrio">{t.cta2}</a></div>
           </div>
-        ))}
-
-        {/* Indicadores del slideshow */}
-        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 flex gap-2">
-          {heroImages.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => setHeroImageIndex(idx)}
-              className={`w-2 h-2 rounded-full transition-all ${idx === heroImageIndex ? 'bg-white w-6' : 'bg-white/50 hover:bg-white/70'}`}
-            />
-          ))}
-        </div>
-
-        {/* Acceso dueños y selector idioma - arriba derecha */}
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-3">
-          <button
-            onClick={toggleLanguage}
-            className="flex items-center gap-1.5 px-3 py-2 text-sm text-white/80 hover:text-white border border-white/30 hover:border-white/50 rounded-lg transition-colors"
-            title={language === 'es' ? 'Switch to English' : 'Cambiar a Español'}
-          >
-            <Globe size={16} />
-            {language === 'es' ? 'EN' : 'ES'}
-          </button>
-          <Link
-            href={isDemo ? "/admin?demo=true" : "/admin"}
-            className="px-4 py-2 text-sm text-white/80 hover:text-white border border-white/30 hover:border-white/50 rounded-lg transition-colors"
-          >
-            {t('accessOwners')}
-          </Link>
-        </div>
-
-        {/* Content */}
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-          <h1 className="text-5xl md:text-6xl font-semibold text-white mb-4 tracking-wide" style={{ fontFamily: 'var(--font-playfair)' }}>
-            {t('heroTitle')}
-          </h1>
-          <p className="text-xl md:text-2xl text-white/90 mb-6 font-light">
-            {t('heroSubtitle')}
-          </p>
-
-          {/* Badges de confianza */}
-          <div className="flex flex-wrap justify-center gap-4 mb-8">
-            <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm">
-              <CheckCircle size={16} className="text-costa-olivo" />
-              {t('verifiedOwners')}
-            </span>
-            <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm">
-              <Shield size={16} className="text-costa-olivo" />
-              {t('secureBooking')}
-            </span>
-            <span className="flex items-center gap-2 px-3 py-1.5 bg-white/20 backdrop-blur-sm rounded-full text-white text-sm">
-              <Users size={16} className="text-costa-olivo" />
-              {t('directContact')}
-            </span>
+          <div className="portada">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/portada.jpg" alt={t.pie} />
+            <div className="pie">{t.pie}</div>
           </div>
+        </section>
 
-          <a
-            href="#propiedades"
-            className="inline-block px-8 py-3 bg-white text-costa-navy font-medium rounded-lg hover:bg-costa-beige transition-colors"
-          >
-            {t('viewProperties')}
-          </a>
-
-          {/* Contador */}
-          <div className="flex justify-center gap-8 mt-10">
-            <div className="text-center">
-              <p className="text-3xl md:text-4xl font-bold text-white">{propiedades.length || '10'}+</p>
-              <p className="text-white/70 text-sm">{t('properties')}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl md:text-4xl font-bold text-white">200+</p>
-              <p className="text-white/70 text-sm">{t('happyFamilies')}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-3xl md:text-4xl font-bold text-white">5</p>
-              <p className="text-white/70 text-sm">{t('yearsExperience')}</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Scroll indicator */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-          <ChevronLeft size={24} className="text-white/70 rotate-[-90deg]" />
-        </div>
-      </section>
-
-      {/* Modelo Section */}
-      <section className="py-8 md:py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            {t('ourModel')}
-          </h2>
-          <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
-            {t('ourModelSubtitle')}
-          </p>
-
-          <div className="grid grid-cols-3 gap-2 md:gap-8">
-            <div className="text-center p-2 md:p-6">
-              <div className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-2 md:mb-4 rounded-full bg-costa-beige flex items-center justify-center">
-                <CheckCircle size={20} className="md:hidden text-costa-olivo" />
-                <CheckCircle size={32} className="hidden md:block text-costa-olivo" />
-              </div>
-              <h3 className="text-xs md:text-lg font-semibold text-costa-navy mb-1 md:mb-2">{t('noIntermediaries')}</h3>
-              <p className="text-costa-gris text-[10px] md:text-sm hidden md:block">
-                {t('noIntermediariesDesc')}
-              </p>
-            </div>
-
-            <div className="text-center p-2 md:p-6">
-              <div className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-2 md:mb-4 rounded-full bg-costa-beige flex items-center justify-center">
-                <Users size={20} className="md:hidden text-costa-olivo" />
-                <Users size={32} className="hidden md:block text-costa-olivo" />
-              </div>
-              <h3 className="text-xs md:text-lg font-semibold text-costa-navy mb-1 md:mb-2">{t('committedOwners')}</h3>
-              <p className="text-costa-gris text-[10px] md:text-sm hidden md:block">
-                {t('committedOwnersDesc')}
-              </p>
-            </div>
-
-            <div className="text-center p-2 md:p-6">
-              <div className="w-10 h-10 md:w-16 md:h-16 mx-auto mb-2 md:mb-4 rounded-full bg-costa-beige flex items-center justify-center">
-                <Waves size={20} className="md:hidden text-costa-olivo" />
-                <Waves size={32} className="hidden md:block text-costa-olivo" />
-              </div>
-              <h3 className="text-xs md:text-lg font-semibold text-costa-navy mb-1 md:mb-2">{t('qualityStandards')}</h3>
-              <p className="text-costa-gris text-[10px] md:text-sm hidden md:block">
-                {t('qualityStandardsDesc')}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonios Section */}
-      <section className="py-8 md:py-16 bg-costa-beige/30">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            {t('testimonialsTitle')}
-          </h2>
-          <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
-            {t('testimonialsSubtitle')}
-          </p>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <div className="bg-white p-6 rounded-2xl shadow-sm">
-              <div className="flex items-center gap-1 text-amber-400 mb-4">
-                {[1,2,3,4,5].map(i => (
-                  <svg key={i} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                  </svg>
-                ))}
-              </div>
-              <p className="text-costa-gris mb-4 italic">
-                "{t('testimonial1')}"
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-costa-navy text-white flex items-center justify-center font-semibold">
-                  MG
-                </div>
-                <div>
-                  <p className="font-medium text-costa-navy">María García</p>
-                  <p className="text-xs text-costa-gris">Enero 2026 • Golf 2</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl shadow-sm">
-              <div className="flex items-center gap-1 text-amber-400 mb-4">
-                {[1,2,3,4,5].map(i => (
-                  <svg key={i} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                  </svg>
-                ))}
-              </div>
-              <p className="text-costa-gris mb-4 italic">
-                "{t('testimonial2')}"
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-costa-olivo text-white flex items-center justify-center font-semibold">
-                  PL
-                </div>
-                <div>
-                  <p className="font-medium text-costa-navy">Pablo López</p>
-                  <p className="text-xs text-costa-gris">Febrero 2026 • Senderos 3</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-2xl shadow-sm">
-              <div className="flex items-center gap-1 text-amber-400 mb-4">
-                {[1,2,3,4,5].map(i => (
-                  <svg key={i} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                  </svg>
-                ))}
-              </div>
-              <p className="text-costa-gris mb-4 italic">
-                "{t('testimonial3')}"
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-costa-coral text-white flex items-center justify-center font-semibold">
-                  CF
-                </div>
-                <div>
-                  <p className="font-medium text-costa-navy">Carolina Fernández</p>
-                  <p className="text-xs text-costa-gris">Diciembre 2025 • Marítimo 1</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Descubrí Costa Esmeralda Section */}
-      <section className="py-8 md:py-16 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            {t('discoverTitle')}
-          </h2>
-          <p className="text-costa-gris text-center mb-12 max-w-3xl mx-auto">
-            {t('discoverSubtitle')}
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <button onClick={() => setServicioModal('seguridad')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
-                <Shield size={24} className="text-costa-navy" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-costa-navy">{t('security24h')}</h3>
-                <p className="text-sm text-costa-gris">{t('security24hDesc')}</p>
-              </div>
-            </button>
-
-            <button onClick={() => setServicioModal('medicos')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
-                <Stethoscope size={24} className="text-costa-navy" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-costa-navy">{t('ambulanceDoctors')}</h3>
-                <p className="text-sm text-costa-gris">{t('ambulanceDoctorsDesc')}</p>
-              </div>
-            </button>
-
-            <button onClick={() => setServicioModal('golf')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
-                <Flag size={24} className="text-costa-navy" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-costa-navy">{t('golfCourse')}</h3>
-                <p className="text-sm text-costa-gris">{t('golfCourseDesc')}</p>
-              </div>
-            </button>
-
-            <button onClick={() => setServicioModal('polo')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
-                <Trophy size={24} className="text-costa-navy" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-costa-navy">{t('poloCourt')}</h3>
-                <p className="text-sm text-costa-gris">{t('poloCourtDesc')}</p>
-              </div>
-            </button>
-
-            <button onClick={() => setServicioModal('deportivo')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
-                <Dumbbell size={24} className="text-costa-navy" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-costa-navy">{t('sportsCenter')}</h3>
-                <p className="text-sm text-costa-gris">{t('sportsCenterDesc')}</p>
-              </div>
-            </button>
-
-            <button onClick={() => setServicioModal('restaurantes')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
-                <UtensilsCrossed size={24} className="text-costa-navy" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-costa-navy">{t('restaurants')}</h3>
-                <p className="text-sm text-costa-gris">{t('restaurantsDesc')}</p>
-              </div>
-            </button>
-
-            <button onClick={() => setServicioModal('cuatriciclos')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
-                <Car size={24} className="text-costa-navy" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-costa-navy">{t('atvs')}</h3>
-                <p className="text-sm text-costa-gris">{t('atvsDesc')}</p>
-              </div>
-            </button>
-
-            <button onClick={() => setServicioModal('cabalgatas')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer">
-              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
-                <TreePine size={24} className="text-costa-navy" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-costa-navy">{t('horseRiding')}</h3>
-                <p className="text-sm text-costa-gris">{t('horseRidingDesc')}</p>
-              </div>
-            </button>
-
-            <button onClick={() => setServicioModal('proveeduria')} className="flex items-center gap-4 p-4 bg-white rounded-xl shadow-sm hover:shadow-md hover:bg-costa-beige/20 transition-all text-left cursor-pointer sm:col-span-2 lg:col-span-1">
-              <div className="w-12 h-12 rounded-full bg-costa-navy/10 flex items-center justify-center flex-shrink-0">
-                <ShoppingCart size={24} className="text-costa-navy" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-costa-navy">{t('grocery')}</h3>
-                <p className="text-sm text-costa-gris">{t('groceryDesc')}</p>
-              </div>
-            </button>
-          </div>
-
-          {/* Mapa de ubicación */}
-          <div className="mt-12">
-            <h3 className="text-xl font-semibold text-costa-navy text-center mb-6" style={{ fontFamily: 'var(--font-playfair)' }}>
-              {t('location')}
-            </h3>
-            <div className="rounded-2xl overflow-hidden shadow-lg">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m17!1m12!1m3!1d50000!2d-56.799169!3d-37.017881!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m2!1m1!2zMzfCsDAxJzA0LjQiUyA1NsKwNDcnNTcuMCJX!5e0!3m2!1ses-419!2sar!4v1705000000000!5m2!1ses-419!2sar"
-                width="100%"
-                height="400"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="Ubicación de Costa Esmeralda"
-                className="w-full"
-              />
-            </div>
-            <p className="text-center text-costa-gris text-sm mt-4">
-              {t('locationDesc')} — <span className="text-costa-navy font-medium">{t('nearPinamar')}</span>
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Galería del Barrio */}
-      <section className="py-8 md:py-16 bg-costa-beige/30">
-        <div className="max-w-6xl mx-auto px-4">
-          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            {t('galleryTitle')}
-          </h2>
-          <p className="text-costa-gris text-center mb-12 max-w-2xl mx-auto">
-            {t('gallerySubtitle')}
-          </p>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {/* Foto grande - Playa */}
-            <div className="col-span-2 row-span-2 relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[400px]">
-              <img
-                src="https://dpghrdgippisgzvlahwi.supabase.co/storage/v1/object/public/Imagenes/foto%20playa%20costa.JPG"
-                alt="Playa Costa Esmeralda"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-4 left-4 text-white">
-                <h3 className="text-xl font-semibold">{t('privateBeach')}</h3>
-                <p className="text-sm text-white/80">{t('beachAccess')}</p>
-              </div>
-            </div>
-
-            {/* Golf */}
-            <div className="relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[190px]">
-              <img
-                src="https://images.unsplash.com/photo-1587174486073-ae5e5cff23aa?w=400&h=300&fit=crop"
-                alt="Campo de Golf"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-3 left-3 text-white">
-                <h3 className="font-semibold">{t('golf')}</h3>
-                <p className="text-xs text-white/80">{t('golf27holes')}</p>
-              </div>
-            </div>
-
-            {/* Polo */}
-            <div className="relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[190px]">
-              <img
-                src="https://costa-esmeralda.com.ar/wp-content/uploads/2024/04/Cancha-de-Polo-02-scaled.jpg"
-                alt="Cancha de Polo"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-3 left-3 text-white">
-                <h3 className="font-semibold">{t('polo')}</h3>
-                <p className="text-xs text-white/80">{t('professionalCourts')}</p>
-              </div>
-            </div>
-
-            {/* Naturaleza */}
-            <div className="relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[190px]">
-              <img
-                src="https://images.unsplash.com/photo-1448375240586-882707db888b?w=400&h=300&fit=crop"
-                alt="Bosque y naturaleza"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-3 left-3 text-white">
-                <h3 className="font-semibold">{t('nature')}</h3>
-                <p className="text-xs text-white/80">{t('forestsTrails')}</p>
-              </div>
-            </div>
-
-            {/* Club House */}
-            <div className="relative rounded-2xl overflow-hidden shadow-lg group cursor-pointer h-[190px]">
-              <img
-                src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop"
-                alt="Club House y restaurante"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute bottom-3 left-3 text-white">
-                <h3 className="font-semibold">{t('gastronomy')}</h3>
-                <p className="text-xs text-white/80">{t('clubHouse')}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Properties Section */}
-      <section id="propiedades" className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            {t('propertiesTitle')}
-          </h2>
-          <p className="text-costa-gris text-center mb-8">
-            {t('propertiesSubtitle')}
-          </p>
-
-          {/* Selector de fechas */}
-          <div className="max-w-2xl mx-auto mb-8">
-            <SelectorFechasPublico
-              onBuscar={handleBuscarFechas}
-              onLimpiar={handleLimpiarFechas}
-              fechasActivas={fechasBusqueda}
-            />
-            {loadingPrecios && (
-              <p className="text-center text-costa-gris text-sm mt-2">{t('calculatingPrices')}</p>
-            )}
-          </div>
-
-          {/* Filtro por barrio */}
-          <div className="flex justify-center mb-8">
-            <div className="flex items-center gap-3 bg-costa-beige/50 px-4 py-2 rounded-full">
-              <span className="text-sm text-costa-navy font-medium">{t('filterByNeighborhood')}</span>
-              <select
-                value={filtroBarrio}
-                onChange={(e) => setFiltroBarrio(e.target.value)}
-                className="bg-white border border-costa-beige rounded-lg px-3 py-1.5 text-sm text-costa-navy focus:outline-none focus:ring-2 focus:ring-costa-navy"
-              >
-                {barrios.map((barrio) => (
-                  <option key={barrio} value={barrio}>{barrio}</option>
-                ))}
-              </select>
-              {filtroBarrio !== 'Todos' && (
-                <span className="text-xs text-costa-gris">
-                  ({propiedadesFiltradas.length} {propiedadesFiltradas.length === 1 ? t('propertiesAvailable') : t('propertiesAvailablePlural')})
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Mensaje de disponibilidad */}
-          {fechasBusqueda && !loadingPrecios && (
-            <div className="text-center mb-6">
-              <p className="text-costa-navy font-medium">
-                {propiedadesDisponibles.length > 0 ? (
-                  <>
-                    <span className="text-costa-olivo">{propiedadesDisponibles.length}</span> {propiedadesDisponibles.length === 1 ? t('propertiesAvailable') : t('propertiesAvailablePlural')} {t('fromDate')}{' '}
-                    <span className="font-semibold">{new Date(fechasBusqueda.checkIn + 'T12:00:00').toLocaleDateString(language === 'es' ? 'es-AR' : 'en-US', { day: 'numeric', month: 'short' })}</span> {t('toDate')}{' '}
-                    <span className="font-semibold">{new Date(fechasBusqueda.checkOut + 'T12:00:00').toLocaleDateString(language === 'es' ? 'es-AR' : 'en-US', { day: 'numeric', month: 'short' })}</span>
-                  </>
-                ) : (
-                  <span className="text-costa-coral">{t('noPropertiesDates')}</span>
+        {/* Propiedades: fechas arriba, cada casa con su precio y disponibilidad */}
+        <section className="hoja-casas" id="casas">
+          <div className="wrap">
+            <div className="cab-casas">
+              <div><div className="over">{t.props}</div><h2>{t.elegi}</h2></div>
+              <form className={`buscador ${barrios.length > 1 ? 'con-barrio' : ''}`} onSubmit={e => e.preventDefault()}>
+                <div className="c"><label htmlFor="lle">{t.llegada}</label>
+                  <input id="lle" type="date" value={llegada} min={hoyISO()} onChange={e => { setLlegada(e.target.value); if (salida && salida <= e.target.value) setSalida('') }} /></div>
+                <div className="c"><label htmlFor="sal">{t.salida}</label>
+                  <input id="sal" type="date" value={salida} min={llegada || hoyISO()} onChange={e => setSalida(e.target.value)} /></div>
+                <div className="c"><label htmlFor="per">{t.personas}</label>
+                  <select id="per" value={personas} onChange={e => setPersonas(Number(e.target.value))}>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => <option key={n} value={n}>{n}</option>)}
+                  </select></div>
+                {barrios.length > 1 && (
+                  <div className="c"><label htmlFor="bar">{t.barrio}</label>
+                    <select id="bar" value={barrio} onChange={e => setBarrio(e.target.value)}>
+                      <option value="">{t.todos}</option>
+                      {barrios.map(b => <option key={b} value={b}>{b}</option>)}
+                    </select></div>
                 )}
-              </p>
+                {(llegada || salida || barrio)
+                  ? <button type="button" className="limpiar" onClick={() => { setLlegada(''); setSalida(''); setBarrio('') }}>{t.limpiar}</button>
+                  : <button type="submit">{t.verPrecios}</button>}
+              </form>
             </div>
-          )}
 
-          {loading ? (
-            <div className="text-center text-costa-gris py-12">{t('loadingProperties')}</div>
-          ) : propiedadesDisponibles.length === 0 && fechasBusqueda ? (
-            <div className="text-center py-12">
-              <Calendar size={48} className="mx-auto text-costa-gris mb-4" />
-              <p className="text-costa-gris mb-2">{t('noPropertiesDates')}</p>
-              <button
-                onClick={handleLimpiarFechas}
-                className="text-costa-navy underline hover:text-costa-coral transition-colors"
-              >
-                {t('viewAllProperties')}
-              </button>
-            </div>
-          ) : propiedadesDisponibles.length === 0 ? (
-            <div className="text-center text-costa-gris py-12">{t('noPropertiesNeighborhood')}</div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {propiedadesDisponibles.map((propiedad) => {
-                const reservada = estaReservada(propiedad.id)
-                const images = propiedad.imagenes?.length > 0 ? propiedad.imagenes : (propiedad.imagen_url ? [propiedad.imagen_url] : [])
-                const currentIndex = imageIndexes[propiedad.id] || 0
-
+            <div className="casas">
+              {!cargando && tarjetas.length === 0 && <p className="vacio">{t.vacio}</p>}
+              {tarjetas.map(({ p, desde, est, ocupada, entra }) => {
+                const fotos = fotosDe(p)
+                const id = String(p.id)
+                const idx = fotoIdx[id] || 0
+                const amen = amenitiesDe(p, en)
                 return (
-                  <div key={propiedad.id} className="bg-white rounded-2xl shadow-lg overflow-hidden flex flex-col">
-                    {/* Image Carousel */}
-                    <div
-                      className="relative h-56 bg-costa-beige group"
-                      onTouchStart={(e) => {
-                        const touch = e.touches[0]
-                        e.currentTarget.dataset.touchStartX = touch.clientX.toString()
-                      }}
-                      onTouchEnd={(e) => {
-                        const touchStartX = parseFloat(e.currentTarget.dataset.touchStartX || '0')
-                        const touchEndX = e.changedTouches[0].clientX
-                        const diff = touchStartX - touchEndX
-                        if (Math.abs(diff) > 50 && images.length > 1) {
-                          if (diff > 0) {
-                            // Swipe left - next
-                            const next = currentIndex === images.length - 1 ? 0 : currentIndex + 1
-                            setImageIndexes({ ...imageIndexes, [propiedad.id]: next })
-                          } else {
-                            // Swipe right - prev
-                            const prev = currentIndex === 0 ? images.length - 1 : currentIndex - 1
-                            setImageIndexes({ ...imageIndexes, [propiedad.id]: prev })
-                          }
-                        }
-                      }}
-                    >
-                      {images.length > 0 ? (
-                        <>
-                          <img
-                            src={images[currentIndex]}
-                            alt={propiedad.nombre}
-                            className="w-full h-full object-cover cursor-pointer"
-                            onClick={() => setLightbox({ images, index: currentIndex })}
-                          />
-                          {images.length > 1 && (
-                            <>
-                              <button
-                                onClick={() => {
-                                  const prev = currentIndex === 0 ? images.length - 1 : currentIndex - 1
-                                  setImageIndexes({ ...imageIndexes, [propiedad.id]: prev })
-                                }}
-                                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/40 text-white rounded-full md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                              >
-                                <ChevronLeft size={20} />
-                              </button>
-                              <button
-                                onClick={() => {
-                                  const next = currentIndex === images.length - 1 ? 0 : currentIndex + 1
-                                  setImageIndexes({ ...imageIndexes, [propiedad.id]: next })
-                                }}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/40 text-white rounded-full md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-                              >
-                                <ChevronRight size={20} />
-                              </button>
-                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                {images.map((_, idx) => (
-                                  <button
-                                    key={idx}
-                                    onClick={() => setImageIndexes({ ...imageIndexes, [propiedad.id]: idx })}
-                                    className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === currentIndex ? 'bg-white' : 'bg-white/50'}`}
-                                  />
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </>
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-costa-gris">
-                          {t('noImage')}
-                        </div>
+                  <article className="casa" key={id} style={entra ? undefined : { opacity: .55 }}>
+                    <div className="gal">
+                      {fotos.length > 0 && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img className="grande" src={fotos[idx]} alt={p.nombre} onClick={() => { setFicha(p); setFichaFoto(idx) }} />
                       )}
-
+                      {p.lote && <span className="etq">{t.lote} {p.lote}</span>}
+                      {fotos.length > 1 && <>
+                        <button type="button" className="flecha izq" aria-label="Foto anterior" onClick={() => moverFoto(id, fotos.length, -1)}>‹</button>
+                        <button type="button" className="flecha der" aria-label="Foto siguiente" onClick={() => moverFoto(id, fotos.length, 1)}>›</button>
+                        <div className="puntos">{fotos.slice(0, 8).map((_, j) => <i key={j} className={j === idx ? 'on' : ''} />)}</div>
+                      </>}
+                    </div>
+                    <div className="cuerpo">
+                      <div className="fila1"><h3>{p.nombre}</h3>
+                        <button type="button" className="num" style={{ border: 0, background: 'none', cursor: 'pointer' }} onClick={() => { setFicha(p); setFichaFoto(0) }}>{t.verFicha} →</button></div>
+                      <p className="lead">{[p.referencia, p.plantas ? `${p.plantas} ${t.plantas}` : '', p.metros_lote ? `${t.lote} ${fmt(p.metros_lote)} m²` : ''].filter(Boolean).join(' · ')}</p>
+                      <div className="cifras">
+                        <div><b>{p.capacidad}</b><span>{t.personasC}</span></div>
+                        <div><b>{p.habitaciones}</b><span>{t.dormC}</span></div>
+                        <div><b>{p.banos}{p.toilette ? ' + 1' : ''}</b><span>{t.banosC}</span></div>
+                        <div><b>{p.metros_cubiertos || '—'}</b><span>{t.m2C}</span></div>
                       </div>
-
-                    {/* Content */}
-                    <div className="p-5 flex flex-col flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <h3 className="text-xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
-                          {propiedad.nombre}{propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}
-                        </h3>
-                        {propiedad.estado === 'alquilada' ? (
-                          <span className="px-2 py-0.5 bg-costa-coral text-white text-xs rounded-full flex-shrink-0">
-                            {t('rented')}
-                          </span>
-                        ) : propiedad.estado === 'mantenimiento' ? (
-                          <span className="px-2 py-0.5 bg-yellow-500 text-white text-xs rounded-full flex-shrink-0">
-                            {t('maintenance')}
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 bg-costa-olivo text-white text-xs rounded-full flex-shrink-0">
-                            {t('available')}
-                          </span>
-                        )}
-                      </div>
-
-                      {propiedad.direccion && (
-                        <div className="flex items-start gap-2 text-costa-gris mb-3">
-                          <MapPin size={16} className="text-costa-coral mt-0.5 flex-shrink-0" />
-                          <div>
-                            <p className="text-sm">{propiedad.direccion}</p>
-                            {propiedad.referencia && (
-                              <p className="text-xs italic mt-0.5">{propiedad.referencia}</p>
-                            )}
+                      <div className="amen">{amen.map(([txt, top]) => <span key={txt} className={top ? 'top' : ''}>{txt}</span>)}</div>
+                      <div className="abajo">
+                        <div className="precio">
+                          <div className="m">{desde ? <>U$D {fmt(desde)} <small>{t.desde}</small></> : <small>{t.consultaPrecio}</small>}</div>
+                          {est && (est.completo || desde > 0) && <div className="t">{t.noches(est.noches)}<b>{est.completo ? `U$D ${fmt(est.total)}` : t.consultaPrecio}</b></div>}
+                        </div>
+                        <div className="cierre">
+                          <div className={`disp ${!hayFechas ? '' : ocupada ? 'no' : 'si'}`}><i />
+                            {!entra ? t.capacidad(p.capacidad) : !hayFechas ? t.elegiFechas : ocupada ? t.ocupada : t.libre(dm(llegada), dm(salida))}
                           </div>
+                          <a className="wa" href={linkWA(p)} target="_blank" rel="noopener noreferrer"><IcoWA />{t.consultar}</a>
                         </div>
-                      )}
-
-                      {/* Capacity */}
-                      {propiedad.capacidad > 0 && (
-                        <div className="flex items-center gap-2 text-costa-navy font-medium mb-3">
-                          <span className="text-lg">👤</span>
-                          <span>{propiedad.capacidad} {t('people')}</span>
-                        </div>
-                      )}
-
-                      {/* Info */}
-                      {(propiedad.habitaciones > 0 || propiedad.banos > 0) && (
-                        <p className="text-sm text-costa-gris mb-3">
-                          {[
-                            propiedad.habitaciones > 0 && `${propiedad.habitaciones} ${propiedad.habitaciones > 1 ? t('bedroomss') : t('bedrooms')}`,
-                            propiedad.banos > 0 && `${propiedad.banos} ${propiedad.banos > 1 ? t('bathrooms') : t('bathroom')}`,
-                            propiedad.toilette && t('toilette'),
-                            propiedad.plantas > 1 && `${propiedad.plantas} ${t('floors')}`,
-                            propiedad.cochera && t('garage')
-                          ].filter(Boolean).join(' • ')}
-                        </p>
-                      )}
-
-                      {/* Amenities */}
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {propiedad.pileta && (
-                          <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
-                            <Waves size={12} />
-                            {propiedad.pileta_climatizada ? t('heatedPool') : t('pool')}
-                          </span>
-                        )}
-                        {propiedad.aire_acondicionado && (
-                          <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
-                            <Snowflake size={12} />
-                            {t('ac')}
-                          </span>
-                        )}
-                        {propiedad.parrilla && (
-                          <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
-                            <Flame size={12} />
-                            {t('grill')}
-                          </span>
-                        )}
-                        {propiedad.wifi && (
-                          <span className="flex items-center gap-1 px-2 py-1 bg-costa-beige rounded-full text-xs text-costa-gris">
-                            <Wifi size={12} />
-                            {t('wifi')}
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Precio calculado */}
-                      {fechasBusqueda && preciosCalculados[propiedad.id] && (
-                        <div className={`mb-4 p-3 rounded-lg ${preciosCalculados[propiedad.id].disponible ? 'bg-costa-olivo/10' : 'bg-red-50'}`}>
-                          {preciosCalculados[propiedad.id].disponible ? (
-                            <>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-lg font-bold text-costa-navy">
-                                  {formatPrecio(preciosCalculados[propiedad.id].total)}
-                                </span>
-                                <span className="text-xs text-costa-gris">{t('total')}</span>
-                              </div>
-                              <p className="text-xs text-costa-gris">
-                                {preciosCalculados[propiedad.id].noches} {preciosCalculados[propiedad.id].noches > 1 ? t('nights') : t('night')} × {formatPrecio(preciosCalculados[propiedad.id].promedio)}/{t('night')}
-                              </p>
-                            </>
-                          ) : (
-                            <p className="text-sm text-red-600 font-medium">{t('notAvailable')}</p>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Buttons - todos en una fila, siempre al final */}
-                      <div className="grid grid-cols-3 gap-2 mt-auto">
-                        <button
-                          onClick={() => {
-                            setPropiedadModal(propiedad)
-                            setModalImageIndex(0)
-                          }}
-                          className="flex items-center justify-center gap-1 py-2.5 bg-costa-beige hover:bg-costa-beige/80 text-costa-navy rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                        >
-                          <Eye size={14} />
-                          {t('view')}
-                        </button>
-                        <a
-                          href={`https://wa.me/${formatWhatsApp(propiedad.telefono_contacto)}?text=${encodeURIComponent(mensajeConsulta(propiedad, language, fechasBusqueda))}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-1 py-2.5 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                          </svg>
-                          {t('inquire')}
-                        </a>
-                        <button
-                          onClick={() => {
-                            const baseUrl = window.location.origin
-                            const mensaje = language === 'es'
-                              ? `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} ${t('people')} | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/casa/${propiedad.id}`
-                              : `Check out this property in Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lot ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} ${t('people')} | 🛏️ ${propiedad.habitaciones} bed | 🚿 ${propiedad.banos} bath\n\n${baseUrl}/casa/${propiedad.id}`
-                            window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
-                          }}
-                          className="flex items-center justify-center gap-1 py-2.5 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors"
-                          title={language === 'es' ? 'Compartir por WhatsApp' : 'Share via WhatsApp'}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                            <polyline points="16 6 12 2 8 6"/>
-                            <line x1="12" y1="2" x2="12" y2="15"/>
-                          </svg>
-                          {t('share')}
-                        </button>
                       </div>
                     </div>
-                  </div>
+                  </article>
                 )
               })}
             </div>
-          )}
-        </div>
-      </section>
-
-      {/* FAQ Section */}
-      <section className="py-8 md:py-16 bg-costa-beige/30">
-        <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-3xl font-semibold text-costa-navy text-center mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>
-            {t('faqTitle')}
-          </h2>
-          <p className="text-costa-gris text-center mb-12">
-            {t('faqSubtitle')}
-          </p>
-
-          <div className="space-y-4">
-            <details className="bg-white rounded-xl shadow-sm group">
-              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">{t('faq1Question')}</span>
-                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
-              </summary>
-              <div className="px-5 pb-5 text-costa-gris">
-                <p>{t('faq1Answer')}</p>
-              </div>
-            </details>
-
-            <details className="bg-white rounded-xl shadow-sm group">
-              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">{t('faq2Question')}</span>
-                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
-              </summary>
-              <div className="px-5 pb-5 text-costa-gris">
-                <p>{t('faq2Answer')}</p>
-              </div>
-            </details>
-
-            <details className="bg-white rounded-xl shadow-sm group">
-              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">{t('faq3Question')}</span>
-                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
-              </summary>
-              <div className="px-5 pb-5 text-costa-gris">
-                <p>{t('faq3Answer')}</p>
-              </div>
-            </details>
-
-            <details className="bg-white rounded-xl shadow-sm group">
-              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">{t('faq4Question')}</span>
-                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
-              </summary>
-              <div className="px-5 pb-5 text-costa-gris">
-                <p>{t('faq4Answer')}</p>
-              </div>
-            </details>
-
-            <details className="bg-white rounded-xl shadow-sm group">
-              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">{t('faq5Question')}</span>
-                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
-              </summary>
-              <div className="px-5 pb-5 text-costa-gris">
-                <p>{t('faq5Answer')}</p>
-              </div>
-            </details>
-
-            <details className="bg-white rounded-xl shadow-sm group">
-              <summary className="flex items-center justify-between p-5 cursor-pointer list-none">
-                <span className="font-medium text-costa-navy">{t('faq6Question')}</span>
-                <ChevronRight size={20} className="text-costa-gris group-open:rotate-90 transition-transform" />
-              </summary>
-              <div className="px-5 pb-5 text-costa-gris">
-                <p>{t('faq6Answer')}</p>
-              </div>
-            </details>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Footer */}
-      <footer className="bg-costa-navy text-white py-12">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div>
-              <h3 className="text-xl font-semibold mb-4" style={{ fontFamily: 'var(--font-playfair)' }}>Admin Costa</h3>
-              <p className="text-white/70 text-sm">
-                {t('footerDesc')}
-              </p>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">{t('contact')}</h4>
-              <p className="text-white/70 text-sm mb-2">Costa Esmeralda, Buenos Aires</p>
-              <a
-                href="https://wa.me/541160473922"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-costa-olivo hover:text-white transition-colors text-sm"
-              >
-                +54 11 6047-3922
-              </a>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">{t('access')}</h4>
-              <Link href={isDemo ? "/admin?demo=true" : "/admin"} className="text-white/70 hover:text-white transition-colors text-sm block mb-2">
-                {t('accessOwners')}
-              </Link>
-            </div>
-          </div>
-          <div className="border-t border-white/20 mt-8 pt-8 text-center text-white/50 text-sm">
-            © {new Date().getFullYear()} Admin Costa. {t('allRightsReserved')}
-          </div>
-        </div>
-      </footer>
-
-      {/* Lightbox */}
-      {lightbox && (
-        <div
-          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center touch-none"
-          onClick={() => setLightbox(null)}
-        >
-          <button
-            className="absolute top-4 right-4 p-2 text-white hover:bg-white/20 rounded-full transition-colors z-10"
-            onClick={(e) => { e.stopPropagation(); setLightbox(null) }}
-          >
-            <X size={28} />
-          </button>
-
-          {/* Área de swipe */}
-          <div
-            className="w-full h-full flex items-center justify-center"
-            onTouchStart={(e) => {
-              e.currentTarget.dataset.touchStartX = e.touches[0].clientX.toString()
-              e.currentTarget.dataset.touchStartY = e.touches[0].clientY.toString()
-            }}
-            onTouchMove={(e) => {
-              // Prevenir scroll
-              e.preventDefault()
-            }}
-            onTouchEnd={(e) => {
-              const startX = parseFloat(e.currentTarget.dataset.touchStartX || '0')
-              const startY = parseFloat(e.currentTarget.dataset.touchStartY || '0')
-              const endX = e.changedTouches[0].clientX
-              const endY = e.changedTouches[0].clientY
-              const diffX = startX - endX
-              const diffY = startY - endY
-
-              // Solo swipe horizontal si el movimiento horizontal es mayor que el vertical
-              if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 40 && lightbox.images.length > 1) {
-                if (diffX > 0) {
-                  const next = lightbox.index === lightbox.images.length - 1 ? 0 : lightbox.index + 1
-                  setLightbox({ ...lightbox, index: next })
-                } else {
-                  const prev = lightbox.index === 0 ? lightbox.images.length - 1 : lightbox.index - 1
-                  setLightbox({ ...lightbox, index: prev })
-                }
-              }
-            }}
-            onClick={() => setLightbox(null)}
-          >
-            <img
-              src={lightbox.images[lightbox.index]}
-              alt="Foto de propiedad"
-              className="max-h-[85vh] max-w-[90vw] object-contain pointer-events-none select-none"
-            />
-          </div>
-
-          {lightbox.images.length > 1 && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  const prev = lightbox.index === 0 ? lightbox.images.length - 1 : lightbox.index - 1
-                  setLightbox({ ...lightbox, index: prev })
-                }}
-                className="absolute left-4 p-3 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors"
-              >
-                <ChevronLeft size={32} />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  const next = lightbox.index === lightbox.images.length - 1 ? 0 : lightbox.index + 1
-                  setLightbox({ ...lightbox, index: next })
-                }}
-                className="absolute right-4 p-3 bg-white/20 hover:bg-white/30 text-white rounded-full transition-colors"
-              >
-                <ChevronRight size={32} />
-              </button>
-
-              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-                {lightbox.images.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setLightbox({ ...lightbox, index: idx })
-                    }}
-                    className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === lightbox.index ? 'bg-white' : 'bg-white/40 hover:bg-white/60'}`}
-                  />
-                ))}
-              </div>
-
-              <div className="absolute bottom-6 right-6 text-white/80 text-sm">
-                {lightbox.index + 1} / {lightbox.images.length}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* Modal de Servicios */}
-      {servicioModal && serviciosContacto[servicioModal] && (
-        <div
-          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
-          onClick={() => setServicioModal(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="bg-costa-navy px-6 py-4 flex items-center justify-between">
-              <h3 className="text-white font-semibold text-lg">{serviciosContacto[servicioModal].titulo}</h3>
-              <button
-                onClick={() => setServicioModal(null)}
-                className="text-white/70 hover:text-white transition-colors"
-              >
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              <p className="text-sm text-costa-gris mb-4">{t('usefulPhones')}</p>
-              {serviciosContacto[servicioModal].contactos.map((contacto, idx) => (
-                <a
-                  key={idx}
-                  href={`tel:${contacto.telefono.replace(/-/g, '')}`}
-                  className="flex items-center justify-between p-4 bg-costa-beige/30 rounded-xl hover:bg-costa-beige/50 transition-colors"
-                >
-                  <div>
-                    <p className="font-medium text-costa-navy">{contacto.nombre}</p>
-                    <p className="text-sm text-costa-gris">{contacto.telefono}</p>
-                  </div>
-                  <div className="w-10 h-10 rounded-full bg-costa-olivo flex items-center justify-center">
-                    <Phone size={20} className="text-white" />
-                  </div>
-                </a>
+        {/* El barrio */}
+        <section className="sec barrio" id="barrio">
+          <div className="wrap">
+            <div className="sec-tit"><div><div className="over">{t.nav[1]}</div><h2>{t.barrioTit}</h2></div><p>{t.barrioSub}</p></div>
+            <div className="amenities">
+              {t.amen.map(([b, s], i) => (
+                <div key={b}><svg viewBox="0 0 24 24"><path d={ICONOS_BARRIO[i]} /></svg><b>{b}</b><span>{s}</span></div>
               ))}
             </div>
           </div>
+        </section>
+
+        {/* Cómo llegar */}
+        <section className="sec" id="llegar">
+          <div className="wrap mapa-grid">
+            <div className="mapa">
+              <svg viewBox="0 0 520 400" role="img" aria-label={t.llegarTit}>
+                <rect width="520" height="400" fill="#f4efe6" />
+                <path d="M300 0 C 300 40 250 70 270 110 C 300 160 380 190 400 240 C 420 290 400 330 430 400 L520 400 L520 0Z" fill="#dbe7e6" />
+                <path d="M300 0 C 300 40 250 70 270 110 C 300 160 380 190 400 240 C 420 290 400 330 430 400" fill="none" stroke="#b9cfcd" strokeWidth="2" />
+                <text x="418" y="120" fontStyle="italic" fontSize="15" fill="#7c9a97">Mar Argentino</text>
+                <text x="300" y="40" fontStyle="italic" fontSize="13" fill="#7c9a97">Río de la Plata</text>
+                <path d="M110 60 C 150 120 175 170 200 230 C 215 265 260 270 300 250 C 340 235 365 240 392 262" fill="none" stroke="#c9a86a" strokeWidth="5" strokeLinecap="round" />
+                <path d="M290 110 C 330 160 360 190 380 230 C 388 245 392 255 392 262" fill="none" stroke="#c9a86a" strokeWidth="3" strokeDasharray="2 6" strokeLinecap="round" />
+                <rect x="150" y="128" width="54" height="20" rx="3" fill="#103b37" /><text x="177" y="142" textAnchor="middle" fontSize="11" fontWeight="600" fill="#fff">Ruta 2</text>
+                <rect x="300" y="246" width="60" height="20" rx="3" fill="#103b37" /><text x="330" y="260" textAnchor="middle" fontSize="11" fontWeight="600" fill="#fff">Ruta 11</text>
+                <g fontSize="12" fill="#4a5451">
+                  <circle cx="110" cy="60" r="6" fill="#103b37" /><text x="122" y="64" fontWeight="600" fill="#103b37">CABA</text>
+                  <circle cx="200" cy="230" r="3.5" fill="#8b9490" /><text x="130" y="234">Dolores</text>
+                  <circle cx="290" cy="110" r="3.5" fill="#8b9490" /><text x="226" y="105">San Clemente</text>
+                  <circle cx="345" cy="185" r="3.5" fill="#8b9490" /><text x="268" y="190">Mar de Ajó</text>
+                  <circle cx="412" cy="292" r="3.5" fill="#8b9490" /><text x="420" y="300">Pinamar</text>
+                  <circle cx="425" cy="345" r="3.5" fill="#8b9490" /><text x="433" y="352">Villa Gesell</text>
+                </g>
+                <circle cx="392" cy="262" r="16" fill="#1f7a4d" opacity=".18" />
+                <circle cx="392" cy="262" r="8" fill="#1f7a4d" stroke="#fff" strokeWidth="2.5" />
+                <rect x="396" y="196" width="118" height="30" rx="4" fill="#fff" stroke="#1f7a4d" />
+                <text x="455" y="216" textAnchor="middle" fontSize="14" fill="#103b37">Costa Esmeralda</text>
+                <text x="20" y="385" fontSize="11" fill="#8b9490">{t.esquema}</text>
+              </svg>
+            </div>
+            <div>
+              <div className="over">{t.llegarOver}</div>
+              <h2 style={{ fontSize: 42, margin: '10px 0 18px' }}>{t.llegarTit}</h2>
+              <ol className="ruta">{t.ruta.map(([b, s]) => <li key={b}><span><b>{b}</b>{s}</span></li>)}</ol>
+              <a className="btn2" href="https://www.google.com/maps/search/?api=1&query=Costa+Esmeralda+Buenos+Aires" target="_blank" rel="noopener noreferrer">{t.abrirMaps}</a>
+            </div>
+          </div>
+        </section>
+
+        {/* Cómo reservar */}
+        <section className="sec" id="reservar" style={{ background: 'var(--papel2)' }}>
+          <div className="wrap">
+            <div className="sec-tit"><div><div className="over">{t.reservarOver}</div><h2>{t.reservarTit}</h2></div></div>
+            <div className="pasos">{t.pasos.map(([b, s], i) => <div key={b}><div className="n">{i + 1}</div><h4>{b}</h4><p>{s}</p></div>)}</div>
+          </div>
+        </section>
+      </main>
+
+      <footer><div className="wrap">
+        <div><div className="marca-f">Alquileres Costa Esmeralda</div>{t.footer}</div>
+        <div><Link href="/admin">{t.acceso}</Link></div>
+      </div></footer>
+
+      {/* Celular: WhatsApp siempre a mano */}
+      {primera && (
+        <div className="barra-wa">
+          <div className="t"><b>{desdeGeneral ? `${en ? 'From' : 'Desde'} U$D ${fmt(desdeGeneral)} / ${en ? 'night' : 'noche'}` : 'Costa Esmeralda'}</b>{t.respondemos}</div>
+          <a className="wa" href={linkWA(primera)} target="_blank" rel="noopener noreferrer"><IcoWA />{t.consultar}</a>
         </div>
       )}
 
-      {/* Modal de Detalle de Propiedad */}
-      {propiedadModal && (
-        <div
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setPropiedadModal(null)}
-        >
-          <div
-            className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto my-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header con imagen */}
-            <div className="relative h-64 md:h-80 bg-costa-beige group">
-              {(() => {
-                const images = propiedadModal.imagenes?.length > 0 ? propiedadModal.imagenes : (propiedadModal.imagen_url ? [propiedadModal.imagen_url] : [])
-                return images.length > 0 ? (
-                  <>
-                    <img
-                      src={images[modalImageIndex]}
-                      alt={propiedadModal.nombre}
-                      className="w-full h-full object-cover"
-                    />
-                    {images.length > 1 && (
-                      <>
-                        <button
-                          onClick={() => setModalImageIndex(modalImageIndex === 0 ? images.length - 1 : modalImageIndex - 1)}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
-                        >
-                          <ChevronLeft size={24} />
-                        </button>
-                        <button
-                          onClick={() => setModalImageIndex(modalImageIndex === images.length - 1 ? 0 : modalImageIndex + 1)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
-                        >
-                          <ChevronRight size={24} />
-                        </button>
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-                          {images.map((_, idx) => (
-                            <button
-                              key={idx}
-                              onClick={() => setModalImageIndex(idx)}
-                              className={`w-2.5 h-2.5 rounded-full transition-colors ${idx === modalImageIndex ? 'bg-white' : 'bg-white/50'}`}
-                            />
-                          ))}
-                        </div>
-                        <div className="absolute bottom-4 right-4 text-white/80 text-sm bg-black/40 px-2 py-1 rounded">
-                          {modalImageIndex + 1} / {images.length}
-                        </div>
-                      </>
-                    )}
-                  </>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-costa-gris">
-                    Sin imagen
-                  </div>
-                )
-              })()}
-
-              {/* Botón cerrar */}
-              <button
-                onClick={() => setPropiedadModal(null)}
-                className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
-              >
-                <X size={24} />
-              </button>
-
-              {/* Badge estado */}
-              <div className="absolute top-4 left-4">
-                {propiedadModal.estado === 'alquilada' ? (
-                  <span className="px-3 py-1 bg-costa-coral text-white text-sm rounded-full font-medium">
-                    {t('rented')}
-                  </span>
-                ) : propiedadModal.estado === 'mantenimiento' ? (
-                  <span className="px-3 py-1 bg-yellow-500 text-white text-sm rounded-full font-medium">
-                    {t('maintenance')}
-                  </span>
-                ) : (
-                  <span className="px-3 py-1 bg-costa-olivo text-white text-sm rounded-full font-medium">
-                    {t('available')}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Contenido */}
-            <div className="p-6">
-              {/* Título y ubicación */}
-              <h2 className="text-2xl font-semibold text-costa-navy mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>
-                {propiedadModal.nombre}{propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}
-              </h2>
-
-              {propiedadModal.direccion && (
-                <div className="flex items-start gap-2 text-costa-gris mb-4">
-                  <MapPin size={18} className="text-costa-coral mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p>{propiedadModal.direccion}</p>
-                    {propiedadModal.referencia && (
-                      <p className="text-sm italic mt-0.5">{propiedadModal.referencia}</p>
-                    )}
-                  </div>
+      {/* Ficha completa de una casa */}
+      {ficha && (() => {
+        const fotos = fotosDe(ficha)
+        const tj = tarjetas.find(x => String(x.p.id) === String(ficha.id))
+        return (
+          <div className="ficha-fondo" onClick={() => setFicha(null)}>
+            <div className="ficha" onClick={e => e.stopPropagation()} role="dialog" aria-label={ficha.nombre} style={{ position: 'relative' }}>
+              <button type="button" className="cerrar" onClick={() => setFicha(null)} aria-label="Cerrar">×</button>
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div className="gal" style={{ flex: 1 }}>
+                  {fotos.length > 0 && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img className="grande" src={fotos[fichaFoto]} alt={ficha.nombre} />
+                  )}
+                  {fotos.length > 1 && <>
+                    <button type="button" className="flecha izq" aria-label="Foto anterior" onClick={() => setFichaFoto((fichaFoto - 1 + fotos.length) % fotos.length)}>‹</button>
+                    <button type="button" className="flecha der" aria-label="Foto siguiente" onClick={() => setFichaFoto((fichaFoto + 1) % fotos.length)}>›</button>
+                  </>}
                 </div>
-              )}
-
-              {/* Info principal */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y border-costa-beige mb-4">
-                {propiedadModal.capacidad > 0 && (
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">👤</div>
-                    <p className="text-lg font-semibold text-costa-navy">{propiedadModal.capacidad}</p>
-                    <p className="text-xs text-costa-gris">{t('people')}</p>
-                  </div>
-                )}
-                {propiedadModal.habitaciones > 0 && (
-                  <div className="text-center">
-                    <Bed size={24} className="mx-auto mb-1 text-costa-navy" />
-                    <p className="text-lg font-semibold text-costa-navy">{propiedadModal.habitaciones}</p>
-                    <p className="text-xs text-costa-gris">{propiedadModal.habitaciones > 1 ? t('bedroomss') : t('bedrooms')}</p>
-                  </div>
-                )}
-                {propiedadModal.banos > 0 && (
-                  <div className="text-center">
-                    <Bath size={24} className="mx-auto mb-1 text-costa-navy" />
-                    <p className="text-lg font-semibold text-costa-navy">{propiedadModal.banos}</p>
-                    <p className="text-xs text-costa-gris">{propiedadModal.banos > 1 ? t('bathrooms') : t('bathroom')}</p>
-                  </div>
-                )}
-                {propiedadModal.plantas > 1 && (
-                  <div className="text-center">
-                    <div className="text-2xl mb-1">🏠</div>
-                    <p className="text-lg font-semibold text-costa-navy">{propiedadModal.plantas}</p>
-                    <p className="text-xs text-costa-gris">{t('floors')}</p>
+                {fotos.length > 1 && (
+                  <div className="miniaturas">
+                    {fotos.map((f, j) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={f + j} src={f} alt="" className={j === fichaFoto ? 'on' : ''} onClick={() => setFichaFoto(j)} />
+                    ))}
                   </div>
                 )}
               </div>
-
-              {/* Metros */}
-              {(propiedadModal.metros_cubiertos > 0 || propiedadModal.metros_lote > 0) && (
-                <div className="flex flex-wrap gap-4 mb-4">
-                  {propiedadModal.metros_cubiertos > 0 && (
-                    <div className="flex items-center gap-2 text-costa-gris">
-                      <Ruler size={18} />
-                      <span>{propiedadModal.metros_cubiertos} {t('sqmCovered')}</span>
-                    </div>
-                  )}
-                  {propiedadModal.metros_semicubiertos > 0 && (
-                    <div className="flex items-center gap-2 text-costa-gris">
-                      <Ruler size={18} />
-                      <span>{propiedadModal.metros_semicubiertos} {t('sqmSemiCovered')}</span>
-                    </div>
-                  )}
-                  {propiedadModal.metros_lote > 0 && (
-                    <div className="flex items-center gap-2 text-costa-gris">
-                      <LandPlot size={18} />
-                      <span>{propiedadModal.metros_lote} {t('sqmLot')}</span>
-                    </div>
-                  )}
+              <div className="datos">
+                <div>
+                  {ficha.lote && <div className="num">{t.lote} {ficha.lote}</div>}
+                  <h3 style={{ fontSize: 34 }}>{ficha.nombre}</h3>
                 </div>
-              )}
-
-              {/* Amenities */}
-              <div className="mb-4">
-                <h3 className="text-sm font-semibold text-costa-navy mb-3">{t('amenities')}</h3>
-                <div className="flex flex-wrap gap-2">
-                  {propiedadModal.pileta && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <Waves size={16} />
-                      {propiedadModal.pileta_climatizada ? t('heatedPoolFull') : t('pool')}
-                    </span>
-                  )}
-                  {propiedadModal.aire_acondicionado && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <Snowflake size={16} />
-                      {t('airConditioning')}
-                    </span>
-                  )}
-                  {propiedadModal.calefaccion && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <ThermometerSun size={16} />
-                      {t('heating')}
-                    </span>
-                  )}
-                  {propiedadModal.parrilla && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <Flame size={16} />
-                      {t('grill')}
-                    </span>
-                  )}
-                  {propiedadModal.fogonero && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <Flame size={16} />
-                      {t('firepit')}
-                    </span>
-                  )}
-                  {propiedadModal.wifi && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <Wifi size={16} />
-                      {t('wifi')}
-                    </span>
-                  )}
-                  {propiedadModal.grupo_electrogeno && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <Zap size={16} />
-                      {t('generator')}
-                    </span>
-                  )}
-                  {propiedadModal.lavadero && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <WashingMachine size={16} />
-                      {t('laundry')}
-                    </span>
-                  )}
-                  {propiedadModal.lavavajillas && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <UtensilsCrossed size={16} />
-                      {t('dishwasher')}
-                    </span>
-                  )}
-                  {propiedadModal.cochera && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <Car size={16} />
-                      {t('garage')}
-                    </span>
-                  )}
-                  {propiedadModal.toilette && (
-                    <span className="flex items-center gap-1.5 px-3 py-1.5 bg-costa-beige rounded-full text-sm text-costa-navy">
-                      <Bath size={16} />
-                      {t('toilette')}
-                    </span>
-                  )}
+                <div className="cifras">
+                  <div><b>{ficha.capacidad}</b><span>{t.personasC}</span></div>
+                  <div><b>{ficha.habitaciones}</b><span>{t.dormC}</span></div>
+                  <div><b>{ficha.banos}{ficha.toilette ? ' + 1' : ''}</b><span>{t.banosC}</span></div>
+                  <div><b>{ficha.metros_cubiertos || '—'}</b><span>{t.m2C}</span></div>
                 </div>
-              </div>
-
-              {/* Descripción */}
-              {propiedadModal.descripcion && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-costa-navy mb-2">{t('description')}</h3>
-                  <p className="text-costa-gris whitespace-pre-line">{propiedadModal.descripcion}</p>
+                <div className="amen" style={{ margin: 0 }}>{amenitiesDe(ficha, en).map(([txt, top]) => <span key={txt} className={top ? 'top' : ''}>{txt}</span>)}</div>
+                {ficha.descripcion && <div className="desc">{ficha.descripcion}</div>}
+                {tj && (
+                  <div className="precio">
+                    <div className="m">{tj.desde ? <>U$D {fmt(tj.desde)} <small>{t.desde}</small></> : <small>{t.consultaPrecio}</small>}</div>
+                    {tj.est && <div className="t">{t.noches(tj.est.noches)}<b>{tj.est.completo ? `U$D ${fmt(tj.est.total)}` : t.consultaPrecio}</b></div>}
+                  </div>
+                )}
+                <div className="acciones">
+                  <a className="wa" style={{ flex: 1 }} href={linkWA(ficha)} target="_blank" rel="noopener noreferrer"><IcoWA />{t.consultar}</a>
+                  <button type="button" onClick={() => compartir(ficha)}>{copiado ? t.copiado : t.compartir}</button>
                 </div>
-              )}
-
-              {/* Botones de acción */}
-              <div className="flex gap-3">
-                <a
-                  href={`https://wa.me/${formatWhatsApp(propiedadModal.telefono_contacto)}?text=${encodeURIComponent(mensajeConsulta(propiedadModal, language, fechasBusqueda))}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 flex-1 py-3 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg font-medium transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                  </svg>
-                  {t('checkAvailability')}
-                </a>
-                <button
-                  onClick={() => {
-                    const baseUrl = window.location.origin
-                    const mensaje = language === 'es'
-                      ? `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} ${t('people')} | 🛏️ ${propiedadModal.habitaciones} hab | 🚿 ${propiedadModal.banos} baños\n\n${baseUrl}/casa/${propiedadModal.id}`
-                      : `Check out this property in Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lot ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} ${t('people')} | 🛏️ ${propiedadModal.habitaciones} bed | 🚿 ${propiedadModal.banos} bath\n\n${baseUrl}/casa/${propiedadModal.id}`
-                    window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
-                  }}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg font-medium transition-colors"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/>
-                    <polyline points="16 6 12 2 8 6"/>
-                    <line x1="12" y1="2" x2="12" y2="15"/>
-                  </svg>
-                  {t('share')}
-                </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
 
 export default function LandingPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="text-gray-500">Loading...</div></div>}>
+    <Suspense fallback={<div style={{ minHeight: '100vh', background: '#faf6ef' }} />}>
       <LandingContent />
     </Suspense>
   )
