@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { generarFeriadosAnio, obtenerFinesDeSemanaLargos } from '@/lib/calendarioArgentina'
 import type { PriceRule } from '@/lib/priceRules'
 import { demoReservas } from '@/lib/demoData'
+import { PanelFeriados } from '@/components/PanelFeriados'
 
 // Calendario de precios de todas las casas a la vez (o de una sola): cada día
 // muestra el precio por noche que sale de las reglas de precios, o si ya está
@@ -160,38 +161,32 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     return r ? (r.estado === 'pendiente' ? 'pend' : 'res') : null
   }
 
-  // Tramos del año de alquiler que se está viendo (marzo a febrero), para que la
-  // lista no cambie con cada mes. Se agrupan por fechas (no por nombre: cada
-  // casa puede llamar distinto al mismo tramo) y van de mayor a menor precio.
-  const anioCiclo = mes >= 2 ? anio : anio - 1
-  const cicloDesde = `${anioCiclo}-03-01`
-  const cicloHasta = `${anioCiclo + 1}-02-28`
+  // Tabla de tramos fija: no depende del mes que se mira. Una fila por tipo de
+  // tramo (Fiestas, Enero, Carnaval…) y, por casa, el precio vigente o el próximo.
   const tramos = useMemo(() => {
-    const grupos = new Map<string, { nombre: string; desde: string; hasta: string; dias: string[]; porCasa: Record<string, PriceRule> }>()
-    reglas.filter(r => r.end_date >= cicloDesde && r.start_date <= cicloHasta).forEach(r => {
-      const dias = [...(r.applies_to_days || [])].sort()
-      const k = `${r.start_date}|${r.end_date}|${dias.join(',')}`
-      if (!grupos.has(k)) grupos.set(k, { nombre: r.name, desde: r.start_date, hasta: r.end_date, dias: r.applies_to_days || [], porCasa: {} })
-      const g = grupos.get(k)!
-      g.porCasa[r.property_id] = r
-      if (r.name.length < g.nombre.length) g.nombre = r.name
-    })
-    return [...grupos.values()].sort((a, b) => ordenTramo(a.nombre) - ordenTramo(b.nombre) || a.desde.localeCompare(b.desde))
-  }, [reglas, cicloDesde, cicloHasta])
-
-  // Reglas que de verdad ponen el precio de algún día del mes visto
-  const usadasEnMes = useMemo(() => {
-    const usadas = new Set<string>()
-    const dias = new Date(anio, mes + 1, 0).getDate()
-    for (const c of casasVisibles) {
-      const propias = reglas.filter(r => r.property_id === String(c.id))
-      for (let d = 1; d <= dias; d++) {
-        const r = precioDelDia(propias, isoDe(anio, mes, d), new Date(anio, mes, d).getDay(), feriadosLargos)
-        if (r?.id) usadas.add(r.id)
-      }
+    const claveDe = (r: PriceRule) => {
+      if (r.applies_to_days?.includes(FERIADO_LARGO)) return 'feriado_largo'
+      const o = ordenTramo(r.name)
+      const dias = [...(r.applies_to_days || [])].sort().join(',')
+      return o === 6.5 ? `otro:${r.name.toLowerCase().trim()}|${dias}` : `cat:${o}|${dias}`
     }
-    return usadas
-  }, [reglas, casasVisibles, anio, mes, feriadosLargos])
+    const grupos = new Map<string, PriceRule[]>()
+    reglas.forEach(r => { const k = claveDe(r); grupos.set(k, [...(grupos.get(k) || []), r]) })
+    const elegir = (rs: PriceRule[]) => {
+      const vigentes = rs.filter(r => r.end_date >= hoy).sort((a, b) => a.start_date.localeCompare(b.start_date))
+      return vigentes[0] || [...rs].sort((a, b) => b.end_date.localeCompare(a.end_date))[0]
+    }
+    return [...grupos.values()].map(rs => {
+      const porCasa: Record<string, PriceRule> = {}
+      casas.forEach(c => {
+        const propias = rs.filter(r => r.property_id === String(c.id))
+        if (propias.length) porCasa[String(c.id)] = elegir(propias)
+      })
+      const ref = elegir(Object.values(porCasa))
+      const nombre = Object.values(porCasa).map(r => r.name).sort((a, b) => a.length - b.length)[0]
+      return { nombre, desde: ref.start_date, hasta: ref.end_date, dias: ref.applies_to_days || [], porCasa }
+    }).sort((a, b) => ordenTramo(a.nombre) - ordenTramo(b.nombre) || a.desde.localeCompare(b.desde))
+  }, [reglas, casas, hoy])
 
   function irA(iso: string) {
     setAnio(Number(iso.slice(0, 4)))
@@ -233,7 +228,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
   }
 
   async function quitarTramo(t: { nombre: string; desde: string; hasta: string; porCasa: Record<string, PriceRule> }) {
-    const ids = casasVisibles.map(c => t.porCasa[String(c.id)]?.id).filter((x): x is string => !!x)
+    const ids = casas.map(c => t.porCasa[String(c.id)]?.id).filter((x): x is string => !!x)
     if (!ids.length) return
     if (!window.confirm(`¿Quitar "${t.nombre}" (${dmy(t.desde)} al ${dmy(t.hasta)})${ids.length > 1 ? ' de las dos casas' : ''}?`)) return
     const { error } = await supabase.from('price_rules').delete().in('id', ids)
@@ -245,8 +240,9 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
   async function aplicarRango() {
     if (!userId || (!soloFeriados && !selA)) return
     // Feriados largos: sin fechas fijas, vale para todo el año de alquiler que se está viendo
-    const desde = soloFeriados ? cicloDesde : selA!
-    const hasta = soloFeriados ? cicloHasta : (selB || selA!)
+    const anioHoy = Number(hoy.slice(0, 4))
+    const desde = soloFeriados ? `${anioHoy}-01-01` : selA!
+    const hasta = soloFeriados ? `${anioHoy + 5}-12-31` : (selB || selA!)
     const filas = casasVisibles
       .filter(c => Number(preciosRango[String(c.id)]) > 0)
       .map(c => ({
@@ -400,13 +396,18 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
             <span className="flex items-center gap-1.5"><i className="w-3.5 h-3 rounded bg-[#f6e1cf]" />Feriado</span>
             <span>— sin precio cargado</span>
           </div>
+
+          {/* Feriados, dentro del mismo recuadro del calendario */}
+          <div className="mt-4 border-t border-costa-borde pt-3">
+            <PanelFeriados year={anio} />
+          </div>
         </div>
 
         {/* Lateral: tramos y días sueltos */}
         <div className="rounded-2xl border border-costa-borde bg-costa-superficie p-4 space-y-4">
           <div>
             <h4 className="text-sm font-bold text-costa-esmeralda">Precios por tramo</h4>
-            <p className="text-xs text-costa-gris mb-2">De marzo {anioCiclo} a febrero {anioCiclo + 1}, en U$D por noche. Cambiá el número y se guarda solo; los casilleros punteados no tienen precio todavía. Resaltados, los que caen en {MESES[mes].toLowerCase()}.</p>
+            <p className="text-xs text-costa-gris mb-2">El precio vigente o el próximo de cada tramo, en U$D por noche. Cambiá el número y se guarda solo; los casilleros punteados no tienen precio todavía.</p>
             {tramos.length === 0 ? (
               <p className="text-xs text-costa-gris py-3">No hay precios cargados para este año. Probá con “Copiar de la temporada anterior”.</p>
             ) : (
@@ -414,14 +415,13 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                 <thead>
                   <tr className="border-b border-costa-borde text-[10px] uppercase tracking-wider text-costa-gris">
                     <th className="text-left font-semibold py-1">Tramo</th>
-                    {casasVisibles.map(c => <th key={c.id} className="text-right font-semibold py-1 pl-1">{corto(c)}</th>)}
+                    {casas.map(c => <th key={c.id} className="text-right font-semibold py-1 pl-1">{corto(c)}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {tramos.map(t => {
-                    const activo = Object.values(t.porCasa).some(r => r.id && usadasEnMes.has(r.id))
                     return (
-                      <tr key={`${t.nombre}${t.desde}${t.hasta}`} className={`border-b border-[#f1ebe2] last:border-0 ${activo ? 'bg-[#fbf3e8]' : ''}`}>
+                      <tr key={`${t.nombre}${t.desde}${t.hasta}`} className="border-b border-[#f1ebe2] last:border-0">
                         <td className="py-1.5 pr-1">
                           <span className="font-semibold text-costa-esmeralda">{t.nombre}</span>
                           <span className="block text-[10px] text-costa-gris">
@@ -431,7 +431,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                             <button type="button" onClick={() => quitarTramo(t)} className="text-[10px] text-red-700 hover:underline">Quitar</button>
                           )}
                         </td>
-                        {casasVisibles.map(c => {
+                        {casas.map(c => {
                           const r = t.porCasa[String(c.id)]
                           return (
                             <td key={c.id} className="py-1.5 pl-1 text-right">
@@ -465,7 +465,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
             </div>
             <p className="text-xs text-costa-gris mb-2">
               {soloFeriados
-                ? `Sin fechas: se aplica solo a cada fin de semana largo fuera de temporada (de marzo ${anioCiclo} a diciembre). Los días salen del panel de feriados.`
+                ? 'Sin fechas: se aplica solo a cada fin de semana largo fuera de temporada (de marzo a mediados de diciembre), todos los años. Los días salen del panel de feriados.'
                 : 'Elegí las fechas acá, o tocá un día y después otro en el calendario. Si se superpone con otro tramo, manda este.'}
             </p>
             <label className="block text-xs text-costa-gris mb-2">Nombre

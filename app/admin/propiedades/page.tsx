@@ -11,7 +11,6 @@ import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea, Input
 import { Plus, MapPin, Bed, Bath, Car, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { CalendarioPreciosCasas } from '@/components/CalendarioPreciosCasas'
-import { PanelFeriados } from '@/components/PanelFeriados'
 import { PriceRule } from '@/lib/priceRules'
 
 interface Propiedad {
@@ -680,7 +679,7 @@ function PropiedadesContent() {
           }`}
         >
           <DollarSign size={16} />
-          Calendario de precios
+          Precios alquileres
         </button>
       </div>
 
@@ -998,10 +997,6 @@ function PropiedadesContent() {
             onCambio={() => selectedPropiedadId && fetchPriceData(selectedPropiedadId)}
           />
 
-          {/* Feriados */}
-          <div className="rounded-2xl border border-costa-borde bg-costa-superficie p-4">
-            <PanelFeriados year={anioPrecios} />
-          </div>
 
         </div>
       )}
