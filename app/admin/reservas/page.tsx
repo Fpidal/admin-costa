@@ -86,6 +86,7 @@ interface Reserva {
   acompanantes: Acompanante[]
   propiedades?: Propiedad
   inquilinos?: Inquilino
+  token_huespedes?: string | null
 }
 
 interface Cobro {
@@ -257,6 +258,7 @@ function ReservasContent() {
   // (antes "Cobros"). La gestión de cada reserva vive en su ficha de cobros
   const [vista, setVista] = useState<'vigentes' | 'cerradas' | 'pagos'>('vigentes')
   const [reporteAbierto, setReporteAbierto] = useState(false)
+  const [copiadoAcomp, setCopiadoAcomp] = useState('')
   const [opReporte, setOpReporte] = useState<{ tipo: 'temporada' | 'rango' | 'hoy'; temporada: string; desde: string; hasta: string; casa: string }>(
     { tipo: 'temporada', temporada: String(temporadaActual()), desde: '', hasta: '', casa: '' })
   // Reserva elegida en la lista (por defecto, la primera) y avisos desplegados
@@ -1435,6 +1437,21 @@ function ReservasContent() {
   }
 
   // Los tres mensajes de WhatsApp de una reserva, con sus datos ya puestos
+  const linkHuespedes = (r: Reserva) => `${typeof window !== 'undefined' ? window.location.origin : 'https://admin-costa.vercel.app'}/huespedes/${r.token_huespedes}`
+
+  // Lista para mandar al barrio: titular y acompañantes con DNI y edad
+  function listaBarrio(r: Reserva) {
+    const filas = [`${r.propiedades?.nombre || ''}${r.propiedades?.lote ? ` · Lote ${r.propiedades.lote}` : ''} · del ${formatFecha(r.fecha_inicio)} al ${formatFecha(r.fecha_fin)}`]
+    filas.push(`1. ${r.inquilinos?.nombre || 'Titular'}${r.inquilinos?.documento ? ` · DNI ${r.inquilinos.documento}` : ''} (titular)`)
+    ;(r.acompanantes || []).forEach((a, i) => filas.push(`${i + 2}. ${[a.nombre, a.apellido].filter(Boolean).join(' ')}${a.documento ? ` · DNI ${a.documento}` : ''}${a.edad ? ` · ${a.edad} años` : ''}`))
+    return filas.join('\n')
+  }
+
+  async function copiarAcomp(texto: string, aviso: string) {
+    try { await navigator.clipboard.writeText(texto); setCopiadoAcomp(aviso) } catch { setCopiadoAcomp('No se pudo copiar') }
+    setTimeout(() => setCopiadoAcomp(''), 2500)
+  }
+
   function mensajesWhatsApp(reserva: Reserva) {
     const { cobrado, saldo } = montosReserva(reserva, cobros)
     const datos = {
@@ -1451,6 +1468,11 @@ function ReservasContent() {
     const lista = [{ label: 'Confirmación', href: linkWhatsApp(tel, mensajeConfirmacion(datos)) }]
     if (monedasCon(saldo).some(m => saldo[m] > 0)) lista.push({ label: 'Recordar saldo', href: linkWhatsApp(tel, mensajeRecordatorioSaldo(datos)) })
     lista.push({ label: 'Info para el ingreso', href: linkWhatsApp(tel, mensajeIngreso(datos, URL_INFO_UTIL)) })
+    if (reserva.token_huespedes) {
+      const nombre = (reserva.inquilinos?.nombre || '').trim().split(' ')[0]
+      lista.push({ label: 'Pedir datos de acompañantes', href: linkWhatsApp(tel,
+        `¡Hola${nombre ? ' ' + nombre : ''}! Para gestionar la autorización de ingreso al barrio necesitamos nombre, apellido, edad y DNI de quienes te acompañan. Los podés cargar acá: ${linkHuespedes(reserva)}`) })
+    }
     return lista
   }
 
@@ -1700,6 +1722,38 @@ function ReservasContent() {
                     <span className="text-costa-gris">Devuelto <b className="block text-costa-olivo tabular-nums">{formatMonto(liq.monto_devolver || 0, 'USD')}</b></span>
                   </div>
                   {liq.notas && <p className="mt-1 text-xs text-costa-gris">{liq.notas}</p>}
+                </div>
+              )}
+
+              {/* Acompañantes: para la autorización del barrio */}
+              {r.estado !== 'cancelada' && (
+                <div className="border-t border-costa-borde/70 pt-3">
+                  <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-costa-gris">
+                      Acompañantes · {(r.acompanantes || []).length} de {Math.max(0, (r.cantidad_personas || 1) - 1)} cargados
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {copiadoAcomp && <span className="text-xs text-costa-olivo self-center">{copiadoAcomp}</span>}
+                      {r.token_huespedes && !isDemo && (
+                        <button type="button" onClick={() => copiarAcomp(linkHuespedes(r), 'Link copiado')}
+                          className="rounded-md border border-costa-borde bg-costa-superficie px-2 py-1 text-xs font-semibold text-costa-esmeralda hover:bg-costa-arena">Copiar link para el huésped</button>
+                      )}
+                      <button type="button" onClick={() => copiarAcomp(listaBarrio(r), 'Lista copiada')}
+                        className="rounded-md border border-costa-borde bg-costa-superficie px-2 py-1 text-xs font-semibold text-costa-esmeralda hover:bg-costa-arena">Copiar lista para el barrio</button>
+                    </div>
+                  </div>
+                  {(r.acompanantes || []).length === 0 ? (
+                    <p className="text-sm text-costa-gris">Todavía no hay acompañantes cargados. Mandale el link por WhatsApp ("Pedir datos de acompañantes").</p>
+                  ) : (
+                    <ul className="text-sm">
+                      {(r.acompanantes || []).map((a, i) => (
+                        <li key={i} className="flex justify-between gap-3 border-b border-costa-borde/50 py-1 last:border-0">
+                          <span className="text-costa-navy">{[a.nombre, a.apellido].filter(Boolean).join(' ') || '—'}</span>
+                          <span className="text-costa-gris tabular-nums">{a.documento ? `DNI ${a.documento}` : 'sin DNI'}{a.edad ? ` · ${a.edad} años` : ''}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               )}
 

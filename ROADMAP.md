@@ -20,14 +20,19 @@
 ### Temporada
 - Resultado por año calendario por casa (pagos cobrados en el año − todos los gastos del año) y columna de acumulado de todos los años, con dólar automático (dolarapi.com) o a mano
 
+### Link para el huésped (autorización del barrio)
+- Cada reserva tiene un link `/huespedes/[código]` que se manda por WhatsApp ("Pedir datos de acompañantes"); el huésped carga nombre, apellido, edad y DNI de sus acompañantes
+- Se guarda en la reserva (mismo lugar que el formulario); el detalle muestra la lista y "Copiar lista para el barrio" (titular + acompañantes con DNI y edad)
+- Migración `sql/23-link-huespedes.sql` (código por reserva + 2 funciones; la tabla no se abre sin login)
+
 ### Otros
+- Huéspedes: el historial de reservas de cada huésped se rompía (campos de fecha viejos); corregido
 - Pagos: alquiler y depósito con conceptos propios; depósito muestra recibido, devuelto y en garantía
 - Piezas gráficas: compartir por WhatsApp (imagen adjunta en el celular)
 - Menú lateral fijo; campana de mensajes abre a la derecha
 
 ## Próximos pasos
 
-- [ ] Link para que el huésped cargue acompañantes, DNI y patente (para la autorización del barrio). Falta confirmar qué datos pide el barrio; requiere tabla nueva (SQL a mano)
 - [ ] Lectura del medidor de luz con foto desde el celular (Supabase Storage)
 - [ ] Precio sugerido para huecos cortos
 - [ ] Revisar con Francisco la lista de amenities del barrio y las indicaciones de cómo llegar en la web

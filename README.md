@@ -22,7 +22,8 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Reservas**: Vigentes / Cerradas / Pagos en dos columnas (lista por fecha + detalle), resumen en cuadro, calendario de 3 meses con colores por casa (solo Vigentes), detalle con noches × precio por noche y cada servicio (limpieza final, lavadero, extras) y reporte PDF que pregunta el período (temporada, desde hoy o rango) con calendario y precio por noche. PDF de contrato y recibo en verde esmeralda
 - **Cobros**: Dos bloques — alquiler y servicios (con subtotales por moneda) y depósito en garantía, que se lleva aparte por no ser ingreso
 - **Calendario de Reservas**: Vista mensual con indicadores de feriados
-- **Inquilinos**: Base de datos de inquilinos con validación contra lista negra
+- **Inquilinos / Huéspedes**: Base de datos de inquilinos con validación contra lista negra e historial de reservas
+- **Link para el huésped**: `/huespedes/[código]` para que cargue nombre, apellido, edad y DNI de sus acompañantes (autorización del barrio); en la reserva se copia la lista lista para mandar
 - **Gastos**: Control de gastos por propiedad
 - **Usuarios**: Panel de administración de usuarios (solo admin)
 - **Info útil**: Información de servicios, contactos y lista negra
