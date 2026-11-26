@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
 import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
-import { montosReserva, sumarMontos, monedasCon, filtrarReservas, nochesEntre, describirPeriodo, temporadaDe, temporadaActual, etiquetaTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
+import { montosReserva, sumarMontos, monedasCon, filtrarReservas, nochesEntre, describirPeriodo, temporadaDe, temporadaActual, etiquetaTemporada, rangoTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
 import { CalendarioTrimestre } from '@/components/CalendarioTrimestre'
 import { AvisosCobranza } from '@/components/AvisosCobranza'
@@ -256,6 +256,9 @@ function ReservasContent() {
   // Una sola lista: vigentes, cerradas (antes "Pasados") o los pagos recibidos
   // (antes "Cobros"). La gestión de cada reserva vive en su ficha de cobros
   const [vista, setVista] = useState<'vigentes' | 'cerradas' | 'pagos'>('vigentes')
+  const [reporteAbierto, setReporteAbierto] = useState(false)
+  const [opReporte, setOpReporte] = useState<{ tipo: 'temporada' | 'rango' | 'hoy'; temporada: string; desde: string; hasta: string; casa: string }>(
+    { tipo: 'temporada', temporada: String(temporadaActual()), desde: '', hasta: '', casa: '' })
   // Reserva elegida en la lista (por defecto, la primera) y avisos desplegados
   const [reservaSel, setReservaSel] = useState<number | null>(null)
   const [avisosAbiertos, setAvisosAbiertos] = useState(false)
@@ -1460,13 +1463,38 @@ function ReservasContent() {
     return lista
   }
 
+  // El reporte pregunta el período: una temporada, un rango de fechas, o el
+  // mes actual y los dos siguientes. Entran las reservas que tienen alguna
+  // noche en ese período, y el calendario muestra esos meses.
   function descargarReporte() {
+    const r = opReporte
+    let desde = '', hasta = '', periodo = ''
+    const ultimoDia = (y: number, m: number) => aFechaISO(new Date(y, m + 1, 0))
+    if (r.tipo === 'temporada') {
+      ({ desde, hasta } = rangoTemporada(Number(r.temporada)))
+      periodo = etiquetaTemporada(Number(r.temporada))
+    } else if (r.tipo === 'hoy') {
+      const h = new Date()
+      desde = aFechaISO(new Date(h.getFullYear(), h.getMonth(), 1))
+      hasta = ultimoDia(h.getFullYear(), h.getMonth() + 2)
+      const mesNombre = (d: Date) => d.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+      periodo = `${mesNombre(new Date(h.getFullYear(), h.getMonth(), 1))} a ${mesNombre(new Date(h.getFullYear(), h.getMonth() + 2, 1))}`
+    } else {
+      if (!r.desde || !r.hasta || r.hasta < r.desde) return
+      desde = r.desde; hasta = r.hasta
+      periodo = `Del ${formatFecha(desde)} al ${formatFecha(hasta)}`
+    }
+    const elegidas = reservas.filter(x => x.estado !== 'cancelada'
+      && (!r.casa || String(x.propiedad_id) === r.casa)
+      && x.fecha_fin > desde && x.fecha_inicio <= hasta)
     generarReporteReservasPDF({
-      reservas: reservasReporte,
+      reservas: elegidas,
       cobros,
-      casas: casasFiltro,
-      periodo: describirPeriodo(filtro),
+      casas: r.casa ? nombreCasa(r.casa) : 'Todas las casas',
+      periodo,
+      calendario: r.tipo === 'rango' ? { desde, hasta } : { desde: desde.slice(0, 8) + '01', hasta },
     })
+    setReporteAbierto(false)
   }
 
   // Calculos del formulario
@@ -1522,7 +1550,7 @@ function ReservasContent() {
           <button type="button" onClick={() => setFiltro(FILTRO_INICIAL)} className="text-sm font-semibold text-costa-gris hover:text-costa-navy">Limpiar</button>
         )}
         <span className="flex-1" />
-        <Button variant="secondary" size="sm" onClick={descargarReporte} disabled={reservasReporte.length === 0}>
+        <Button variant="secondary" size="sm" onClick={() => { setOpReporte(o => ({ ...o, casa: filtro.propiedadId })); setReporteAbierto(true) }} disabled={reservas.length === 0}>
           <Download size={15} /> Reporte PDF
         </Button>
         <Button size="sm" onClick={() => openModal()}>
@@ -1820,6 +1848,53 @@ function ReservasContent() {
           />
         </div>
       )}
+
+      {/* Qué período lleva el reporte PDF */}
+      <Modal isOpen={reporteAbierto} onClose={() => setReporteAbierto(false)} title="Reporte PDF" size="sm">
+        <div className="space-y-3">
+          <p className="text-sm text-costa-gris">¿Qué período querés en el reporte?</p>
+          {([
+            ['temporada', 'Una temporada', '15/12 al 20/02, con diciembre, enero y febrero en el calendario'],
+            ['hoy', 'Desde hoy', 'Este mes y los dos siguientes'],
+            ['rango', 'De una fecha a otra', 'Elegís desde y hasta'],
+          ] as const).map(([v, titulo, ayuda]) => (
+            <label key={v} className={`flex cursor-pointer gap-3 rounded-lg border px-3 py-2.5 ${opReporte.tipo === v ? 'border-costa-esmeralda bg-costa-esmeralda-suave' : 'border-costa-borde bg-white hover:bg-costa-arena/50'}`}>
+              <input type="radio" name="periodoReporte" checked={opReporte.tipo === v} onChange={() => setOpReporte({ ...opReporte, tipo: v })} className="mt-1 accent-[var(--costa-esmeralda)]" />
+              <span className="flex-1">
+                <span className="block text-sm font-bold text-costa-esmeralda">{titulo}</span>
+                <span className="block text-xs text-costa-gris">{ayuda}</span>
+                {v === 'temporada' && opReporte.tipo === 'temporada' && (
+                  <select value={opReporte.temporada} onChange={e => setOpReporte({ ...opReporte, temporada: e.target.value })}
+                    className="mt-2 h-9 w-full rounded-lg border border-costa-borde bg-white px-2 text-sm text-costa-esmeralda">
+                    {opcionesTemporada.map(t => <option key={t} value={t}>{etiquetaTemporada(t)}</option>)}
+                  </select>
+                )}
+                {v === 'rango' && opReporte.tipo === 'rango' && (
+                  <span className="mt-2 grid grid-cols-2 gap-2">
+                    <input type="date" value={opReporte.desde} onChange={e => setOpReporte({ ...opReporte, desde: e.target.value })}
+                      className="h-9 rounded-lg border border-costa-borde bg-white px-2 text-sm text-costa-esmeralda" />
+                    <input type="date" value={opReporte.hasta} min={opReporte.desde || undefined} onChange={e => setOpReporte({ ...opReporte, hasta: e.target.value })}
+                      className="h-9 rounded-lg border border-costa-borde bg-white px-2 text-sm text-costa-esmeralda" />
+                  </span>
+                )}
+              </span>
+            </label>
+          ))}
+          <label className="block text-xs text-costa-gris">Casas
+            <select value={opReporte.casa} onChange={e => setOpReporte({ ...opReporte, casa: e.target.value })}
+              className="mt-1 h-9 w-full rounded-lg border border-costa-borde bg-white px-2 text-sm text-costa-esmeralda">
+              <option value="">Todas las casas</option>
+              {propiedades.map(p => <option key={p.id} value={String(p.id)}>{p.nombre}{p.lote ? ` (Lote ${p.lote})` : ''}</option>)}
+            </select>
+          </label>
+          <div className="flex justify-end gap-2 pt-1">
+            <Button variant="secondary" onClick={() => setReporteAbierto(false)}>Cancelar</Button>
+            <Button onClick={descargarReporte} disabled={opReporte.tipo === 'rango' && (!opReporte.desde || !opReporte.hasta || opReporte.hasta < opReporte.desde)}>
+              <Download size={16} /> Descargar
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Modal */}
       <Modal

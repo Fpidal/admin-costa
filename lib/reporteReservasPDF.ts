@@ -68,6 +68,8 @@ export function generarReporteReservasPDF(opts: {
   cobros: CobroReporte[]
   casas: string
   periodo: string
+  /** Meses del calendario (YYYY-MM-DD del primer y último día); si falta, los de las reservas */
+  calendario?: { desde: string; hasta: string }
 }) {
   const reservas = [...opts.reservas].sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))
   const filas = reservas.map(r => ({ r, ...montosReserva(r, opts.cobros) }))
@@ -252,8 +254,16 @@ export function generarReporteReservasPDF(opts: {
   tot(totales.cobrado, col.cob.x, OLIVO)
   tot(totales.saldo, col.sdo.x, CORAL)
 
-  // ---------- Hoja con el calendario de los meses del reporte ----------
-  if (reservas.length) dibujarCalendarios(doc, reservas, `${opts.casas} · ${opts.periodo}`)
+  // ---------- Calendario de los meses del reporte ----------
+  // Si son hasta 3 meses y queda lugar debajo de los totales, va en la misma hoja
+  const meses = mesesDelCalendario(reservas, opts.calendario)
+  if (meses.length) {
+    const yLibre = y + altoTot + 6
+    const espacio = H - 14 - yLibre
+    const celdaPosible = Math.min((W - 2 * M - 16) / 3 / 7, (espacio - 16 - 9) / 6.4)
+    if (meses.length <= 3 && celdaPosible >= 5.5) dibujarCalendarios(doc, reservas, meses, yLibre, espacio)
+    else dibujarCalendarios(doc, reservas, meses, null, 0, `${opts.casas} · ${opts.periodo}`)
+  }
 
   // ---------- Pie en cada hoja ----------
   const paginas = doc.getNumberOfPages()
@@ -273,47 +283,71 @@ export function generarReporteReservasPDF(opts: {
 const MESES_PDF = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const hexRGB = (h: string): RGB => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]
 
-/** Calendarios de los meses que abarcan las reservas, con los días pintados por casa */
-function dibujarCalendarios(doc: jsPDF, reservas: ReservaReporte[], subtitulo: string) {
-  const activas = reservas.filter(r => r.estado !== 'cancelada')
-  if (!activas.length) return
-  const W = doc.internal.pageSize.getWidth()
-  const M = 12
-  const pad = (n: number) => String(n).padStart(2, '0')
-  const iso = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`
+type Mes = { y: number; m: number }
 
-  // Meses desde el primer ingreso hasta la última noche (máximo 12)
-  const ini = activas.map(r => r.fecha_inicio).sort()[0]
-  const ultimaNoche = activas.map(r => r.fecha_fin).sort().reverse()[0]
-  const meses: { y: number; m: number }[] = []
-  let y = Number(ini.slice(0, 4)), m = Number(ini.slice(5, 7)) - 1
-  const finY = Number(ultimaNoche.slice(0, 4)), finM = Number(ultimaNoche.slice(5, 7)) - 1
+/** Meses a mostrar: los del rango pedido o, si no hay, los que abarcan las reservas (máximo 12) */
+function mesesDelCalendario(reservas: ReservaReporte[], rango?: { desde: string; hasta: string }): Mes[] {
+  const activas = reservas.filter(r => r.estado !== 'cancelada')
+  let desde = rango?.desde, hasta = rango?.hasta
+  if (!desde || !hasta) {
+    if (!activas.length) return []
+    desde = activas.map(r => r.fecha_inicio).sort()[0]
+    // la última noche es el día anterior a la salida
+    const salida = activas.map(r => r.fecha_fin).sort().reverse()[0]
+    const d = new Date(`${salida}T12:00:00`); d.setDate(d.getDate() - 1)
+    hasta = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const meses: Mes[] = []
+  let y = Number(desde.slice(0, 4)), m = Number(desde.slice(5, 7)) - 1
+  const finY = Number(hasta.slice(0, 4)), finM = Number(hasta.slice(5, 7)) - 1
   while ((y < finY || (y === finY && m <= finM)) && meses.length < 12) {
     meses.push({ y, m })
     m++; if (m > 11) { m = 0; y++ }
   }
-  // Si la última reserva sale el día 1, ese mes no tiene noches
-  if (meses.length > 1 && ultimaNoche.slice(8) === '01') meses.pop()
+  return meses
+}
+
+/**
+ * Calendarios con los días pintados por casa. Con `yInicio` se dibujan en la
+ * hoja actual a partir de esa altura; si no, en una hoja nueva con encabezado.
+ */
+function dibujarCalendarios(doc: jsPDF, reservas: ReservaReporte[], meses: Mes[], yInicio: number | null, alto: number, subtitulo = '') {
+  const activas = reservas.filter(r => r.estado !== 'cancelada')
+  const W = doc.internal.pageSize.getWidth()
+  const M = 12
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const iso = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`
 
   const casas = [...new Set(activas.map(r => r.propiedades?.nombre || 'Casa'))]
   const color = Object.fromEntries(casas.map((c, i) => [c, hexRGB(colorCasa(c, i))]))
   const feriados = new Set<string>()
   new Set(meses.map(x => x.y)).forEach(a => generarFeriadosAnio(a).forEach(f => feriados.add(f.fecha)))
 
-  doc.addPage()
-  doc.setFillColor(...NAVY)
-  doc.rect(0, 0, W, 18, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(14)
-  doc.text('Calendario de ocupación', M, 11)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.text(subtitulo, W - M, 11, { align: 'right' })
+  let ly: number
+  let lx = M
+  if (yInicio === null) {
+    doc.addPage()
+    doc.setFillColor(...NAVY)
+    doc.rect(0, 0, W, 18, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(14)
+    doc.text('Calendario de ocupación', M, 11)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.text(subtitulo, W - M, 11, { align: 'right' })
+    ly = 25
+  } else {
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(10)
+    doc.setTextColor(...NAVY)
+    doc.text('Calendario de ocupación', M, yInicio + 4)
+    lx = M + doc.getTextWidth('Calendario de ocupación') + 10
+    ly = yInicio + 4
+  }
 
   // Leyenda
-  let lx = M
-  const ly = 25
+  doc.setFont('helvetica', 'normal')
   doc.setFontSize(7.5)
   casas.forEach(c => {
     doc.setFillColor(...color[c]); doc.roundedRect(lx, ly - 2.6, 4, 3, 0.6, 0.6, 'F')
@@ -329,9 +363,9 @@ function dibujarCalendarios(doc: jsPDF, reservas: ReservaReporte[], subtitulo: s
   const porFila = meses.length <= 6 ? 3 : 4
   const filas = Math.ceil(meses.length / porFila)
   const gapX = 8, gapY = 6
-  const top = 31
+  const top = yInicio === null ? 31 : yInicio + 9
   const anchoMes = (W - 2 * M - gapX * (porFila - 1)) / porFila
-  const altoDisp = doc.internal.pageSize.getHeight() - top - 14
+  const altoDisp = yInicio === null ? doc.internal.pageSize.getHeight() - top - 14 : alto - 9
   const celda = Math.min(anchoMes / 7, (altoDisp / filas - gapY - 9) / 6.4)
   const anchoGrid = celda * 7
 
