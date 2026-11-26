@@ -197,7 +197,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
   }
   const porTemporada = useMemo(() => {
     const temps = new Set<number>()
-    const filas = new Map<string, { nombre: string; orden: number; valores: Record<string, number> }>()
+    const filas = new Map<string, { nombre: string; orden: number; valores: Record<string, PriceRule> }>()
     reglas.forEach(r => {
       if (r.applies_to_days?.length) return
       // Solo tramos de verano: los que duran todo el año (temporada baja) no van
@@ -210,7 +210,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
       if (!filas.has(k)) filas.set(k, { nombre: r.name, orden, valores: {} })
       const f = filas.get(k)!
       if (r.name.length < f.nombre.length) f.nombre = r.name
-      f.valores[`${t}|${r.property_id}`] = r.price_per_night
+      f.valores[`${t}|${r.property_id}`] = r
     })
     // Lo cobrado: promedio por noche de las reservas en dólares de cada temporada
     const suma: Record<string, { total: number; noches: number }> = {}
@@ -529,7 +529,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
       {porTemporada.temporadas.length > 0 && (
         <div className="rounded-2xl border border-costa-borde bg-costa-superficie p-4 overflow-x-auto">
           <h4 className="text-sm font-bold text-costa-esmeralda">Precios por temporada</h4>
-          <p className="text-xs text-costa-gris mb-2">U$D por noche de cada tramo, temporada por temporada (diciembre a febrero). Abajo, lo que se cobró en promedio en las reservas.</p>
+          <p className="text-xs text-costa-gris mb-2">U$D por noche de cada tramo, temporada por temporada (diciembre a febrero). Tocá un número para cambiarlo. Abajo, lo que se cobró en promedio en las reservas.</p>
           <table className="text-xs min-w-full">
             <thead>
               <tr className="text-[10px] uppercase tracking-wider text-costa-gris">
@@ -550,8 +550,17 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                 <tr key={f.nombre} className="border-b border-[#f1ebe2]">
                   <td className="py-1.5 pr-3 font-semibold text-costa-esmeralda whitespace-nowrap">{f.nombre}</td>
                   {porTemporada.temporadas.map(t => casas.map((c, k) => {
-                    const v = f.valores[`${t}|${c.id}`]
-                    return <td key={`${t}-${c.id}`} className={`py-1.5 px-2 text-right ${k === 0 ? 'border-l border-costa-borde' : ''} ${v ? 'font-bold text-costa-esmeralda' : 'text-[#b8b1a6]'}`}>{v ?? '—'}</td>
+                    const r = f.valores[`${t}|${c.id}`]
+                    return (
+                      <td key={`${t}-${c.id}`} className={`py-1 px-2 text-right ${k === 0 ? 'border-l border-costa-borde' : ''}`}>
+                        {r ? (
+                          <input type="number" defaultValue={r.price_per_night} key={`${r.id}-${r.price_per_night}`} disabled={isDemo}
+                            title={`${r.name}: ${dmy(r.start_date)} al ${dmy(r.end_date)}`}
+                            onBlur={e => cambiarPrecio(r, e.target.value)}
+                            className="w-16 rounded-md border border-transparent hover:border-costa-borde focus:border-costa-borde bg-transparent focus:bg-white px-1.5 py-0.5 text-right font-bold text-costa-esmeralda" />
+                        ) : <span className="text-[#b8b1a6]">—</span>}
+                      </td>
+                    )
                   }))}
                 </tr>
               ))}
