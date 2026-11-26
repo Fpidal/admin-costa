@@ -381,16 +381,24 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
 
           <div className="border-t border-costa-borde pt-3">
             <h4 className="text-sm font-bold text-costa-esmeralda">Precio especial para días sueltos</h4>
-            <p className="text-xs text-costa-gris mb-2">Tocá un día y después otro en el calendario para marcar el rango.</p>
-            <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
-              <div><span className="text-costa-gris">Desde</span><p className="font-semibold text-costa-esmeralda">{selA ? dmy(selA) : '—'}</p></div>
-              <div><span className="text-costa-gris">Hasta</span><p className="font-semibold text-costa-esmeralda">{selA ? dmy(selB || selA) : '—'}</p></div>
+            <p className="text-xs text-costa-gris mb-2">Elegí las fechas acá, o tocá un día y después otro en el calendario.</p>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <label className="text-xs text-costa-gris">Desde
+                <input type="date" value={selA || ''} disabled={isDemo}
+                  onChange={e => { const v = e.target.value || null; setSelA(v); if (v && selB && selB < v) setSelB(null) }}
+                  className="mt-0.5 w-full rounded-md border border-costa-borde bg-white px-2 py-1.5 text-xs text-costa-esmeralda" />
+              </label>
+              <label className="text-xs text-costa-gris">Hasta
+                <input type="date" value={selB || selA || ''} min={selA || undefined} disabled={isDemo}
+                  onChange={e => setSelB(e.target.value || null)}
+                  className="mt-0.5 w-full rounded-md border border-costa-borde bg-white px-2 py-1.5 text-xs text-costa-esmeralda" />
+              </label>
             </div>
             <div className="grid grid-cols-2 gap-2 mb-2">
               {casasVisibles.map(c => (
                 <label key={c.id} className="text-xs text-costa-gris">
                   {c.nombre}{c.lote ? ` · ${c.lote}` : ''} (U$D)
-                  <input type="number" value={preciosRango[String(c.id)] || ''} disabled={!selA || isDemo}
+                  <input type="number" value={preciosRango[String(c.id)] || ''} disabled={isDemo}
                     onChange={e => setPreciosRango(p => ({ ...p, [String(c.id)]: e.target.value }))}
                     className="mt-0.5 w-full rounded-md border border-costa-borde bg-white px-2 py-1.5 text-sm text-costa-esmeralda disabled:opacity-50" />
                 </label>
@@ -398,7 +406,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
             </div>
             <button type="button" onClick={aplicarRango} disabled={!selA || guardando || isDemo}
               className="w-full h-9 rounded-lg bg-costa-esmeralda text-white text-xs font-semibold hover:bg-costa-esmeralda-light disabled:opacity-50">
-              {guardando ? 'Guardando…' : 'Aplicar a esos días'}
+              {guardando ? 'Guardando…' : selA ? `Aplicar del ${dmy(selA)} al ${dmy(selB || selA)}` : 'Elegí las fechas'}
             </button>
             {selA && (
               <button type="button" onClick={() => { setSelA(null); setSelB(null) }} className="w-full mt-1 text-xs text-costa-gris underline">
