@@ -24,15 +24,20 @@ import {
 import { useState } from 'react'
 import { CampanitaMensajes } from './CampanitaMensajes'
 
+// Lo de todos los días, arriba; el resto en "Más". Solo cambia el menú:
+// las direcciones de cada pantalla siguen siendo las mismas
 const navigation = [
   { name: 'Temporada', href: '/admin/temporada', icon: Sun },
-  { name: 'Propiedades', href: '/admin/propiedades', icon: Building2 },
-  { name: 'Piezas', href: '/admin/piezas', icon: Images },
   { name: 'Reservas', href: '/admin/reservas', icon: CalendarDays },
+  { name: 'Huéspedes', href: '/admin/inquilinos', icon: Users },
+  { name: 'Casas', href: '/admin/propiedades', icon: Building2 },
+  { name: 'Gastos', href: '/admin/gastos', icon: Receipt },
+]
+
+const navigationMas = [
   { name: 'Calendario', href: '/admin/calendario', icon: CalendarRange },
-  { name: 'Inquilinos', href: '/admin/inquilinos', icon: Users },
+  { name: 'Piezas gráficas', href: '/admin/piezas', icon: Images },
   { name: 'Resumen', href: '/admin', icon: LayoutDashboard },
-  { name: 'Administración', href: '/admin/gastos', icon: Receipt },
   { name: 'Info útil', href: '/admin/info-util', icon: Info },
   { name: 'Mis datos', href: '/admin/mis-datos', icon: UserCog },
   { name: 'Papelera', href: '/admin/papelera', icon: Trash2 },
@@ -54,9 +59,9 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
   const getHref = (href: string) => isDemo ? `${href}?demo=true` : href
 
   // Navegación con item de admin condicional
-  const fullNavigation = isAdmin
-    ? [...navigation, { name: 'Usuarios', href: '/admin/usuarios', icon: Shield }]
-    : navigation
+  const fullNavigationMas = isAdmin
+    ? [...navigationMas, { name: 'Usuarios', href: '/admin/usuarios', icon: Shield }]
+    : navigationMas
 
   return (
     <>
@@ -145,8 +150,8 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-6 space-y-1">
-            {fullNavigation.map((item) => {
+          <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+            {navigation.map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link
@@ -158,11 +163,34 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
                     transition-colors duration-150
                     ${isActive
                       ? 'bg-costa-superficie text-costa-esmeralda font-bold shadow-sm'
-                      : 'text-white/80 font-medium hover:bg-white/10 hover:text-white'
+                      : 'text-white/85 font-medium hover:bg-white/10 hover:text-white'
                     }
                   `}
                 >
                   <item.icon size={19} className={isActive ? 'text-costa-esmeralda' : 'text-white/60'} />
+                  {item.name}
+                </Link>
+              )
+            })}
+
+            <p className="px-4 pt-5 pb-1 text-[0.65rem] font-semibold uppercase tracking-widest text-white/45">Más</p>
+            {fullNavigationMas.map((item) => {
+              const isActive = pathname === item.href
+              return (
+                <Link
+                  key={item.name}
+                  href={getHref(item.href)}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-4 py-1.5 text-[0.8rem] rounded-lg
+                    transition-colors duration-150
+                    ${isActive
+                      ? 'bg-costa-superficie text-costa-esmeralda font-bold shadow-sm'
+                      : 'text-white/65 font-medium hover:bg-white/10 hover:text-white'
+                    }
+                  `}
+                >
+                  <item.icon size={16} className={isActive ? 'text-costa-esmeralda' : 'text-white/45'} />
                   {item.name}
                 </Link>
               )

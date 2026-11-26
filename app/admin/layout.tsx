@@ -151,7 +151,7 @@ function AdminLayoutContent({
       setUserEmail(profile.email || data.user.email || '')
       setIsAuthenticated(true)
       setSubmitting(false)
-      router.push('/admin/propiedades')
+      router.push('/admin/temporada')
     }
   }
 
@@ -259,7 +259,7 @@ function AdminLayoutContent({
       setIsSettingNewPassword(false)
       setSubmitting(false)
       // Redirigir al admin
-      router.push('/admin/propiedades')
+      router.push('/admin/temporada')
     }
   }
 

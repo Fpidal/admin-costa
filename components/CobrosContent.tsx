@@ -11,6 +11,8 @@ import { Plus, FileText, Receipt, Calculator, Trash2, DollarSign, Calendar, User
 import { jsPDF } from 'jspdf'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
 import Link from 'next/link'
+import { EtapasReserva, type Etapa } from '@/components/EtapasReserva'
+import { vencimientoSaldo } from '@/lib/cobranza'
 
 // Electricidad incluida en el precio, igual que en el contrato. Se prorratea
 // por noche, así una estadía de 15 días incluye unos 321 kWh
@@ -508,6 +510,13 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       error = res.error
     }
 
+    // Si entra plata del alquiler en una reserva pendiente, queda confirmada:
+    // el estado sale de los pagos y no hay que cambiarlo a mano
+    const esPagoDeAlquiler = data.aplicar_a !== 'deposito' && data.concepto !== 'devolucion_sena' && data.monto > 0
+    if (!error && !isDemo && reserva?.estado === 'pendiente' && esPagoDeAlquiler) {
+      await supabase.from('reservas').update({ estado: 'confirmada' }).eq('id', reservaId)
+    }
+
     if (!error) {
       setModalOpen(false)
       setCobroForm(initialCobroForm)
@@ -681,6 +690,47 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     supabase.from('cobros').update({ recibo_generado: true }).eq('id', cobro.id).then(() => fetchData())
   }
 
+  // ---------- Etapas de la reserva ----------
+  const hoyISO = aFechaISO(new Date())
+  const hayPagoAlquiler = Object.values(cobradoOperacion).some(v => Math.round(v) > 0)
+  const textoSaldo = [...monedasOperacion].reverse().filter(m => Math.round(saldoOperacion[m]) > 0).map(m => formatMonto(saldoOperacion[m], m)).join(' + ')
+  const vence = reserva ? vencimientoSaldo(reserva.fecha_inicio) : ''
+  const sugerida = (label: string) => montosSugeridos.find(m => m.label === label)
+  function abrirPagoCon(label: string) {
+    const s = sugerida(label) || montosSugeridos[montosSugeridos.length - 1]
+    setEditingCobroId(null)
+    setCobroForm({ ...initialCobroForm, fecha: aFechaISO(new Date()), ...(s ? { aplicar_a: 'alquiler', monto: s.monto, moneda: s.moneda, concepto: s.concepto } : {}) })
+    setModalOpen(true)
+  }
+  const etapas: Etapa[] = reserva ? [
+    { clave: 'consulta', titulo: 'Consulta', hecha: true, detalle: reserva.estado === 'pendiente' ? 'sin confirmar' : undefined },
+    {
+      clave: 'sena', titulo: 'Seña', hecha: hayPagoAlquiler || operacionSaldada,
+      detalle: hayPagoAlquiler ? 'recibida' : sugerida('Seña 50%') ? `${formatMonto(sugerida('Seña 50%')!.monto, sugerida('Seña 50%')!.moneda)} (50%)` : undefined,
+      accion: isCerrada ? undefined : { texto: 'Registrar seña', onClick: () => abrirPagoCon('Seña 50%') },
+    },
+    {
+      clave: 'saldo', titulo: 'Saldo', hecha: operacionSaldada,
+      detalle: operacionSaldada ? 'pagado' : `${textoSaldo}${vence ? ` · vence ${formatFecha(vence).slice(0, 5)}` : ''}`,
+      accion: isCerrada ? undefined : { texto: 'Registrar saldo', onClick: () => abrirPagoCon('Saldo') },
+    },
+    {
+      clave: 'ingreso', titulo: 'Ingreso', hecha: hoyISO >= reserva.fecha_inicio.slice(0, 10),
+      detalle: reserva.kw_inicial ? `medidor ${reserva.kw_inicial} kWh` : formatFecha(reserva.fecha_inicio).slice(0, 5),
+      accion: isCerrada ? undefined : { texto: reserva.kw_inicial ? 'Editar lectura del medidor' : 'Cargar lectura del medidor', onClick: openEditReservaModal },
+    },
+    { clave: 'salida', titulo: 'Salida', hecha: hoyISO >= reserva.fecha_fin.slice(0, 10), detalle: formatFecha(reserva.fecha_fin).slice(0, 5) },
+    {
+      clave: 'deposito', titulo: 'Depósito', hecha: !!liquidacion || !pactadoDeposito,
+      detalle: liquidacion ? 'liquidado' : pactadoDeposito ? `devolver ${formatMonto(pactadoDeposito, 'USD')}` : 'sin depósito',
+      accion: isCerrada ? undefined : { texto: 'Liquidación final', onClick: () => setLiquidacionModalOpen(true) },
+    },
+    {
+      clave: 'cerrada', titulo: 'Cerrada', hecha: isCerrada,
+      accion: isCerrada || isDemo ? undefined : { texto: 'Cerrar alquiler', onClick: handleCerrarAlquiler },
+    },
+  ] : []
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>
   }
@@ -750,6 +800,8 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
           </CardContent>
         </Card>
       )}
+
+      {reserva && reserva.estado !== 'cancelada' && <EtapasReserva etapas={etapas} />}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* OPERACIÓN: alquiler + servicios, que es lo que se cobra de verdad */}

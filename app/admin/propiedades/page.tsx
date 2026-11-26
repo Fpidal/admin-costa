@@ -648,7 +648,7 @@ function PropiedadesContent() {
   return (
     <div>
       <PageHeader
-        title="Propiedades"
+        title="Casas"
         description="Gestión directa de propiedades por sus propietarios o representantes"
       >
         {activeTab === 'propiedades' && (

@@ -539,7 +539,7 @@ function AdministracionContent() {
 
   return (
     <div>
-      <PageHeader title="Administración" description="Control de gastos y expensas">
+      <PageHeader title="Gastos" description="Control de gastos y expensas">
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setImportModalOpen(true)}>
             <Upload size={16} />

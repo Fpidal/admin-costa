@@ -335,7 +335,7 @@ function InquilinosContent() {
 
   return (
     <div>
-      <PageHeader title="Inquilinos" description="Base de datos de huéspedes">
+      <PageHeader title="Huéspedes" description="Base de datos de huéspedes">
         <Button onClick={() => openModal()}>
           <Plus size={18} />
           Nuevo Huésped
