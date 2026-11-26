@@ -19,6 +19,7 @@ export const VERSIONES: Version[] = [
       'Huéspedes: el historial de reservas de cada huésped ya no se rompe',
       'Sección Versiones para ver los cambios que se van haciendo',
       'Web pública: ahora sabe qué fechas están ocupadas (antes decía "Libre" siempre)',
+      'Los acompañantes que carga el huésped por el link también se suman a su ficha de Huéspedes, para la próxima reserva',
     ],
   },
   {

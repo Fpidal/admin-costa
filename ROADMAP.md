@@ -24,6 +24,8 @@
 - Cada reserva tiene un link `/huespedes/[código]` que se manda por WhatsApp ("Pedir datos de acompañantes"); el huésped carga nombre, apellido, edad y DNI de sus acompañantes
 - Se guarda en la reserva (mismo lugar que el formulario); el detalle muestra la lista y "Copiar lista para el barrio" (titular + acompañantes con DNI y edad)
 - Migración `sql/23-link-huespedes.sql` (código por reserva + 2 funciones; la tabla no se abre sin login)
+- `sql/25-huespedes-a-ficha.sql`: lo cargado también se suma a la ficha del huésped (sin borrar los anteriores)
+- `sql/24-ocupacion-publica.sql`: la web pública ve las fechas ocupadas (solo casa y fechas)
 
 ### Otros
 - Sección Versiones (Más → Versiones) con el historial de cambios
