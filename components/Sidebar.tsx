@@ -106,16 +106,16 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
 
       {/* Sidebar */}
       <aside className={`
-        fixed lg:static inset-y-0 left-0 z-40
-        w-64 bg-costa-esmeralda text-white
+        fixed lg:sticky lg:top-0 lg:self-start inset-y-0 left-0 z-40 h-screen
+        w-64 shrink-0 bg-costa-esmeralda text-white
         transform transition-transform duration-200 ease-in-out
         shadow-lg
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-24 flex flex-col items-center justify-center px-4 border-b border-white/15 text-center">
-            <h1 className="text-2xl font-bold tracking-tight text-white">Admin Costa</h1>
+          <div className="py-3.5 flex flex-col items-center justify-center px-4 border-b border-white/15 text-center">
+            <h1 className="text-xl font-bold tracking-tight text-white">Admin Costa</h1>
             {isDemo ? (
               <div className="flex items-center gap-1.5 mt-2 px-3 py-1 bg-amber-100 rounded-full">
                 <Eye size={14} className="text-amber-600" />
@@ -129,7 +129,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
           </div>
 
           {/* Quick actions */}
-          <div className="px-3 py-3 border-b border-white/15 flex gap-2">
+          <div className="px-3 py-2 border-b border-white/15 flex gap-2">
             <Link
               href={isDemo ? "/?demo=true" : "/"}
               className="flex-1 flex items-center justify-center gap-2 px-3 py-2 text-xs text-white/80 hover:text-white hover:bg-white/10 rounded-lg transition-colors border border-white/20"
@@ -150,7 +150,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+          <nav className="flex-1 min-h-0 px-3 py-3 space-y-0.5 overflow-y-auto">
             {navigation.map((item) => {
               const isActive = pathname === item.href
               return (
@@ -159,7 +159,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
                   href={getHref(item.href)}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-2.5 text-sm rounded-lg
+                    flex items-center gap-3 px-4 py-2 text-sm rounded-lg
                     transition-colors duration-150
                     ${isActive
                       ? 'bg-costa-superficie text-costa-esmeralda font-bold shadow-sm'
@@ -173,7 +173,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
               )
             })}
 
-            <p className="px-4 pt-5 pb-1 text-[0.65rem] font-semibold uppercase tracking-widest text-white/45">Más</p>
+            <p className="px-4 pt-3 pb-0.5 text-[0.65rem] font-semibold uppercase tracking-widest text-white/45">Más</p>
             {fullNavigationMas.map((item) => {
               const isActive = pathname === item.href
               return (
@@ -182,7 +182,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
                   href={getHref(item.href)}
                   onClick={() => setMobileMenuOpen(false)}
                   className={`
-                    flex items-center gap-3 px-4 py-1.5 text-[0.8rem] rounded-lg
+                    flex items-center gap-3 px-4 py-1 text-[0.8rem] rounded-lg
                     transition-colors duration-150
                     ${isActive
                       ? 'bg-costa-superficie text-costa-esmeralda font-bold shadow-sm'
@@ -199,8 +199,8 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
 
           {/* Usuario logueado */}
           {!isDemo && (userName || userEmail) && (
-            <div className="px-3 py-3 border-t border-white/15">
-              <div className="flex items-center gap-3 px-3 py-2 bg-white/10 rounded-lg">
+            <div className="px-3 py-2 border-t border-white/15">
+              <div className="flex items-center gap-3 px-3 py-1.5 bg-white/10 rounded-lg">
                 <div className="w-8 h-8 rounded-full bg-costa-superficie text-costa-esmeralda flex items-center justify-center text-sm font-bold">
                   {userName ? userName.charAt(0).toUpperCase() : userEmail.charAt(0).toUpperCase()}
                 </div>
