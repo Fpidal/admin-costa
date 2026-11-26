@@ -418,10 +418,12 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
 
   // Desde los avisos de cobranza se llega con ?registrar=saldo: se abre el
   // pago con el saldo ya cargado y se limpia el parámetro para no reabrirlo
-  const registrarDesdeAviso = searchParams.get('registrar') === 'saldo'
+  const registrarPedido = searchParams.get('registrar')
+  const registrarDesdeAviso = registrarPedido === 'saldo' || registrarPedido === 'sena'
   useEffect(() => {
     if (!registrarDesdeAviso || loading || !reserva) return
-    const saldo = montosSugeridos.find(m => m.label === 'Saldo') || montosSugeridos[montosSugeridos.length - 1]
+    const saldo = (registrarPedido === 'sena' && montosSugeridos.find(m => m.label === 'Seña 50%'))
+      || montosSugeridos.find(m => m.label === 'Saldo') || montosSugeridos[montosSugeridos.length - 1]
     setEditingCobroId(null)
     setCobroForm({ ...initialCobroForm, fecha: aFechaISO(new Date()), ...(saldo ? { aplicar_a: 'alquiler', monto: saldo.monto, moneda: saldo.moneda, concepto: saldo.concepto } : {}) })
     setModalOpen(true)

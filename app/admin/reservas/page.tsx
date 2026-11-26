@@ -3,20 +3,19 @@
 import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { parseFechaLocal } from '@/lib/fechas'
+import { parseFechaLocal, aFechaISO } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
-import { PageHeader } from '@/components/PageHeader'
-import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, Calendar, Pencil, Trash2, Users, X, ChevronDown, ChevronUp, Check, Zap, FileText, FileSignature, Wallet, AlertTriangle, Download, MessageCircle } from 'lucide-react'
+import { Card, CardHeader, CardTitle, CardContent, Button, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
+import { Plus, Calendar, Pencil, Trash2, Users, ChevronDown, ChevronUp, Check, Zap, Wallet, AlertTriangle, Download } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
 import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
-import { montosReserva, sumarMontos, monedasCon, filtrarReservas, describirPeriodo, temporadaDe, temporadaActual, etiquetaTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
+import { montosReserva, sumarMontos, monedasCon, filtrarReservas, nochesEntre, describirPeriodo, temporadaDe, temporadaActual, etiquetaTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
 import { AvisosCobranza } from '@/components/AvisosCobranza'
-import { vencimientoSaldo, nombreCasa as casaDeReserva } from '@/lib/cobranza'
+import { vencimientoSaldo, armarAvisos, nombreCasa as casaDeReserva } from '@/lib/cobranza'
 import { linkWhatsApp, mensajeConfirmacion, mensajeRecordatorioSaldo, mensajeIngreso } from '@/lib/whatsapp'
 import { DATOS_LOCADOR_DEMO, DATOS_LOCADOR_VACIOS, camposFaltantes, type DatosLocador } from '@/lib/datosLocador'
 
@@ -186,12 +185,6 @@ const mediosCobro: Record<string, string> = {
   tarjeta: 'Tarjeta',
 }
 
-const estadoVariant = {
-  'confirmada': 'success',
-  'pendiente': 'warning',
-  'cancelada': 'danger',
-  'cerrada': 'info',
-} as const
 
 const formatMonto = (monto: number, moneda: string = 'ARS') => {
   if (!monto) return moneda === 'USD' ? 'U$D 0' : '$ 0'
@@ -208,19 +201,6 @@ const FormatMontoStyled = ({ monto, moneda = 'ARS' }: { monto: number, moneda?: 
     <span>
       <span className="text-[0.75em] opacity-70">{symbol}</span> {formatted}
     </span>
-  )
-}
-
-// Importes de un recuadro de resumen, una línea por moneda
-const MontosResumen = ({ montos, className = '' }: { montos: PorMoneda, className?: string }) => {
-  const lista = monedasCon(montos)
-  if (!lista.length) return <p className={`text-2xl font-bold ${className}`}><FormatMontoStyled monto={0} moneda="USD" /></p>
-  return (
-    <div className={`font-bold ${className}`}>
-      {lista.map((m, i) => (
-        <p key={m} className={i === 0 ? 'text-2xl' : 'text-base'}><FormatMontoStyled monto={montos[m]} moneda={m} /></p>
-      ))}
-    </div>
   )
 }
 
@@ -283,6 +263,9 @@ function ReservasContent() {
   const [vista, setVista] = useState<'vigentes' | 'cerradas' | 'pagos'>('vigentes')
   // Reserva elegida en "Pagos recibidos" (por defecto, la del pago más reciente)
   const [pagoSel, setPagoSel] = useState<string | null>(null)
+  // Reserva elegida en la lista (por defecto, la primera) y avisos desplegados
+  const [reservaSel, setReservaSel] = useState<number | null>(null)
+  const [avisosAbiertos, setAvisosAbiertos] = useState(false)
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cobros, setCobros] = useState<Cobro[]>([])
   const [liquidaciones, setLiquidaciones] = useState<Liquidacion[]>([])
@@ -1503,366 +1486,294 @@ function ReservasContent() {
 
   return (
     <div className="vista-compacta">
-      <PageHeader title="Reservas" description="Administra las reservas de tus propiedades">
-        <Button onClick={() => openModal()}>
-          <Plus size={18} />
-          Nueva Reserva
-        </Button>
-      </PageHeader>
-
-      {/* Qué ver: arriba de todo, para que no se mueva al cambiar de vista */}
-      <div className="mb-3 inline-flex rounded-lg border border-costa-borde bg-costa-superficie p-1 shadow-sm" role="group" aria-label="Qué reservas ver">
-        {([['vigentes', 'Vigentes'], ['cerradas', 'Cerradas'], ['pagos', 'Pagos recibidos']] as const).map(([v, label]) => (
-          <button key={v} type="button" onClick={() => setVista(v)} aria-pressed={vista === v}
-            className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${vista === v ? 'bg-costa-esmeralda text-white shadow-sm' : 'text-costa-gris hover:text-costa-navy hover:bg-costa-arena'}`}>
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {vista === 'vigentes' && (
-        <AvisosCobranza reservas={reservas} cobros={cobros} isDemo={isDemo} linkInfoUtil={URL_INFO_UTIL} onEditar={openModal} />
-      )}
-
-      {/* Filtro: casa y período */}
-      <Card className="mb-3">
-        <CardContent className="py-3">
-          <div className="flex flex-wrap items-end gap-3">
-            <label className="space-y-0.5">
-              <span className="block text-xs font-medium text-costa-navy">Casa</span>
-              <select
-                value={filtro.propiedadId}
-                onChange={(e) => setFiltro({ ...filtro, propiedadId: e.target.value })}
-                className="px-2.5 py-1.5 rounded-lg border border-costa-gris/30 text-sm text-costa-navy bg-costa-white focus:outline-none focus:ring-1 focus:ring-costa-navy"
-              >
-                <option value="">Todas</option>
-                {propiedades.map(p => (
-                  <option key={p.id} value={String(p.id)}>{p.nombre}{p.lote ? ` - Lote ${p.lote}` : ''}</option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-0.5">
-              <span className="block text-xs font-medium text-costa-navy">Período</span>
-              <select
-                value={filtro.tipo}
-                onChange={(e) => cambiarTipoPeriodo(e.target.value as TipoPeriodo)}
-                className="px-2.5 py-1.5 rounded-lg border border-costa-gris/30 text-sm text-costa-navy bg-costa-white focus:outline-none focus:ring-1 focus:ring-costa-navy"
-              >
-                <option value="todo">Todo</option>
-                <option value="temporada">Temporada</option>
-                <option value="anio">Año</option>
-                <option value="rango">Entre fechas</option>
-              </select>
-            </label>
-            {(filtro.tipo === 'temporada' || filtro.tipo === 'anio') && (
-              <label className="space-y-0.5">
-                <span className="block text-xs font-medium text-costa-navy">{filtro.tipo === 'temporada' ? 'Temporada (15/12 al 20/02)' : 'Año'}</span>
-                <select
-                  value={filtro.valor}
-                  onChange={(e) => setFiltro({ ...filtro, valor: e.target.value })}
-                  className="px-2.5 py-1.5 rounded-lg border border-costa-gris/30 text-sm text-costa-navy bg-costa-white focus:outline-none focus:ring-1 focus:ring-costa-navy"
-                >
-                  {(filtro.tipo === 'temporada' ? opcionesTemporada : opcionesAnio).map(a => (
-                    <option key={a} value={String(a)}>{filtro.tipo === 'temporada' ? etiquetaTemporada(a).replace('Temporada ', '') : a}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {filtro.tipo === 'rango' && (
-              <>
-                <Input label="Ingreso desde" type="date" value={filtro.desde} onChange={(e) => setFiltro({ ...filtro, desde: e.target.value })} className="w-auto" />
-                <Input label="Ingreso hasta" type="date" value={filtro.hasta} onChange={(e) => setFiltro({ ...filtro, hasta: e.target.value })} className="w-auto" />
-              </>
-            )}
-            <div className="flex items-center gap-2 ml-auto">
-              {(filtro.propiedadId || filtro.tipo !== 'todo') && (
-                <Button variant="ghost" size="sm" onClick={() => setFiltro(FILTRO_INICIAL)}>
-                  <X size={14} /> Limpiar
-                </Button>
-              )}
-              <Button variant="secondary" size="sm" onClick={descargarReporte} disabled={reservasReporte.length === 0}>
-                <Download size={15} /> Reporte PDF
-              </Button>
-            </div>
-          </div>
-          <p className="text-xs text-costa-gris mt-2">
-            {casasFiltro} · {describirPeriodo(filtro)} · {vista === 'pagos' ? 'pagos de las reservas cuyo ingreso cae en el período' : `reservas ${vista} cuyo ingreso cae en el período`}
-            {vista === 'vigentes' && cerradasPeriodo > 0 && ` · ${cerradasPeriodo} cerrada${cerradasPeriodo !== 1 ? 's' : ''} en "Cerradas" (también sale${cerradasPeriodo !== 1 ? 'n' : ''} en el reporte PDF)`}
-          </p>
-        </CardContent>
-      </Card>
-
-      {vista !== 'pagos' && (
-        <>
-      {/* Resumen del filtro */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-sm text-costa-gris">Reservas</p>
-            <p className="text-2xl font-bold text-costa-navy">{reservasResumen.length}</p>
-            {pendientes > 0 && <p className="text-xs text-costa-coral">{pendientes} pendiente{pendientes !== 1 ? 's' : ''} de confirmar</p>}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-sm text-costa-gris">Total reservado</p>
-            <MontosResumen montos={resumen.total} className="text-costa-navy" />
-            {monedasCon(totalAConfirmar).length > 0 && (
-              <p className="text-xs font-semibold text-red-600 mt-0.5">
-                Pendiente de confirmar{' '}
-                {monedasCon(totalAConfirmar).map((m, i) => (
-                  <span key={m}>{i > 0 && ' + '}<FormatMontoStyled monto={totalAConfirmar[m]} moneda={m} /></span>
-                ))}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-sm text-costa-gris">Cobrado</p>
-            <MontosResumen montos={resumen.cobrado} className="text-costa-olivo" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-sm text-costa-gris">Pendiente de cobro</p>
-            <MontosResumen montos={resumen.saldo} className="text-costa-coral" />
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Vista móvil - Cards */}
-      <div className="sm:hidden space-y-3">
-        {reservasLista.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-gray-500">No hay reservas para este filtro</CardContent>
-          </Card>
-        ) : (
-          reservasLista.map((reserva) => {
-            const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-            // Mismo cálculo que la tabla: servicios incluidos y por moneda
-            const { total, cobrado, saldo } = montosReserva(reserva, cobros)
-            const haySaldo = monedasCon(saldo).some(m => saldo[m] > 0)
-            const lineasMonto = (o: PorMoneda) => monedasCon(o).length
-              ? monedasCon(o).map(m => <span key={m} className="block"><FormatMontoStyled monto={o[m]} moneda={m} /></span>)
-              : <span>-</span>
-            return (
-              <Card key={reserva.id}>
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-medium text-costa-navy">{reserva.propiedades?.nombre || '-'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}</p>
-                      <p className="text-sm text-costa-gris">{reserva.inquilinos?.nombre || '-'}</p>
-                    </div>
-                    <Badge variant={estadoVariant[reserva.estado as keyof typeof estadoVariant] || 'default'}>
-                      {reserva.estado}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-costa-navy mb-3">
-                    <Calendar size={14} className="text-costa-gris" />
-                    <span className="font-semibold tabular-nums">{formatFecha(reserva.fecha_inicio)} → {formatFecha(reserva.fecha_fin)}</span>
-                    <span className="text-costa-gris text-xs">{noches}n</span>
-                    <span className="flex items-center gap-1 ml-2">
-                      <Users size={12} />
-                      {reserva.cantidad_personas || 1}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2 text-center py-2 bg-costa-beige/30 rounded-lg mb-3">
-                    <div>
-                      <p className="text-xs text-costa-gris">Total</p>
-                      <p className="font-semibold text-costa-navy text-sm">{lineasMonto(total)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-costa-gris">Cobrado</p>
-                      <p className="font-semibold text-costa-olivo text-sm">{lineasMonto(cobrado)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-costa-gris">Saldo</p>
-                      <p className={`font-semibold text-sm ${haySaldo ? 'text-amber-600' : 'text-costa-olivo'}`}>
-                        {lineasMonto(saldo)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-1 pt-2 border-t border-costa-beige">
-                    {reserva.estado !== 'cancelada' && (
-                      <Button variant="ghost" size="sm" onClick={() => generarContratoPDF(reserva)} title="Contrato">
-                        <FileSignature size={16} className="text-costa-olivo" />
-                      </Button>
-                    )}
-                    {reserva.estado !== 'cancelada' && (
-                      <Button variant="ghost" size="sm" onClick={() => generarReciboPDF(reserva)} title={reserva.estado === 'pendiente' ? 'Cotización' : 'Reserva'}>
-                        <FileText size={16} className="text-costa-navy" />
-                      </Button>
-                    )}
-                    <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
-                      <Button variant="ghost" size="sm" title="Cobros"><Wallet size={16} className="text-costa-olivo" /></Button>
-                    </Link>
-                    {reserva.estado !== 'cancelada' && (
-                      <Button variant="ghost" size="sm" title="WhatsApp" onClick={() => setWhatsappAbierto(whatsappAbierto === reserva.id ? null : reserva.id)}>
-                        <MessageCircle size={16} className="text-costa-olivo" />
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="sm" onClick={() => openModal(reserva)}><Pencil size={16} /></Button>
-                    <Button variant="ghost" size="sm" onClick={() => handleDelete(reserva.id)}><Trash2 size={16} className="text-costa-gris" /></Button>
-                  </div>
-                  {whatsappAbierto === reserva.id && (
-                    <div className="flex flex-col gap-2 pt-2">
-                      {mensajesWhatsApp(reserva).map(m => (
-                        <a key={m.label} href={m.href} target="_blank" rel="noopener noreferrer" onClick={() => setWhatsappAbierto(null)}
-                          className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white bg-costa-olivo">
-                          <MessageCircle size={15} /> {m.label}
-                        </a>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            )
-          })
+      {/* Barra única: qué ver, filtros y acciones */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <h1 className="mr-2 text-xl sm:text-2xl font-bold text-costa-esmeralda tracking-tight">Reservas</h1>
+        <div className="inline-flex rounded-lg border border-costa-borde bg-costa-superficie p-0.5" role="group" aria-label="Qué reservas ver">
+          {([['vigentes', 'Vigentes'], ['cerradas', 'Cerradas'], ['pagos', 'Pagos']] as const).map(([v, label]) => (
+            <button key={v} type="button" onClick={() => setVista(v)} aria-pressed={vista === v}
+              className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${vista === v ? 'bg-costa-esmeralda text-white' : 'text-costa-gris hover:text-costa-navy'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <select value={filtro.propiedadId} onChange={(e) => setFiltro({ ...filtro, propiedadId: e.target.value })} aria-label="Casa"
+          className="rounded-lg border border-costa-borde bg-costa-superficie px-2.5 py-1.5 text-sm font-semibold text-costa-navy">
+          <option value="">Todas las casas</option>
+          {propiedades.map(p => <option key={p.id} value={String(p.id)}>{p.nombre}</option>)}
+        </select>
+        <select value={filtro.tipo} onChange={(e) => cambiarTipoPeriodo(e.target.value as TipoPeriodo)} aria-label="Período"
+          className="rounded-lg border border-costa-borde bg-costa-superficie px-2.5 py-1.5 text-sm font-semibold text-costa-navy">
+          <option value="todo">Todas las fechas</option>
+          <option value="temporada">Temporada</option>
+          <option value="anio">Año</option>
+          <option value="rango">Entre fechas</option>
+        </select>
+        {(filtro.tipo === 'temporada' || filtro.tipo === 'anio') && (
+          <select value={filtro.valor} onChange={(e) => setFiltro({ ...filtro, valor: e.target.value })} aria-label={filtro.tipo === 'temporada' ? 'Temporada' : 'Año'}
+            className="rounded-lg border border-costa-borde bg-costa-superficie px-2.5 py-1.5 text-sm font-semibold text-costa-navy">
+            {(filtro.tipo === 'temporada' ? opcionesTemporada : opcionesAnio).map(a => (
+              <option key={a} value={String(a)}>{filtro.tipo === 'temporada' ? etiquetaTemporada(a).replace('Temporada ', '') : a}</option>
+            ))}
+          </select>
         )}
+        {filtro.tipo === 'rango' && (
+          <>
+            <input type="date" value={filtro.desde} onChange={(e) => setFiltro({ ...filtro, desde: e.target.value })} aria-label="Ingreso desde"
+              className="rounded-lg border border-costa-borde bg-costa-superficie px-2 py-1.5 text-sm text-costa-navy" />
+            <input type="date" value={filtro.hasta} onChange={(e) => setFiltro({ ...filtro, hasta: e.target.value })} aria-label="Ingreso hasta"
+              className="rounded-lg border border-costa-borde bg-costa-superficie px-2 py-1.5 text-sm text-costa-navy" />
+          </>
+        )}
+        {(filtro.propiedadId || filtro.tipo !== 'todo') && (
+          <button type="button" onClick={() => setFiltro(FILTRO_INICIAL)} className="text-sm font-semibold text-costa-gris hover:text-costa-navy">Limpiar</button>
+        )}
+        <span className="flex-1" />
+        <Button variant="secondary" size="sm" onClick={descargarReporte} disabled={reservasReporte.length === 0}>
+          <Download size={15} /> Reporte PDF
+        </Button>
+        <Button size="sm" onClick={() => openModal()}>
+          <Plus size={16} /> Nueva reserva
+        </Button>
       </div>
 
-      {/* Vista desktop - Tabla */}
-      <Card className="hidden sm:block">
-        <CardHeader><CardTitle>{vista === 'cerradas' ? 'Reservas cerradas' : 'Reservas vigentes'}</CardTitle></CardHeader>
-        <CardContent className="p-0">
-          {reservasLista.length === 0 ? (
-            <div className="py-12 text-center text-gray-500">No hay reservas para este filtro</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-costa-beige/50 border-b border-costa-beige">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Huésped</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Período</th>
-                    <th className="px-2 py-2 text-center text-xs font-medium text-costa-gris uppercase">Pers.</th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Total</th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Cobrado</th>
-                    <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase">Saldo</th>
-                    <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Estado</th>
-                  </tr>
-                </thead>
-                {reservasLista.map((reserva) => {
-                    const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-                    // El total incluye los servicios, para que el saldo sea el real.
-                    // Si están en otra moneda se muestra una línea por moneda.
-                    const { total: totalPorMoneda, cobrado: cobradoPorMoneda, saldo: saldoPorMoneda, monedas: monedasFila } = montosReserva(reserva, cobros)
-                    const haySaldo = monedasFila.some(m => Math.round(saldoPorMoneda[m]) > 0)
-                    return (
-                    <tbody key={reserva.id} className="border-b border-costa-beige last:border-b-0 hover:bg-costa-beige/30">
-                      <tr>
-                        <td className="px-3 py-2">
-                          <span className="font-medium text-costa-navy text-sm">{reserva.propiedades?.nombre || '-'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}</span>
-                        </td>
-                        <td className="px-3 py-2">
-                          <span className="text-costa-navy text-sm">{reserva.inquilinos?.nombre || '-'}</span>
-                        </td>
-                        <td className="px-3 py-2">
-                          <div className="text-sm font-semibold text-costa-navy tabular-nums whitespace-nowrap">
-                            {formatFecha(reserva.fecha_inicio)} <span className="text-costa-gris font-normal">→</span> {formatFecha(reserva.fecha_fin)}
-                          </div>
-                          <div className="text-xs text-costa-gris">{noches} noche{noches !== 1 ? 's' : ''}</div>
-                        </td>
-                        <td className="px-2 py-2 text-center text-costa-navy text-sm">
-                          {reserva.cantidad_personas || 1}
-                        </td>
-                        <td className="px-2 py-2 text-right font-semibold text-costa-navy text-sm whitespace-nowrap">
-                          {monedasFila.filter(m => totalPorMoneda[m]).map(m => (
-                            <span key={m} className="block"><FormatMontoStyled monto={totalPorMoneda[m]} moneda={m} /></span>
-                          ))}
-                        </td>
-                        <td className="px-2 py-2 text-right text-costa-olivo text-sm whitespace-nowrap">
-                          {monedasFila.some(m => cobradoPorMoneda[m])
-                            ? monedasFila.filter(m => cobradoPorMoneda[m]).map(m => (
-                                <span key={m} className="block"><FormatMontoStyled monto={cobradoPorMoneda[m]} moneda={m} /></span>
-                              ))
-                            : <span className="text-costa-gris">-</span>}
-                        </td>
-                        <td className="px-2 py-2 text-right text-sm whitespace-nowrap">
-                          <span className={haySaldo ? 'font-semibold text-amber-600' : 'text-costa-olivo'}>
-                            {monedasFila.filter(m => saldoPorMoneda[m]).map(m => (
-                              <span key={m} className="block"><FormatMontoStyled monto={saldoPorMoneda[m]} moneda={m} /></span>
-                            ))}
-                          </span>
-                        </td>
-                        <td className="px-2 py-2">
-                          <Badge variant={estadoVariant[reserva.estado as keyof typeof estadoVariant] || 'default'}>
-                            {reserva.estado}
-                          </Badge>
-                        </td>
-                      </tr>
-                      {/* Las acciones van en una fila propia: cinco botones en la
-                          misma fila la partían en dos, y el menú desplegable
-                          quedaba recortado por el overflow del contenedor */}
-                      <tr>
-                        <td colSpan={8} className="px-3 pb-2 pt-0">
-                          <div className="flex flex-wrap items-center justify-center gap-2">
-                            <Link href={`/admin/reservas/${reserva.id}/cobros${isDemo ? '?demo=true' : ''}`}>
-                              <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100 transition-colors">
-                                <Wallet size={13} /> Cobros
-                              </span>
-                            </Link>
-                            {reserva.estado !== 'cancelada' && (
-                              <button
-                                onClick={() => setWhatsappAbierto(whatsappAbierto === reserva.id ? null : reserva.id)}
-                                className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border transition-colors ${whatsappAbierto === reserva.id ? 'bg-green-600 text-white border-green-600' : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}
-                              >
-                                <MessageCircle size={13} /> WhatsApp
-                              </button>
-                            )}
-                            {reserva.estado !== 'cancelada' && (
-                              <button
-                                onClick={() => generarContratoPDF(reserva)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-sky-50 text-sky-800 border-sky-200 hover:bg-sky-100 transition-colors"
-                              >
-                                <FileSignature size={13} /> Contrato PDF
-                              </button>
-                            )}
-                            {reserva.estado !== 'cancelada' && (
-                              <button
-                                onClick={() => generarReciboPDF(reserva)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100 transition-colors"
-                              >
-                                <FileText size={13} /> {reserva.estado === 'pendiente' ? 'Cotización PDF' : 'Reserva PDF'}
-                              </button>
-                            )}
-                            <button
-                              onClick={() => openModal(reserva)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100 transition-colors"
-                            >
-                              <Pencil size={13} /> Editar
-                            </button>
-                            <button
-                              onClick={() => handleDelete(reserva.id)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium border bg-red-50 text-red-700 border-red-200 hover:bg-red-100 transition-colors"
-                            >
-                              <Trash2 size={13} /> Eliminar
-                            </button>
-                          </div>
-                          {whatsappAbierto === reserva.id && (
-                            <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
-                              <span className="text-xs text-costa-gris">Mensaje:</span>
-                              {mensajesWhatsApp(reserva).map(m => (
-                                <a key={m.label} href={m.href} target="_blank" rel="noopener noreferrer" onClick={() => setWhatsappAbierto(null)}
-                                  className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium text-costa-olivo bg-costa-olivo/10 hover:bg-costa-olivo/20">
-                                  <MessageCircle size={12} /> {m.label}
-                                </a>
-                              ))}
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    </tbody>
-                  )
-                })}
-              </table>
+      {vista !== 'pagos' && (() => {
+        const lista = reservasLista
+        const elegida = lista.find(r => r.id === reservaSel) || lista[0]
+        const avisos = vista === 'vigentes' ? armarAvisos(reservas, cobros) : []
+        const saldosUrgentes = avisos.filter(a => a.tipo === 'saldo' && a.urgencia !== 'normal')
+        const sinConfirmar = avisos.filter(a => a.tipo === 'confirmar').length
+        const hoyISO = aFechaISO(new Date())
+        const montosTexto = (o: PorMoneda) => monedasCon(o).map(m => formatMonto(o[m], m)).join(' + ')
+        const positivos = (o: PorMoneda) => Object.fromEntries(Object.entries(o).filter(([, v]) => v > 0)) as PorMoneda
+
+        // Etiqueta de estado: lo único con color en la lista
+        const etiqueta = (r: Reserva) => {
+          const { saldo } = montosReserva(r, cobros)
+          const debe = monedasCon(saldo).some(m => saldo[m] > 0)
+          const vence = vencimientoSaldo(r.fecha_inicio)
+          if (r.estado === 'cancelada') return <span className="rounded-full bg-costa-arena px-2 py-0.5 text-[0.75em] font-semibold text-costa-gris">Cancelada</span>
+          if (r.estado === 'pendiente') return <span className="rounded-full bg-red-50 px-2 py-0.5 text-[0.75em] font-semibold text-red-700">Sin confirmar</span>
+          if (r.estado === 'cerrada') return <span className="text-[0.75em] text-costa-gris">Cerrada</span>
+          if (!debe) return <span className="text-[0.75em] font-semibold text-costa-olivo">Pagada</span>
+          // nochesEntre no da negativos: lo vencido se compara por fecha
+          const dias = vence < hoyISO ? -1 : nochesEntre(hoyISO, vence)
+          if (dias < 0) return <span className="rounded-full bg-red-50 px-2 py-0.5 text-[0.75em] font-semibold text-red-700">Venció {formatFecha(vence).slice(0, 5)}</span>
+          if (dias <= 30) return <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[0.75em] font-semibold text-amber-800">Vence {formatFecha(vence).slice(0, 5)}</span>
+          return <span className="text-[0.75em] text-costa-gris">vence {formatFecha(vence).slice(0, 5)}</span>
+        }
+
+        const detalle = (r: Reserva) => {
+          const { total, cobrado, saldo } = montosReserva(r, cobros)
+          const pend = r.estado === 'pendiente'
+          const debe = monedasCon(saldo).some(m => saldo[m] > 0)
+          const noches = calcularNoches(r.fecha_inicio, r.fecha_fin)
+          const liq = liquidaciones.find(l => String(l.reserva_id) === String(r.id))
+          const cobrosR = cobros.filter(c => c.reserva_id === r.id).sort((a, b) => a.fecha.localeCompare(b.fecha))
+          const pasos = [
+            { t: 'Consulta', ok: true },
+            { t: 'Seña', ok: monedasCon(cobrado).some(m => cobrado[m] > 0) || !debe },
+            { t: 'Saldo', ok: !debe },
+            { t: 'Ingreso', ok: hoyISO >= r.fecha_inicio.slice(0, 10) },
+            { t: 'Salida', ok: hoyISO >= r.fecha_fin.slice(0, 10) },
+            { t: 'Depósito', ok: !!liq || !r.deposito },
+          ]
+          const ahora = pasos.findIndex(p => !p.ok)
+          const sena = Math.round(noches * (r.precio_noche || 0) * PORCENTAJE_RESERVA / 100)
+          const linkCobros = `/admin/reservas/${r.id}/cobros`
+          const accion = isDemo ? '&demo=true' : ''
+          const btn = 'inline-flex items-center gap-1.5 rounded-lg border border-costa-borde bg-costa-superficie px-3 py-1.5 text-sm font-semibold text-costa-navy hover:bg-costa-arena transition-colors'
+          return (
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className="text-lg font-bold text-costa-navy truncate">{r.inquilinos?.nombre?.trim() || 'Sin titular'}</h2>
+                  <p className="text-sm text-costa-gris">
+                    {r.propiedades?.nombre}{r.propiedades?.lote ? ` · Lote ${r.propiedades.lote}` : ''} · {formatFecha(r.fecha_inicio)} → {formatFecha(r.fecha_fin)} · {noches} noches · {r.cantidad_personas || 1} personas
+                  </p>
+                </div>
+                <div className="shrink-0">{etiqueta(r)}</div>
+              </div>
+
+              <div className="grid grid-cols-3 rounded-lg border border-costa-borde">
+                <div className="px-3 py-2">
+                  <p className="text-xs text-costa-gris">Total</p>
+                  <p className="font-bold text-costa-navy tabular-nums">{montosTexto(total) || '–'}</p>
+                </div>
+                <div className="px-3 py-2 border-l border-costa-borde">
+                  <p className="text-xs text-costa-gris">Cobrado</p>
+                  <p className="font-bold text-costa-olivo tabular-nums">{montosTexto(cobrado) || '–'}</p>
+                </div>
+                <div className="px-3 py-2 border-l border-costa-borde">
+                  <p className="text-xs text-costa-gris">{pend ? `Seña a pedir (${PORCENTAJE_RESERVA}%)` : debe ? `Saldo · vence ${formatFecha(vencimientoSaldo(r.fecha_inicio)).slice(0, 5)}` : 'Saldo'}</p>
+                  <p className={`font-bold tabular-nums ${debe ? 'text-amber-700' : 'text-costa-olivo'}`}>{pend ? formatMonto(sena, r.moneda || 'USD') : debe ? montosTexto(positivos(saldo)) : 'Pagado'}</p>
+                </div>
+              </div>
+
+              {r.estado !== 'cancelada' && (
+                <ol className="flex flex-wrap items-center gap-y-1 text-xs">
+                  {pasos.map((p, i) => (
+                    <li key={p.t} className="flex items-center">
+                      {i > 0 && <span className={`mx-1.5 h-0.5 w-4 ${pasos[i - 1].ok ? 'bg-costa-olivo' : 'bg-costa-borde'}`} />}
+                      <span className={`flex items-center gap-1 ${p.ok ? 'text-costa-navy' : i === ahora ? 'font-bold text-amber-700' : 'text-costa-gris'}`}>
+                        <span className={`flex h-3.5 w-3.5 items-center justify-center rounded-full border-2 ${p.ok ? 'border-costa-olivo bg-costa-olivo text-white' : i === ahora ? 'border-amber-600' : 'border-costa-borde'}`}>
+                          {p.ok && <Check size={8} strokeWidth={4} />}
+                        </span>
+                        {p.t}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                {r.estado !== 'cancelada' && r.estado !== 'cerrada' && (debe || pend) && (
+                  <Link href={`${linkCobros}?registrar=${pend || !monedasCon(cobrado).some(m => cobrado[m] > 0) ? 'sena' : 'saldo'}${accion}`}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-costa-esmeralda px-3 py-1.5 text-sm font-semibold text-white hover:bg-costa-esmeralda-light">
+                    {pend ? 'Registrar seña' : 'Registrar pago'}
+                  </Link>
+                )}
+                <Link href={`${linkCobros}${isDemo ? '?demo=true' : ''}`} className={btn}>Cobros</Link>
+                {r.estado !== 'cancelada' && (
+                  <button type="button" className={btn} onClick={() => setWhatsappAbierto(whatsappAbierto === r.id ? null : r.id)}>WhatsApp</button>
+                )}
+                {r.estado !== 'cancelada' && <button type="button" className={btn} onClick={() => generarContratoPDF(r)}>Contrato</button>}
+                {r.estado !== 'cancelada' && <button type="button" className={btn} onClick={() => generarReciboPDF(r)}>{pend ? 'Cotización' : 'Reserva PDF'}</button>}
+                <button type="button" className={btn} onClick={() => openModal(r)}>Editar</button>
+                <span className="flex-1" />
+                <button type="button" onClick={() => handleDelete(r.id)} className="text-sm font-semibold text-red-700 hover:underline">Eliminar</button>
+              </div>
+              {whatsappAbierto === r.id && (
+                <div className="flex flex-wrap items-center gap-2 rounded-lg bg-costa-arena/70 px-3 py-2">
+                  <span className="text-xs text-costa-gris">Mensaje:</span>
+                  {mensajesWhatsApp(r).map(m => (
+                    <a key={m.label} href={m.href} target="_blank" rel="noopener noreferrer" onClick={() => setWhatsappAbierto(null)}
+                      className="rounded-full border border-costa-borde bg-costa-superficie px-3 py-1 text-xs font-semibold text-costa-navy hover:bg-costa-esmeralda-suave">
+                      {m.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Liquidación del depósito (lo que mostraba "Pasados") */}
+              {liq && (
+                <div className="rounded-lg bg-costa-arena/60 px-3 py-2">
+                  <p className="mb-1 text-xs font-semibold text-costa-gris">Liquidación · {formatFecha(liq.fecha_liquidacion)}</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-sm">
+                    <span className="text-costa-gris">Depósito recibido <b className="block text-costa-navy tabular-nums">{formatMonto(liq.deposito_recibido || 0, 'USD')}</b></span>
+                    <span className="text-costa-gris">Luz excedente <b className="block text-costa-navy tabular-nums">{liq.consumo_energia ? formatMonto(liq.consumo_energia, 'ARS') : '–'}</b></span>
+                    <span className="text-costa-gris">Roturas y otros <b className="block text-costa-navy tabular-nums">{(liq.roturas || 0) + (liq.otros_descuentos || 0) ? formatMonto((liq.roturas || 0) + (liq.otros_descuentos || 0), 'ARS') : '–'}</b></span>
+                    <span className="text-costa-gris">Cotización <b className="block text-costa-navy tabular-nums">{liq.cotizacion_dolar ? formatMonto(liq.cotizacion_dolar, 'ARS') : '–'}</b></span>
+                    <span className="text-costa-gris">Devuelto <b className="block text-costa-olivo tabular-nums">{formatMonto(liq.monto_devolver || 0, 'USD')}</b></span>
+                  </div>
+                  {liq.notas && <p className="mt-1 text-xs text-costa-gris">{liq.notas}</p>}
+                </div>
+              )}
+
+              <div className="border-t border-costa-borde/70 pt-3">
+                <p className="mb-1 text-xs font-semibold text-costa-gris">Pagos</p>
+                {cobrosR.length === 0 ? (
+                  <p className="text-sm text-costa-gris">Todavía no hay pagos.</p>
+                ) : (
+                  <ul className="text-sm">
+                    {cobrosR.map(c => (
+                      <li key={c.id} className="flex items-center gap-3 border-b border-costa-borde/50 py-1.5 last:border-0">
+                        <span className="w-24 shrink-0 tabular-nums text-costa-gris">{formatFecha(c.fecha)}</span>
+                        <span className="flex-1 min-w-0 truncate text-costa-navy">{conceptosCobro[c.concepto] || 'Pago'}<span className="text-xs text-costa-gris"> · {mediosCobro[c.medio_pago] || c.medio_pago}{c.aplicar_a === 'deposito' ? ' · depósito' : ''}</span></span>
+                        <span className={`shrink-0 font-semibold tabular-nums ${c.concepto === 'devolucion_sena' ? 'text-red-700' : c.aplicar_a === 'deposito' ? 'text-costa-gris' : 'text-costa-olivo'}`}>{c.concepto === 'devolucion_sena' ? '− ' : ''}{formatMonto(c.monto, c.moneda)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-        </>
-      )}
+          )
+        }
+
+        return (
+          <>
+            {/* Números del filtro, en un renglón */}
+            <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-costa-gris">
+              <span><b className="text-costa-navy">{reservasResumen.length}</b> reserva{reservasResumen.length !== 1 ? 's' : ''}</span>
+              <span>Total <b className="text-costa-navy tabular-nums">{montosTexto(resumen.total) || 'U$D 0'}</b></span>
+              <span>Cobrado <b className="text-costa-olivo tabular-nums">{montosTexto(resumen.cobrado) || 'U$D 0'}</b></span>
+              <span>Por cobrar <b className="text-amber-700 tabular-nums">{montosTexto(positivos(resumen.saldo)) || 'U$D 0'}</b></span>
+              {pendientes > 0 && <span className="font-semibold text-red-700">{pendientes} sin confirmar · {montosTexto(totalAConfirmar)}</span>}
+              {vista === 'vigentes' && cerradasPeriodo > 0 && <span>· {cerradasPeriodo} cerrada{cerradasPeriodo !== 1 ? 's' : ''} en el período</span>}
+            </div>
+
+            {/* Avisos plegados en una línea */}
+            {avisos.length > 0 && (
+              <div className="mb-3">
+                <button type="button" onClick={() => setAvisosAbiertos(!avisosAbiertos)}
+                  className="flex w-full items-center gap-3 rounded-lg bg-amber-50 px-3 py-2 text-left text-sm text-costa-navy hover:bg-amber-100/70">
+                  <span className="flex-1">
+                    {saldosUrgentes.length > 0 && <b className="text-amber-800">{saldosUrgentes.length} saldo{saldosUrgentes.length !== 1 ? 's' : ''} para cobrar ya</b>}
+                    {saldosUrgentes.length > 0 && sinConfirmar > 0 && ' · '}
+                    {sinConfirmar > 0 && <span>{sinConfirmar} sin confirmar</span>}
+                    {saldosUrgentes.length === 0 && sinConfirmar === 0 && <span>{avisos.length} aviso{avisos.length !== 1 ? 's' : ''}</span>}
+                  </span>
+                  <span className="font-semibold text-costa-esmeralda">{avisosAbiertos ? 'Ocultar avisos ▴' : 'Ver avisos ▾'}</span>
+                </button>
+                {avisosAbiertos && (
+                  <div className="mt-2">
+                    <AvisosCobranza reservas={reservas} cobros={cobros} isDemo={isDemo} linkInfoUtil={URL_INFO_UTIL} onEditar={openModal} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {lista.length === 0 ? (
+              <Card><CardContent className="py-12 text-center text-costa-gris">No hay reservas {vista} para este filtro</CardContent></Card>
+            ) : (
+              <div className="grid gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] items-start">
+                {/* Lista por fecha */}
+                <div className="overflow-hidden rounded-xl border border-costa-borde bg-costa-superficie">
+                  <div className="flex justify-between border-b border-costa-borde px-4 py-2 text-xs font-semibold text-costa-gris">
+                    <span>Por fecha de ingreso</span><span>{vista === 'cerradas' ? 'Total' : 'Saldo'}</span>
+                  </div>
+                  <ul>
+                    {lista.map(r => {
+                      const activa = elegida?.id === r.id
+                      const ini = parseFechaLocal(r.fecha_inicio)
+                      const { total, saldo } = montosReserva(r, cobros)
+                      const monto = vista === 'cerradas' || r.estado === 'pendiente' ? total : positivos(saldo)
+                      return (
+                        <li key={r.id} className="border-b border-costa-borde/60 last:border-0">
+                          <button type="button" onClick={() => setReservaSel(r.id)}
+                            className={`flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors ${activa ? 'bg-costa-esmeralda-suave shadow-[inset_3px_0_0_var(--costa-esmeralda)]' : 'hover:bg-costa-arena/60'}`}>
+                            <span className="w-12 shrink-0 rounded-lg border border-costa-borde bg-costa-superficie py-1 text-center leading-none">
+                              <span className="block text-lg font-extrabold text-costa-navy tabular-nums">{ini.getDate()}</span>
+                              <span className="block text-[0.65em] font-bold uppercase tracking-wide text-costa-gris">{ini.toLocaleDateString('es-AR', { month: 'short' }).replace('.', '')}</span>
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className={`block truncate text-sm font-bold ${activa ? 'text-costa-esmeralda' : 'text-costa-navy'}`}>{r.propiedades?.nombre} · {r.inquilinos?.nombre?.trim() || 'Sin titular'}</span>
+                              <span className="block text-xs text-costa-gris tabular-nums">{formatFecha(r.fecha_inicio).slice(0, 5)} → {formatFecha(r.fecha_fin)} · {calcularNoches(r.fecha_inicio, r.fecha_fin)} noches</span>
+                            </span>
+                            <span className="shrink-0 text-right">
+                              <span className={`block text-sm font-bold tabular-nums ${r.estado === 'pendiente' ? 'text-costa-gris' : 'text-costa-navy'}`}>{montosTexto(monto) || '–'}</span>
+                              {etiqueta(r)}
+                            </span>
+                          </button>
+                          {/* En el celular el detalle se abre debajo de la reserva tocada */}
+                          {activa && <div className="border-t border-costa-borde bg-costa-superficie p-4 md:hidden">{detalle(r)}</div>}
+                        </li>
+                      )
+                    })}
+                  </ul>
+                </div>
+
+                {/* Detalle de la reserva elegida */}
+                {elegida && (
+                  <div className="hidden md:block md:sticky md:top-4 rounded-xl border border-costa-borde bg-costa-superficie p-5">
+                    {detalle(elegida)}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {/* Pagos recibidos: lista de reservas a la izquierda y sus pagos a la derecha */}
       {vista === 'pagos' && (() => {
