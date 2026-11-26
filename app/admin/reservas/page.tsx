@@ -1508,6 +1508,16 @@ function ReservasContent() {
         </Button>
       </PageHeader>
 
+      {/* Qué ver: arriba de todo, para que no se mueva al cambiar de vista */}
+      <div className="mb-3 inline-flex rounded-lg border border-costa-borde bg-costa-superficie p-1 shadow-sm" role="group" aria-label="Qué reservas ver">
+        {([['vigentes', 'Vigentes'], ['cerradas', 'Cerradas'], ['pagos', 'Pagos recibidos']] as const).map(([v, label]) => (
+          <button key={v} type="button" onClick={() => setVista(v)} aria-pressed={vista === v}
+            className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${vista === v ? 'bg-costa-esmeralda text-white shadow-sm' : 'text-costa-gris hover:text-costa-navy hover:bg-costa-arena'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
       {vista === 'vigentes' && (
         <AvisosCobranza reservas={reservas} cobros={cobros} isDemo={isDemo} linkInfoUtil={URL_INFO_UTIL} onEditar={openModal} />
       )}
@@ -1516,17 +1526,6 @@ function ReservasContent() {
       <Card className="mb-3">
         <CardContent className="py-3">
           <div className="flex flex-wrap items-end gap-3">
-            <div className="space-y-0.5">
-              <span className="block text-xs font-medium text-costa-navy">Ver</span>
-              <div className="inline-flex rounded-lg border border-costa-borde bg-costa-arena p-0.5" role="group" aria-label="Qué reservas ver">
-                {([['vigentes', 'Vigentes'], ['cerradas', 'Cerradas'], ['pagos', 'Pagos']] as const).map(([v, label]) => (
-                  <button key={v} type="button" onClick={() => setVista(v)} aria-pressed={vista === v}
-                    className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${vista === v ? 'bg-costa-superficie text-costa-esmeralda shadow-sm' : 'text-costa-gris hover:text-costa-navy'}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
             <label className="space-y-0.5">
               <span className="block text-xs font-medium text-costa-navy">Casa</span>
               <select
