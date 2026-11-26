@@ -50,6 +50,21 @@ function precioDelDia(reglas: PriceRule[], iso: string, dow: number): PriceRule 
   return mejor
 }
 
+// Orden fijo de la tabla de tramos, según el nombre
+function ordenTramo(nombre: string): number {
+  const n = nombre.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  if (n.includes('fiesta')) return 0
+  if (n.includes('alta') || n.includes('enero')) return 1
+  if (n.includes('feb') && /(1|primera)/.test(n)) return 2
+  if (n.includes('feb') && /(2|segunda)/.test(n)) return 3
+  if (n.includes('feb')) return 3.5
+  if (n.includes('santa')) return 4
+  if (n.includes('carnaval')) return 5
+  if (n.includes('baja')) return 7
+  if (n.includes('feriado') || n.includes('fds') || n.includes('finde') || n.includes('fin de semana') || n.includes('largo')) return 6
+  return 6.5
+}
+
 export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onCambio, version = 0 }: Props) {
   const hoy = hoyISO()
   const [verCasa, setVerCasa] = useState<string>(casaInicial || 'todas')
@@ -137,8 +152,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
       g.porCasa[r.property_id] = r
       if (r.name.length < g.nombre.length) g.nombre = r.name
     })
-    const maxPrecio = (t: { porCasa: Record<string, PriceRule> }) => Math.max(...Object.values(t.porCasa).map(r => r.price_per_night))
-    return [...grupos.values()].sort((a, b) => maxPrecio(b) - maxPrecio(a))
+    return [...grupos.values()].sort((a, b) => ordenTramo(a.nombre) - ordenTramo(b.nombre) || a.desde.localeCompare(b.desde))
   }, [reglas, cicloDesde, cicloHasta])
 
   // Reglas que de verdad ponen el precio de algún día del mes visto
@@ -363,7 +377,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
         <div className="rounded-2xl border border-costa-borde bg-costa-superficie p-4 space-y-4">
           <div>
             <h4 className="text-sm font-bold text-costa-esmeralda">Precios por tramo</h4>
-            <p className="text-xs text-costa-gris mb-2">De marzo {anioCiclo} a febrero {anioCiclo + 1}, de mayor a menor precio, en U$D por noche. Cambiá el número y se guarda solo; los casilleros punteados no tienen precio todavía. Resaltados, los que caen en {MESES[mes].toLowerCase()}.</p>
+            <p className="text-xs text-costa-gris mb-2">De marzo {anioCiclo} a febrero {anioCiclo + 1}, en U$D por noche. Cambiá el número y se guarda solo; los casilleros punteados no tienen precio todavía. Resaltados, los que caen en {MESES[mes].toLowerCase()}.</p>
             {tramos.length === 0 ? (
               <p className="text-xs text-costa-gris py-3">No hay precios cargados para este año. Probá con “Copiar de la temporada anterior”.</p>
             ) : (
