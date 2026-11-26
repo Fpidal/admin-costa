@@ -12,10 +12,11 @@ import { demoInquilinos } from '@/lib/demoData'
 
 interface Reserva {
   id: number
-  check_in: string
-  check_out: string
-  monto: number
-  precio_noche: number
+  inquilino_id?: string
+  fecha_inicio: string
+  fecha_fin: string
+  precio_noche: number | null
+  moneda: string | null
   estado: string
   propiedades?: { nombre: string; lote: string | null; direccion: string | null }
 }
@@ -193,8 +194,10 @@ function InquilinosContent() {
     // Luego traemos las reservas por separado
     const { data: reservasData } = await supabase
       .from('reservas')
-      .select('id, inquilino_id, check_in, check_out, monto, precio_noche, estado, propiedad_id, propiedades(nombre, lote, direccion)')
+      .select('id, inquilino_id, fecha_inicio, fecha_fin, precio_noche, moneda, estado, propiedad_id, propiedades(nombre, lote, direccion)')
       .eq('user_id', userId)
+      .is('eliminado_at', null)
+      .order('fecha_inicio', { ascending: false })
 
     // Combinamos los datos
     const inquilinosConReservas = (inquilinosData || []).map(inquilino => ({
@@ -459,7 +462,7 @@ function InquilinosContent() {
                           {inquilino.reservas && inquilino.reservas.length > 0 ? (
                             <Button variant="ghost" size="sm" onClick={() => openHistorial(inquilino)}>
                               <History size={12} />
-                              <span className="ml-1 text-xs">{inquilino.reservas.length}</span>
+                              <span className="ml-1 text-xs">Ver {inquilino.reservas.length}</span>
                             </Button>
                           ) : (
                             <span className="text-costa-gris text-xs">-</span>
@@ -689,11 +692,15 @@ function InquilinosContent() {
                   <p className="font-medium text-gray-900">{reserva.propiedades?.nombre || 'Propiedad'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}{reserva.propiedades?.direccion ? ` (${reserva.propiedades.direccion})` : ''}</p>
                   <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
                     <Calendar size={14} />
-                    <span>{formatFecha(reserva.check_in)} → {formatFecha(reserva.check_out)}</span>
+                    <span>{formatFecha(reserva.fecha_inicio)} → {formatFecha(reserva.fecha_fin)}</span>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold text-gray-900">{formatMonto(reserva.monto)}</p>
+                  <p className="font-semibold text-gray-900">{(() => {
+                    const noches = Math.max(0, Math.round((new Date(reserva.fecha_fin).getTime() - new Date(reserva.fecha_inicio).getTime()) / 86400000))
+                    const total = noches * (reserva.precio_noche || 0)
+                    return total ? `${reserva.moneda === 'USD' ? 'U$D' : '$'} ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(total)}` : '—'
+                  })()}</p>
                   <Badge variant={reserva.estado === 'confirmada' ? 'success' : reserva.estado === 'cancelada' ? 'danger' : 'warning'}>
                     {reserva.estado}
                   </Badge>
