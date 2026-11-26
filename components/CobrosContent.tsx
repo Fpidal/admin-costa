@@ -599,7 +599,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     const pageWidth = doc.internal.pageSize.getWidth()
     const margin = 20
 
-    doc.setFillColor(30, 58, 95)
+    doc.setFillColor(20, 80, 76)
     doc.rect(0, 0, pageWidth, 40, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(24)
@@ -611,7 +611,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     doc.text(`N° 001-${numRecibo}`, pageWidth - margin, 35, { align: 'right' })
 
     let y = 55
-    doc.setTextColor(30, 58, 95)
+    doc.setTextColor(20, 80, 76)
     doc.setFontSize(11)
 
     doc.setFont('helvetica', 'bold')

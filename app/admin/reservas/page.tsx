@@ -732,8 +732,8 @@ function ReservasContent() {
     const esCotizacion = reserva.estado === 'pendiente'
 
     // Colores - Paleta náutica costa
-    const azulPrincipal = { r: 30, g: 58, b: 95 }  // costa-navy #1e3a5f
-    const celesteClaro = { r: 245, g: 235, b: 224 }  // costa-beige #f5ebe0
+    const azulPrincipal = { r: 20, g: 80, b: 76 }  // costa-esmeralda #14504c
+    const celesteClaro = { r: 244, g: 238, b: 230 }  // costa-arena #f4eee6
 
     // Datos de la propiedad: el barrio y el lote salen de la ficha, no de un if
     const nombrePropiedad = reserva.propiedades?.nombre || 'Propiedad'
@@ -1117,7 +1117,7 @@ function ReservasContent() {
     doc.text('Para teléfonos útiles, servicios, emergencias y contactos del barrio:', 20, y)
     y += 4
     doc.setFont('helvetica', 'normal')
-    doc.setTextColor(30, 100, 180)
+    doc.setTextColor(29, 99, 94)
     doc.textWithLink(URL_INFO_UTIL, 20, y, { url: URL_INFO_UTIL })
 
     y += 5
@@ -1126,7 +1126,7 @@ function ReservasContent() {
     doc.text('Actividades, novedades y servicios de Costa Esmeralda:', 20, y)
     y += 4
     doc.setFont('helvetica', 'normal')
-    doc.setTextColor(30, 100, 180)
+    doc.setTextColor(29, 99, 94)
     doc.textWithLink(URL_COSTA, 20, y, { url: URL_COSTA })
 
     // ===== PIE (en cada hoja) =====
@@ -1162,7 +1162,7 @@ function ReservasContent() {
     // ID corto para el nombre del archivo
     const idCorto = String(reserva.id).slice(-6).toUpperCase()
 
-    const azulNavy = { r: 30, g: 58, b: 95 }
+    const azulNavy = { r: 20, g: 80, b: 76 }
 
     // Datos calculados
     // Sin centavos: el precio por noche puede tener decimales, y el saldo sale

@@ -40,13 +40,13 @@ interface CobroReporte {
 }
 
 type RGB = [number, number, number]
-const NAVY: RGB = [30, 58, 95]
-const GRIS: RGB = [107, 124, 147]
+const NAVY: RGB = [20, 80, 76] // esmeralda del panel
+const GRIS: RGB = [107, 116, 113]
 const OLIVO: RGB = [92, 107, 74]
 const CORAL: RGB = [201, 104, 74]
 const ROJO: RGB = [220, 38, 38]
-const BEIGE: RGB = [245, 235, 224]
-const BEIGE_CLARO: RGB = [250, 246, 241]
+const BEIGE: RGB = [244, 238, 230]
+const BEIGE_CLARO: RGB = [251, 248, 243]
 
 const PILL: Record<string, { fondo: RGB; texto: RGB }> = {
   confirmada: { fondo: [230, 236, 223], texto: OLIVO },

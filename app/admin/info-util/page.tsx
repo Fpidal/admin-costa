@@ -364,7 +364,7 @@ export default function InfoUtilPage() {
     let y = margin
 
     // Encabezado
-    doc.setFillColor(26, 42, 58) // costa-navy
+    doc.setFillColor(15, 62, 59) // esmeralda oscuro
     doc.rect(0, 0, pageWidth, 45, 'F')
 
     doc.setTextColor(255, 255, 255)
@@ -379,7 +379,7 @@ export default function InfoUtilPage() {
     y = 55
 
     // Encabezado de tabla
-    doc.setFillColor(30, 58, 95) // costa-navy
+    doc.setFillColor(20, 80, 76) // costa-esmeralda
     doc.rect(margin, y, contentWidth, 10, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(9)
@@ -401,7 +401,7 @@ export default function InfoUtilPage() {
         y = margin
 
         // Repetir encabezado de tabla
-        doc.setFillColor(30, 58, 95)
+        doc.setFillColor(20, 80, 76)
         doc.rect(margin, y, contentWidth, 10, 'F')
         doc.setTextColor(255, 255, 255)
         doc.setFontSize(9)
