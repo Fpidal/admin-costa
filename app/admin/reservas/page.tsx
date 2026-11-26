@@ -7,11 +7,10 @@ import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock, AlertTriangle, Download, MessageCircle } from 'lucide-react'
+import { Plus, Calendar, Pencil, Trash2, Users, X, ChevronDown, ChevronUp, Check, Zap, FileText, FileSignature, Wallet, AlertTriangle, Download, MessageCircle } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
-import { CobrosContent } from '@/components/CobrosContent'
 import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
 import { montosReserva, sumarMontos, monedasCon, filtrarReservas, describirPeriodo, temporadaDe, temporadaActual, etiquetaTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
@@ -279,8 +278,9 @@ function ReservasContent() {
   const isDemo = searchParams.get('demo') === 'true'
   const { userId } = useAuth()
 
-  const [activeTab, setActiveTab] = useState<'reservas' | 'cobros' | 'gestion' | 'pasados'>('reservas')
-  const [selectedReservaId, setSelectedReservaId] = useState<string | null>(null)
+  // Una sola lista: vigentes, cerradas (antes "Pasados") o los pagos recibidos
+  // (antes "Cobros"). La gestión de cada reserva vive en su ficha de cobros
+  const [vista, setVista] = useState<'vigentes' | 'cerradas' | 'pagos'>('vigentes')
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cobros, setCobros] = useState<Cobro[]>([])
   const [liquidaciones, setLiquidaciones] = useState<Liquidacion[]>([])
@@ -1420,18 +1420,19 @@ function ReservasContent() {
     doc.save(`Contrato_001-${idCorto}_${locatario.nombre.replace(/\s/g, '_')}.pdf`)
   }
 
-  // La pestaña Cobros muestra solo los alquileres abiertos: los cerrados se
-  // ven con sus cobros en Pasados
-  const idsCerradas = new Set(reservas.filter(r => r.estado === 'cerrada').map(r => r.id))
-  const cobrosAbiertos = cobros.filter(c => !idsCerradas.has(c.reserva_id))
-
   // Reservas del filtro. Los recuadros suman lo mismo que muestra la tabla:
   // las vigentes, sin canceladas. El PDF lista además las cerradas del
   // período, cada una con su fila, así un año o temporada pasada sale completo
   const reservasFiltradas = filtrarReservas(reservas, filtro)
   const reservasReporte = reservasFiltradas.filter(r => r.estado !== 'cancelada')
-  const reservasResumen = reservasReporte.filter(r => r.estado !== 'cerrada')
-  const cerradasPeriodo = reservasReporte.length - reservasResumen.length
+  // Vigentes o cerradas según lo que se esté viendo
+  const enVista = (r: Reserva) => vista === 'cerradas' ? r.estado === 'cerrada' : r.estado !== 'cerrada'
+  const reservasResumen = reservasReporte.filter(enVista)
+  const cerradasPeriodo = reservasReporte.filter(r => r.estado === 'cerrada').length
+  const reservasLista = reservasFiltradas.filter(enVista)
+  // Pagos de las reservas del filtro (vigentes y cerradas)
+  const idsFiltradas = new Set(reservasFiltradas.map(r => r.id))
+  const cobrosVista = cobros.filter(c => idsFiltradas.has(c.reserva_id))
   // Total y pendiente de cobro cuentan solo lo confirmado; lo que falta
   // confirmar se muestra aparte, en rojo, bajo el total
   const montosResumen = reservasResumen.filter(r => r.estado !== 'pendiente').map(r => montosReserva(r, cobros))
@@ -1501,68 +1502,31 @@ function ReservasContent() {
   return (
     <div className="vista-compacta">
       <PageHeader title="Reservas" description="Administra las reservas de tus propiedades">
-        {activeTab === 'reservas' && (
-          <Button onClick={() => openModal()}>
-            <Plus size={18} />
-            Nueva Reserva
-          </Button>
-        )}
+        <Button onClick={() => openModal()}>
+          <Plus size={18} />
+          Nueva Reserva
+        </Button>
       </PageHeader>
 
-      {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-costa-beige/50 p-1 rounded-lg w-fit max-w-full overflow-x-auto whitespace-nowrap">
-        <button
-          onClick={() => setActiveTab('reservas')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'reservas'
-              ? 'bg-white text-costa-navy shadow-sm'
-              : 'text-costa-gris hover:text-costa-navy'
-          }`}
-        >
-          Reservas
-        </button>
-        <button
-          onClick={() => setActiveTab('cobros')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-            activeTab === 'cobros'
-              ? 'bg-white text-costa-navy shadow-sm'
-              : 'text-costa-gris hover:text-costa-navy'
-          }`}
-        >
-          Cobros
-        </button>
-        <button
-          onClick={() => setActiveTab('gestion')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'gestion'
-              ? 'bg-white text-costa-navy shadow-sm'
-              : 'text-costa-gris hover:text-costa-navy'
-          }`}
-        >
-          <Wallet size={16} />
-          Gestión de Cobros
-        </button>
-        <button
-          onClick={() => setActiveTab('pasados')}
-          className={`px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'pasados'
-              ? 'bg-white text-costa-navy shadow-sm'
-              : 'text-costa-gris hover:text-costa-navy'
-          }`}
-        >
-          <Archive size={16} />
-          Pasados
-        </button>
-      </div>
-
-      {activeTab === 'reservas' && (
-        <>
-      <AvisosCobranza reservas={reservas} cobros={cobros} isDemo={isDemo} linkInfoUtil={URL_INFO_UTIL} onEditar={openModal} />
+      {vista === 'vigentes' && (
+        <AvisosCobranza reservas={reservas} cobros={cobros} isDemo={isDemo} linkInfoUtil={URL_INFO_UTIL} onEditar={openModal} />
+      )}
 
       {/* Filtro: casa y período */}
       <Card className="mb-3">
         <CardContent className="py-3">
           <div className="flex flex-wrap items-end gap-3">
+            <div className="space-y-0.5">
+              <span className="block text-xs font-medium text-costa-navy">Ver</span>
+              <div className="inline-flex rounded-lg border border-costa-borde bg-costa-arena p-0.5" role="group" aria-label="Qué reservas ver">
+                {([['vigentes', 'Vigentes'], ['cerradas', 'Cerradas'], ['pagos', 'Pagos']] as const).map(([v, label]) => (
+                  <button key={v} type="button" onClick={() => setVista(v)} aria-pressed={vista === v}
+                    className={`px-3 py-1 rounded-md text-sm font-semibold transition-colors ${vista === v ? 'bg-costa-superficie text-costa-esmeralda shadow-sm' : 'text-costa-gris hover:text-costa-navy'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <label className="space-y-0.5">
               <span className="block text-xs font-medium text-costa-navy">Casa</span>
               <select
@@ -1621,12 +1585,14 @@ function ReservasContent() {
             </div>
           </div>
           <p className="text-xs text-costa-gris mt-2">
-            {casasFiltro} · {describirPeriodo(filtro)} · reservas vigentes cuyo ingreso cae en el período
-            {cerradasPeriodo > 0 && ` · ${cerradasPeriodo} cerrada${cerradasPeriodo !== 1 ? 's' : ''} en Pasados (también sale${cerradasPeriodo !== 1 ? 'n' : ''} en el reporte PDF)`}
+            {casasFiltro} · {describirPeriodo(filtro)} · {vista === 'pagos' ? 'pagos de las reservas cuyo ingreso cae en el período' : `reservas ${vista} cuyo ingreso cae en el período`}
+            {vista === 'vigentes' && cerradasPeriodo > 0 && ` · ${cerradasPeriodo} cerrada${cerradasPeriodo !== 1 ? 's' : ''} en "Cerradas" (también sale${cerradasPeriodo !== 1 ? 'n' : ''} en el reporte PDF)`}
           </p>
         </CardContent>
       </Card>
 
+      {vista !== 'pagos' && (
+        <>
       {/* Resumen del filtro */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <Card>
@@ -1666,12 +1632,12 @@ function ReservasContent() {
 
       {/* Vista móvil - Cards */}
       <div className="sm:hidden space-y-3">
-        {reservasFiltradas.filter(r => r.estado !== 'cerrada').length === 0 ? (
+        {reservasLista.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-gray-500">No hay reservas para este filtro</CardContent>
           </Card>
         ) : (
-          reservasFiltradas.filter(r => r.estado !== 'cerrada').map((reserva) => {
+          reservasLista.map((reserva) => {
             const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
             // Mismo cálculo que la tabla: servicios incluidos y por moneda
             const { total, cobrado, saldo } = montosReserva(reserva, cobros)
@@ -1757,9 +1723,9 @@ function ReservasContent() {
 
       {/* Vista desktop - Tabla */}
       <Card className="hidden sm:block">
-        <CardHeader><CardTitle>Todas las reservas</CardTitle></CardHeader>
+        <CardHeader><CardTitle>{vista === 'cerradas' ? 'Reservas cerradas' : 'Reservas vigentes'}</CardTitle></CardHeader>
         <CardContent className="p-0">
-          {reservasFiltradas.filter(r => r.estado !== 'cerrada').length === 0 ? (
+          {reservasLista.length === 0 ? (
             <div className="py-12 text-center text-gray-500">No hay reservas para este filtro</div>
           ) : (
             <div className="overflow-x-auto">
@@ -1776,7 +1742,7 @@ function ReservasContent() {
                     <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Estado</th>
                   </tr>
                 </thead>
-                {reservasFiltradas.filter(r => r.estado !== 'cerrada').map((reserva) => {
+                {reservasLista.map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
                     // El total incluye los servicios, para que el saldo sea el real.
                     // Si están en otra moneda se muestra una línea por moneda.
@@ -1897,29 +1863,28 @@ function ReservasContent() {
         </>
       )}
 
-      {/* Tab Cobros */}
-      {activeTab === 'cobros' && (
+      {/* Pagos recibidos de las reservas del filtro, agrupados por reserva */}
+      {vista === 'pagos' && (
         <Card>
           <CardHeader>
-            <CardTitle>Cobros de alquileres abiertos</CardTitle>
+            <CardTitle>Pagos recibidos</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            {cobrosAbiertos.length === 0 ? (
-              <div className="py-8 text-center text-gray-500">No hay cobros de alquileres abiertos</div>
+            {cobrosVista.length === 0 ? (
+              <div className="py-8 text-center text-gray-500">No hay pagos para este filtro</div>
             ) : (
               <div className="divide-y divide-costa-beige">
                 {/* Agrupar cobros por reserva_id */}
                 {Object.entries(
-                  cobrosAbiertos.reduce((acc, cobro) => {
+                  cobrosVista.reduce((acc, cobro) => {
                     const key = cobro.reserva_id
                     if (!acc[key]) acc[key] = []
                     acc[key].push(cobro)
                     return acc
                   }, {} as Record<number, Cobro[]>)
                 ).map(([reservaId, cobrosList]) => {
-                  const firstCobro = cobrosList[0]
+                  const reservaPago = reservas.find(r => String(r.id) === String(reservaId))
                   const isExpanded = expandedReservas.has(reservaId)
-                  const numReserva = String(reservaId).slice(-6).toUpperCase()
                   const liquidacionReserva = liquidaciones.find(l => String(l.reserva_id) === String(reservaId))
                   const cotizReserva = liquidacionReserva?.cotizacion_dolar || 0
 
@@ -1950,14 +1915,17 @@ function ReservasContent() {
                         </div>
                         <div className="flex-1 flex items-center gap-4 min-w-0">
                           <span className="font-medium text-costa-navy truncate">
-                            {firstCobro.reservas?.inquilinos?.nombre || '-'}
+                            {reservaPago?.inquilinos?.nombre?.trim() || '-'}
                           </span>
                           <span className="text-xs text-costa-gris hidden sm:inline">
-                            {firstCobro.reservas?.propiedades?.nombre}
+                            {reservaPago?.propiedades?.nombre}
                           </span>
-                          <span className="text-xs text-costa-gris/70">
-                            #{numReserva}
-                          </span>
+                          {reservaPago && (
+                            <span className="text-xs text-costa-gris tabular-nums hidden sm:inline">
+                              {formatFecha(reservaPago.fecha_inicio)} → {formatFecha(reservaPago.fecha_fin)}
+                            </span>
+                          )}
+                          {reservaPago?.estado === 'cerrada' && <span className="text-xs rounded-full bg-costa-arena px-2 py-0.5 text-costa-gris">cerrada</span>}
                         </div>
                         <div className="flex items-center gap-3">
                           <span className="text-xs text-costa-gris">
@@ -2012,241 +1980,6 @@ function ReservasContent() {
             )}
           </CardContent>
         </Card>
-      )}
-
-      {/* Tab Gestión de Cobros */}
-      {activeTab === 'gestion' && (
-        <div className="space-y-4">
-          {!selectedReservaId ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Seleccionar Reserva</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-costa-gris mb-4">Seleccioná una reserva para gestionar sus cobros:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {reservas.filter(r => r.estado !== 'cancelada' && r.estado !== 'cerrada').map((reserva) => {
-                    const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-                    const total = noches * (reserva.precio_noche || 0)
-                    const cobradoAlquiler = cobros
-                      .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
-                      .reduce((acc, c) => acc + (c.monto || 0), 0)
-                    const saldo = total - cobradoAlquiler
-
-                    return (
-                      <button
-                        key={reserva.id}
-                        onClick={() => setSelectedReservaId(String(reserva.id))}
-                        className="text-left p-4 border border-costa-beige rounded-lg hover:border-costa-navy hover:bg-costa-beige/30 transition-all"
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div>
-                            <p className="font-medium text-costa-navy">{reserva.inquilinos?.nombre || 'Sin inquilino'}</p>
-                            <p className="text-xs text-costa-gris">{reserva.propiedades?.nombre}</p>
-                          </div>
-                          <Badge variant={estadoVariant[reserva.estado as keyof typeof estadoVariant] || 'default'} className="text-xs">
-                            {reserva.estado}
-                          </Badge>
-                        </div>
-                        <div className="text-xs text-costa-gris mb-2">
-                          {formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)} ({noches}n)
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-costa-gris">Saldo:</span>
-                          <span className={saldo > 0 ? 'font-semibold text-amber-600' : 'text-costa-olivo'}>
-                            {formatMonto(saldo, reserva.moneda)}
-                          </span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div>
-              <button
-                onClick={() => setSelectedReservaId(null)}
-                className="mb-4 text-sm text-costa-gris hover:text-costa-navy flex items-center gap-1"
-              >
-                ← Volver a seleccionar reserva
-              </button>
-              <CobrosContent reservaId={selectedReservaId} showNavigation={false} showHeader={true} />
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab Pasados */}
-      {activeTab === 'pasados' && (
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Archive size={20} />
-                Alquileres Cerrados
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {reservas.filter(r => r.estado === 'cerrada').length === 0 ? (
-                <p className="text-center text-costa-gris py-8">No hay alquileres cerrados</p>
-              ) : (
-                <div className="space-y-2">
-                  {reservas.filter(r => r.estado === 'cerrada').map((reserva) => {
-                    const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-                    const totalAlquiler = noches * (reserva.precio_noche || 0)
-                    const moneda = reserva.moneda || 'USD'
-                    const isExpanded = expandedReservas.has(String(reserva.id))
-
-                    // Cobros por categoría
-                    const cobrosReserva = cobros.filter(c => c.reserva_id === reserva.id)
-                    const cobradoAlquiler = cobrosReserva
-                      .filter(c => c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
-                      .reduce((acc, c) => acc + (c.monto || 0), 0)
-                    const cobradoLimpieza = cobrosReserva
-                      .filter(c => c.aplicar_a === 'limpieza')
-                      .reduce((acc, c) => acc + (c.monto || 0), 0)
-                    const cobradoLavadero = cobrosReserva
-                      .filter(c => c.aplicar_a === 'lavadero')
-                      .reduce((acc, c) => acc + (c.monto || 0), 0)
-                    const cobradoDeposito = cobrosReserva
-                      .filter(c => c.aplicar_a === 'deposito')
-                      .reduce((acc, c) => acc + (c.monto || 0), 0)
-
-                    // Liquidación
-                    const liquidacion = liquidaciones.find(l => l.reserva_id === reserva.id)
-
-                    return (
-                      <div key={reserva.id} className="border border-costa-beige rounded-lg bg-gray-50/50 overflow-hidden">
-                        {/* Fila compacta clickeable */}
-                        <button
-                          onClick={() => {
-                            const newExpanded = new Set(expandedReservas)
-                            if (isExpanded) {
-                              newExpanded.delete(String(reserva.id))
-                            } else {
-                              newExpanded.add(String(reserva.id))
-                            }
-                            setExpandedReservas(newExpanded)
-                          }}
-                          className="w-full p-3 flex items-center justify-between hover:bg-costa-beige/30 transition-colors text-left"
-                        >
-                          <div className="flex items-center gap-4 flex-1">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-costa-navy truncate">
-                                {reserva.propiedades?.nombre || '-'}{reserva.propiedades?.lote ? ` - Lote ${reserva.propiedades.lote}` : ''}
-                              </p>
-                              <p className="text-sm text-costa-gris truncate">{reserva.inquilinos?.nombre || '-'}</p>
-                            </div>
-                            <div className="hidden md:block text-sm text-costa-gris">
-                              {formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}
-                            </div>
-                            <div className="text-sm">
-                              <span className="text-costa-gris">{noches}n</span>
-                            </div>
-                            <div className="text-sm font-medium text-costa-navy">
-                              {formatMonto(totalAlquiler, moneda)}
-                            </div>
-                          </div>
-                          {isExpanded ? <ChevronUp size={20} className="text-costa-gris" /> : <ChevronDown size={20} className="text-costa-gris" />}
-                        </button>
-
-                        {/* Detalle expandido */}
-                        {isExpanded && (
-                          <div className="p-4 border-t border-costa-beige bg-white space-y-3">
-                            {/* Fila 1: Período, Noches, Personas, Precio/noche, Total */}
-                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                              <div>
-                                <p className="text-xs text-costa-gris">Período</p>
-                                <p className="text-costa-navy font-medium">{formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-costa-gris">Noches</p>
-                                <p className="text-costa-navy font-medium">{noches}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-costa-gris">Personas</p>
-                                <p className="text-costa-navy font-medium">{reserva.cantidad_personas || 1}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-costa-gris">Precio/noche</p>
-                                <p className="text-costa-navy font-medium">{formatMonto(reserva.precio_noche || 0, moneda)}</p>
-                              </div>
-                              <div>
-                                <p className="text-xs text-costa-gris">Total</p>
-                                <p className="text-costa-navy font-medium">{formatMonto(totalAlquiler, moneda)}</p>
-                              </div>
-                            </div>
-
-                            {/* Fila 2: Limpieza, Lavadero, Electricidad, Cotización, Depósito */}
-                            {(() => {
-                              const cotiz = liquidacion?.cotizacion_dolar || 0
-                              return (
-                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm pt-3 border-t border-costa-beige">
-                                  <div>
-                                    <p className="text-xs text-costa-gris">Limpieza final</p>
-                                    <p className="text-costa-navy font-medium">
-                                      {formatMonto(reserva.limpieza_final || 0, reserva.moneda_limpieza || 'ARS')}
-                                      {cotiz > 0 && (reserva.limpieza_final || 0) > 0 && (reserva.moneda_limpieza || 'ARS') === 'ARS' && (
-                                        <span className="text-xs text-costa-gris font-normal ml-1">
-                                          ({formatMonto((reserva.limpieza_final || 0) / cotiz, 'USD')})
-                                        </span>
-                                      )}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-costa-gris">Lavadero</p>
-                                    <p className="text-costa-navy font-medium">
-                                      {formatMonto(reserva.monto_lavadero || 0, reserva.moneda_lavadero || 'ARS')}
-                                      {cotiz > 0 && (reserva.monto_lavadero || 0) > 0 && (reserva.moneda_lavadero || 'ARS') === 'ARS' && (
-                                        <span className="text-xs text-costa-gris font-normal ml-1">
-                                          ({formatMonto((reserva.monto_lavadero || 0) / cotiz, 'USD')})
-                                        </span>
-                                      )}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-costa-gris">Electricidad</p>
-                                    <p className={`font-medium ${liquidacion?.consumo_energia ? 'text-costa-coral' : 'text-costa-navy'}`}>
-                                      {liquidacion?.consumo_energia ? `-${formatMonto(liquidacion.consumo_energia, 'ARS')}` : formatMonto(0, 'ARS')}
-                                      {cotiz > 0 && (liquidacion?.consumo_energia || 0) > 0 && (
-                                        <span className="text-xs text-costa-gris font-normal ml-1">
-                                          (-{formatMonto((liquidacion?.consumo_energia || 0) / cotiz, 'USD')})
-                                        </span>
-                                      )}
-                                    </p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-costa-gris">Cotización USD</p>
-                                    <p className="text-costa-navy font-medium">{formatMonto(cotiz, 'ARS')}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-xs text-costa-gris">Depósito</p>
-                                    <p className="text-costa-navy font-medium">{formatMonto(cobradoDeposito, moneda)}</p>
-                                  </div>
-                                </div>
-                              )
-                            })()}
-
-                            {/* Eliminar: manda a la Papelera, igual que en Reservas */}
-                            <div className="flex justify-end pt-3 border-t border-costa-beige">
-                              <button
-                                onClick={() => handleDelete(reserva.id)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-coral border border-costa-coral/30 hover:bg-costa-coral/10 transition-colors"
-                              >
-                                <Trash2 size={13} /> Eliminar
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
       )}
 
       {/* Modal */}

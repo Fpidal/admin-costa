@@ -580,7 +580,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     if (error) {
       alert('Error al cerrar alquiler: ' + error.message)
     } else {
-      alert('Alquiler cerrado correctamente. Lo encontrarás en la solapa "Pasados".')
+      alert('Alquiler cerrado correctamente. Lo encontrás en Reservas, eligiendo "Cerradas".')
       window.location.href = '/admin/reservas'
     }
   }
