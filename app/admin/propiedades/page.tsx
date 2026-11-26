@@ -11,7 +11,6 @@ import { Card, CardContent, Button, Badge, Modal, Input, Select, Textarea, Input
 import { Plus, MapPin, Bed, Bath, Car, Upload, X, Star, ChevronLeft, ChevronRight, Waves, Snowflake, Flame, Zap, Ruler, ThermometerSun, LandPlot, Calendar, Search, Wifi, WashingMachine, UtensilsCrossed, DollarSign, AlertTriangle, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { CalendarioPreciosCasas } from '@/components/CalendarioPreciosCasas'
-import { PanelReglasPrecios } from '@/components/PanelReglasPrecios'
 import { PanelFeriados } from '@/components/PanelFeriados'
 import { PriceRule } from '@/lib/priceRules'
 
@@ -1004,42 +1003,6 @@ function PropiedadesContent() {
             <PanelFeriados year={anioPrecios} />
           </div>
 
-          {/* Reglas completas de una casa: para lo que no entra en la tabla (días de la semana, prioridades) */}
-          <details className="rounded-2xl border border-costa-borde bg-costa-superficie p-4 group">
-            <summary className="cursor-pointer text-sm font-bold text-costa-esmeralda">
-              Todas las reglas de una casa (avanzado)
-            </summary>
-            <div className="mt-3 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={selectedPropiedadId || ''}
-                  onChange={(e) => setSelectedPropiedadId(e.target.value || null)}
-                  className="h-9 px-3 text-sm rounded-lg border border-costa-borde bg-white text-costa-esmeralda"
-                >
-                  <option value="">Elegí una casa…</option>
-                  {propiedades.map(p => (
-                    <option key={p.id} value={p.id}>{p.nombre}{p.lote ? ` - Lote ${p.lote}` : ''}</option>
-                  ))}
-                </select>
-                <select value={anioPrecios} onChange={(e) => setAnioPrecios(Number(e.target.value))}
-                  className="h-9 px-3 text-sm rounded-lg border border-costa-borde bg-white text-costa-esmeralda">
-                  {[anioPrecios - 1, anioPrecios, anioPrecios + 1].map(a => <option key={a} value={a}>{a}</option>)}
-                </select>
-                {loadingPrecios && <span className="text-xs text-costa-gris">Cargando…</span>}
-              </div>
-              {selectedPropiedadId && !loadingPrecios && (
-                <PanelReglasPrecios
-                  rules={priceRules}
-                  propertyId={String(selectedPropiedadId)}
-                  year={anioPrecios}
-                  onSave={handleSavePriceRules}
-                  onDelete={handleDeletePriceRule}
-                  onApplyToAll={handleApplyPricesToAll}
-                  saving={savingPrecios}
-                />
-              )}
-            </div>
-          </details>
         </div>
       )}
 

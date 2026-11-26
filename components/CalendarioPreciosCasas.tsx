@@ -62,6 +62,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
   const [selA, setSelA] = useState<string | null>(null)
   const [selB, setSelB] = useState<string | null>(null)
   const [preciosRango, setPreciosRango] = useState<Record<string, string>>({})
+  const [nombreTramo, setNombreTramo] = useState('')
   const [guardando, setGuardando] = useState(false)
   const [aviso, setAviso] = useState('')
 
@@ -193,13 +194,23 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     await cargar(); onCambio?.()
   }
 
+  async function quitarTramo(t: { nombre: string; desde: string; hasta: string; porCasa: Record<string, PriceRule> }) {
+    const ids = casasVisibles.map(c => t.porCasa[String(c.id)]?.id).filter((x): x is string => !!x)
+    if (!ids.length) return
+    if (!window.confirm(`¿Quitar "${t.nombre}" (${dmy(t.desde)} al ${dmy(t.hasta)})${ids.length > 1 ? ' de las dos casas' : ''}?`)) return
+    const { error } = await supabase.from('price_rules').delete().in('id', ids)
+    if (error) { setAviso('No se pudo quitar: ' + error.message); return }
+    setAviso('Tramo quitado')
+    await cargar(); onCambio?.()
+  }
+
   async function aplicarRango() {
     if (!selA || !userId) return
     const hasta = selB || selA
     const filas = casasVisibles
       .filter(c => Number(preciosRango[String(c.id)]) > 0)
       .map(c => ({
-        property_id: String(c.id), name: `Precio especial ${dm(selA)} al ${dm(hasta)}`, category: 'excepcion',
+        property_id: String(c.id), name: nombreTramo.trim() || `Tramo ${dm(selA)} al ${dm(hasta)}`, category: 'alta',
         price_per_night: Number(preciosRango[String(c.id)]), start_date: selA, end_date: hasta,
         applies_to_days: [], min_nights: null, priority: 5, active: true, user_id: userId,
       }))
@@ -208,8 +219,8 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     const { error } = await supabase.from('price_rules').insert(filas)
     setGuardando(false)
     if (error) { setAviso('No se pudo guardar: ' + error.message); return }
-    setAviso('Precio especial guardado')
-    setSelA(null); setSelB(null); setPreciosRango({})
+    setAviso('Tramo guardado')
+    setSelA(null); setSelB(null); setPreciosRango({}); setNombreTramo('')
     await cargar(); onCambio?.()
   }
 
@@ -373,6 +384,9 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                           <span className="block text-[10px] text-costa-gris">
                             {dmy(t.desde)} al {dmy(t.hasta)}{t.dias.length ? ` · solo ${t.dias.join(', ')}` : ''}
                           </span>
+                          {!isDemo && (
+                            <button type="button" onClick={() => quitarTramo(t)} className="text-[10px] text-red-700 hover:underline">Quitar</button>
+                          )}
                         </td>
                         {casasVisibles.map(c => {
                           const r = t.porCasa[String(c.id)]
@@ -399,8 +413,12 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
           </div>
 
           <div className="border-t border-costa-borde pt-3">
-            <h4 className="text-sm font-bold text-costa-esmeralda">Precio especial para días sueltos</h4>
-            <p className="text-xs text-costa-gris mb-2">Elegí las fechas acá, o tocá un día y después otro en el calendario.</p>
+            <h4 className="text-sm font-bold text-costa-esmeralda">Nuevo tramo</h4>
+            <p className="text-xs text-costa-gris mb-2">Por ejemplo "Temporada alta" o un fin de semana largo. Elegí las fechas acá, o tocá un día y después otro en el calendario. Si se superpone con otro tramo, manda este.</p>
+            <label className="block text-xs text-costa-gris mb-2">Nombre
+              <input value={nombreTramo} onChange={e => setNombreTramo(e.target.value)} placeholder="Temporada alta" disabled={isDemo}
+                className="mt-0.5 w-full rounded-md border border-costa-borde bg-white px-2 py-1.5 text-sm text-costa-esmeralda" />
+            </label>
             <div className="grid grid-cols-2 gap-2 mb-2">
               <label className="text-xs text-costa-gris">Desde
                 <input type="date" value={selA || ''} disabled={isDemo}
