@@ -678,7 +678,6 @@ function PropiedadesContent() {
               : 'border-transparent text-costa-gris hover:text-costa-esmeralda'
           }`}
         >
-          <DollarSign size={16} />
           Precios alquileres
         </button>
       </div>

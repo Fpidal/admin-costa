@@ -14,7 +14,7 @@ import { PanelFeriados } from '@/components/PanelFeriados'
 // atajo para ponerle precio especial a un rango de días.
 
 interface Casa { id: string | number; nombre: string; lote?: string | null }
-interface ReservaCal { propiedad_id: string | number; fecha_inicio: string; fecha_fin: string; estado: string }
+interface ReservaCal { propiedad_id: string | number; fecha_inicio: string; fecha_fin: string; estado: string; precio_noche?: number | null; moneda?: string | null }
 
 interface Props {
   casas: Casa[]
@@ -38,7 +38,6 @@ const isoDe = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
 const hoyISO = () => { const h = new Date(); return isoDe(h.getFullYear(), h.getMonth(), h.getDate()) }
-const sumarAnio = (iso: string) => `${Number(iso.slice(0, 4)) + 1}${iso.slice(4)}`
 const corto = (c: Casa) => { const w = c.nombre.trim().split(/\s+/)[0]; return w.length <= 5 ? w : w.slice(0, 3) + '.' }
 
 // Marca de un tramo sin fechas fijas: vale para los fines de semana largos
@@ -113,7 +112,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     const desde = `${Number(hoy.slice(0, 4)) - 2}-01-01`
     const [rr, rs] = await Promise.all([
       supabase.from('price_rules').select('*').in('property_id', ids),
-      supabase.from('reservas').select('propiedad_id, fecha_inicio, fecha_fin, estado')
+      supabase.from('reservas').select('propiedad_id, fecha_inicio, fecha_fin, estado, precio_noche, moneda')
         .in('propiedad_id', ids).in('estado', ['confirmada', 'pendiente', 'cerrada'])
         .is('eliminado_at', null).gte('fecha_fin', desde),
     ])
@@ -187,6 +186,51 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
       return { nombre, desde: ref.start_date, hasta: ref.end_date, dias: ref.applies_to_days || [], porCasa }
     }).sort((a, b) => ordenTramo(a.nombre) - ordenTramo(b.nombre) || a.desde.localeCompare(b.desde))
   }, [reglas, casas, hoy])
+
+  // Temporada de una fecha: del 1/12 al 15/03 (incluye Carnaval); fuera de eso, null
+  const temporadaDeFecha = (iso: string) => {
+    const md = iso.slice(5)
+    const y = Number(iso.slice(0, 4))
+    if (md >= '12-01') return y
+    if (md <= '03-15') return y - 1
+    return null
+  }
+  const porTemporada = useMemo(() => {
+    const temps = new Set<number>()
+    const filas = new Map<string, { nombre: string; orden: number; valores: Record<string, number> }>()
+    reglas.forEach(r => {
+      if (r.applies_to_days?.length) return
+      // Solo tramos de verano: los que duran todo el año (temporada baja) no van
+      if ((new Date(r.end_date).getTime() - new Date(r.start_date).getTime()) / 86400000 > 100) return
+      const t = temporadaDeFecha(r.start_date)
+      if (t === null) return
+      temps.add(t)
+      const orden = ordenTramo(r.name)
+      const k = orden === 6.5 ? r.name : String(orden)
+      if (!filas.has(k)) filas.set(k, { nombre: r.name, orden, valores: {} })
+      const f = filas.get(k)!
+      if (r.name.length < f.nombre.length) f.nombre = r.name
+      f.valores[`${t}|${r.property_id}`] = r.price_per_night
+    })
+    // Lo cobrado: promedio por noche de las reservas en dólares de cada temporada
+    const suma: Record<string, { total: number; noches: number }> = {}
+    reservas.forEach(rv => {
+      if (rv.moneda !== 'USD' || !rv.precio_noche) return
+      const t = temporadaDeFecha(rv.fecha_inicio)
+      if (t === null) return
+      temps.add(t)
+      const noches = Math.max(1, Math.round((new Date(rv.fecha_fin).getTime() - new Date(rv.fecha_inicio).getTime()) / 86400000))
+      const k = `${t}|${rv.propiedad_id}`
+      suma[k] = { total: (suma[k]?.total || 0) + Number(rv.precio_noche) * noches, noches: (suma[k]?.noches || 0) + noches }
+    })
+    const cobrado: Record<string, number> = {}
+    Object.entries(suma).forEach(([k, v]) => { cobrado[k] = Math.round(v.total / v.noches) })
+    return {
+      temporadas: [...temps].sort((a, b) => a - b).slice(-3),
+      filas: [...filas.values()].sort((a, b) => a.orden - b.orden),
+      cobrado,
+    }
+  }, [reglas, reservas])
 
   function irA(iso: string) {
     setAnio(Number(iso.slice(0, 4)))
@@ -263,30 +307,6 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     await cargar(); onCambio?.()
   }
 
-  // Copia los precios de la temporada anterior (15/12 al 20/02) a la del mes que se está viendo
-  async function copiarTemporadaAnterior() {
-    if (!userId) return
-    const inicioTemp = mes >= 6 ? anio : anio - 1 // temporada que arranca en diciembre de este año
-    const desdeAnt = `${inicioTemp - 1}-12-01`
-    const hastaAnt = `${inicioTemp}-03-15`
-    const nuevas = reglas
-      .filter(r => casasVisibles.some(c => String(c.id) === r.property_id) && r.start_date >= desdeAnt && r.start_date <= hastaAnt)
-      .filter(r => !reglas.some(x => x.property_id === r.property_id && x.name === r.name && x.start_date === sumarAnio(r.start_date)))
-      .map(r => ({
-        property_id: r.property_id, name: r.name, category: r.category, price_per_night: r.price_per_night,
-        start_date: sumarAnio(r.start_date), end_date: sumarAnio(r.end_date), applies_to_days: r.applies_to_days || [],
-        min_nights: r.min_nights, priority: r.priority, active: r.active, user_id: userId,
-      }))
-    if (!nuevas.length) { setAviso(`No hay tramos de la temporada ${inicioTemp - 1}/${String(inicioTemp).slice(2)} para copiar (o ya están copiados)`); return }
-    if (!window.confirm(`Se copian ${nuevas.length} tramos de la temporada ${inicioTemp - 1}/${String(inicioTemp).slice(2)} a ${inicioTemp}/${String(inicioTemp + 1).slice(2)}, con los mismos precios. Después los podés ajustar. ¿Seguimos?`)) return
-    setGuardando(true)
-    const { error } = await supabase.from('price_rules').insert(nuevas)
-    setGuardando(false)
-    if (error) { setAviso('No se pudo copiar: ' + error.message); return }
-    setAviso(`Copiados ${nuevas.length} tramos. Revisá las fechas que cambian de un año a otro, como Carnaval.`)
-    await cargar(); onCambio?.()
-  }
-
   const diasMes = new Date(anio, mes + 1, 0).getDate()
   // Semana de lunes a domingo: el lunes va en la primera columna
   const offset = (new Date(anio, mes, 1).getDay() + 6) % 7
@@ -295,7 +315,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
 
   return (
     <div className="space-y-4">
-      {/* Barra: casas, hoy, buscar fecha, copiar */}
+      {/* Barra: casas, hoy, buscar fecha */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex flex-wrap rounded-lg border border-costa-borde bg-costa-superficie p-0.5">
           {casas.length > 1 && (
@@ -314,12 +334,6 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
         <button type="button" className={btn} onClick={() => irA(hoy)}>Hoy</button>
         <input type="date" title="Ir a una fecha" onChange={e => e.target.value && irA(e.target.value)}
           className="h-9 px-2 rounded-lg border border-costa-borde bg-costa-superficie text-xs text-costa-esmeralda" />
-        <span className="flex-1" />
-        {!isDemo && (
-          <button type="button" className={btn} onClick={copiarTemporadaAnterior} disabled={guardando}>
-            Copiar de la temporada anterior
-          </button>
-        )}
       </div>
 
       {aviso && (
@@ -329,7 +343,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
         </p>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-4 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_320px] gap-4 items-stretch">
         {/* Calendario */}
         <div className="rounded-2xl border border-costa-borde bg-costa-superficie p-3 sm:p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -404,13 +418,15 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
           </div>
         </div>
 
-        {/* Lateral: tramos y días sueltos */}
-        <div className="rounded-2xl border border-costa-borde bg-costa-superficie p-4 space-y-4">
+        {/* Lateral: tramos y nuevo tramo. En pantalla grande mide lo mismo que el
+            calendario y, si no entra, se desplaza adentro */}
+        <div className="relative min-h-[420px]">
+        <div className="xl:absolute xl:inset-0 xl:overflow-y-auto rounded-2xl border border-costa-borde bg-costa-superficie p-4 space-y-4">
           <div>
             <h4 className="text-sm font-bold text-costa-esmeralda">Precios por tramo</h4>
             <p className="text-xs text-costa-gris mb-2">El precio vigente o el próximo de cada tramo, en U$D por noche. Cambiá el número y se guarda solo; los casilleros punteados no tienen precio todavía.</p>
             {tramos.length === 0 ? (
-              <p className="text-xs text-costa-gris py-3">No hay precios cargados para este año. Probá con “Copiar de la temporada anterior”.</p>
+              <p className="text-xs text-costa-gris py-3">Todavía no hay precios cargados. Agregá un tramo abajo.</p>
             ) : (
               <table className="w-full text-xs">
                 <thead>
@@ -506,7 +522,50 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
             )}
           </div>
         </div>
+        </div>
       </div>
+
+      {/* Precios por temporada: para comparar cómo fueron cambiando */}
+      {porTemporada.temporadas.length > 0 && (
+        <div className="rounded-2xl border border-costa-borde bg-costa-superficie p-4 overflow-x-auto">
+          <h4 className="text-sm font-bold text-costa-esmeralda">Precios por temporada</h4>
+          <p className="text-xs text-costa-gris mb-2">U$D por noche de cada tramo, temporada por temporada (diciembre a febrero). Abajo, lo que se cobró en promedio en las reservas.</p>
+          <table className="text-xs min-w-full">
+            <thead>
+              <tr className="text-[10px] uppercase tracking-wider text-costa-gris">
+                <th className="text-left font-semibold py-1 pr-3">Tramo</th>
+                {porTemporada.temporadas.map(t => (
+                  <th key={t} colSpan={casas.length} className="text-center font-semibold py-1 px-2 border-l border-costa-borde">{t}/{String(t + 1).slice(2)}</th>
+                ))}
+              </tr>
+              <tr className="text-[10px] text-costa-gris border-b border-costa-borde">
+                <th />
+                {porTemporada.temporadas.map(t => casas.map((c, k) => (
+                  <th key={`${t}-${c.id}`} className={`text-right font-medium py-1 px-2 ${k === 0 ? 'border-l border-costa-borde' : ''}`}>{corto(c)}</th>
+                )))}
+              </tr>
+            </thead>
+            <tbody>
+              {porTemporada.filas.map(f => (
+                <tr key={f.nombre} className="border-b border-[#f1ebe2]">
+                  <td className="py-1.5 pr-3 font-semibold text-costa-esmeralda whitespace-nowrap">{f.nombre}</td>
+                  {porTemporada.temporadas.map(t => casas.map((c, k) => {
+                    const v = f.valores[`${t}|${c.id}`]
+                    return <td key={`${t}-${c.id}`} className={`py-1.5 px-2 text-right ${k === 0 ? 'border-l border-costa-borde' : ''} ${v ? 'font-bold text-costa-esmeralda' : 'text-[#b8b1a6]'}`}>{v ?? '—'}</td>
+                  }))}
+                </tr>
+              ))}
+              <tr className="bg-[#faf7f2]">
+                <td className="py-1.5 pr-3 text-costa-gris whitespace-nowrap">Cobrado promedio</td>
+                {porTemporada.temporadas.map(t => casas.map((c, k) => {
+                  const v = porTemporada.cobrado[`${t}|${c.id}`]
+                  return <td key={`${t}-${c.id}`} className={`py-1.5 px-2 text-right ${k === 0 ? 'border-l border-costa-borde' : ''} ${v ? 'font-semibold text-costa-gris' : 'text-[#b8b1a6]'}`}>{v ?? '—'}</td>
+                }))}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   )
 }
