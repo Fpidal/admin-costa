@@ -19,10 +19,13 @@ import { vencimientoSaldo } from '@/lib/cobranza'
 import { ocupacionTemporada } from '@/lib/ocupacion'
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
 import type { ServicioExtra } from '@/lib/serviciosReserva'
+import { calcularPrecioReserva, type PrecioCalendario } from '@/lib/calcularPrecio'
+import { parseFechaLocal } from '@/lib/fechas'
+import { OfertaHueco, type PrecioSugerido } from '@/components/OfertaHueco'
 
 const URL_INFO_UTIL = 'https://admin-costa.vercel.app/'
 
-interface Propiedad { id: number | string; nombre: string; lote: string | null }
+interface Propiedad { id: number | string; nombre: string; lote: string | null; precio_alquiler?: number | null }
 
 interface Reserva {
   id: number
@@ -72,6 +75,9 @@ function TemporadaContent() {
   const [cobros, setCobros] = useState<Cobro[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [loading, setLoading] = useState(true)
+  const [precios, setPrecios] = useState<PrecioCalendario[]>([])
+  // Hueco libre elegido en la línea de ocupación, para ofrecerlo por WhatsApp
+  const [oferta, setOferta] = useState<{ casaId: string; desde: string; hasta: string } | null>(null)
   const [temporada, setTemporada] = useState(temporadaActual())
 
   useEffect(() => {
@@ -87,11 +93,18 @@ function TemporadaContent() {
       const [r, c, p] = await Promise.all([
         supabase.from('reservas').select('*, propiedades(nombre, lote), inquilinos(nombre, telefono)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio'),
         supabase.from('cobros').select('reserva_id, monto, moneda, concepto, aplicar_a, reservas!inner(eliminado_at)').eq('user_id', userId).is('reservas.eliminado_at', null),
-        supabase.from('propiedades').select('id, nombre, lote').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
+        supabase.from('propiedades').select('id, nombre, lote, precio_alquiler').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
       ])
       if (r.data) setReservas(r.data)
       if (c.data) setCobros(c.data)
-      if (p.data) setPropiedades(p.data)
+      if (p.data) {
+        setPropiedades(p.data)
+        const ids = p.data.map(x => x.id)
+        if (ids.length) {
+          const { data: pc } = await supabase.from('precios_calendario').select('*').in('propiedad_id', ids)
+          if (pc) setPrecios(pc as PrecioCalendario[])
+        }
+      }
       setLoading(false)
     }
     cargar()
@@ -147,6 +160,29 @@ function TemporadaContent() {
     return p ? p.nombre : ''
   }
 
+  // Precio por noche para ofrecer un hueco: calendario de precios si cubre
+  // todas las noches; si no, el precio de alquiler de la casa; si no, el
+  // promedio por noche de sus reservas de esta temporada
+  function precioParaHueco(casaId: string, d: string, h: string): PrecioSugerido {
+    const delaCasa = precios.filter(x => String(x.propiedad_id) === casaId)
+    if (delaCasa.length) {
+      const calc = calcularPrecioReserva(parseFechaLocal(d), parseFechaLocal(h), delaCasa)
+      if (calc.precioPromedio > 0 && calc.desglose.every(x => x.precio > 0)) {
+        return { precio: calc.precioPromedio, moneda: calc.moneda, origen: 'Promedio del calendario de precios' }
+      }
+    }
+    const casa = propiedades.find(p => String(p.id) === casaId)
+    if (casa?.precio_alquiler && casa.precio_alquiler > 0) {
+      return { precio: Math.round(casa.precio_alquiler), moneda: 'USD', origen: 'Precio de alquiler de la casa' }
+    }
+    const previas = deLaTemporada.filter(r => String(r.propiedad_id) === casaId && r.estado !== 'pendiente' && (r.precio_noche || 0) > 0)
+    if (previas.length) {
+      const prom = previas.reduce((a, r) => a + (r.precio_noche || 0), 0) / previas.length
+      return { precio: Math.round(prom), moneda: previas[0].moneda || 'USD', origen: 'Promedio por noche de las reservas de esta temporada' }
+    }
+    return { precio: 0, moneda: 'USD', origen: 'Sin precio de referencia: cargalo a mano' }
+  }
+
   function descargarReporte() {
     generarReporteReservasPDF({ reservas: deLaTemporada, cobros, casas: 'Todas las casas', periodo: etiquetaTemporada(temporada) })
   }
@@ -198,7 +234,7 @@ function TemporadaContent() {
       <Card className="mb-4">
         <CardHeader className="flex items-baseline justify-between gap-2">
           <CardTitle>Ocupación</CardTitle>
-          <span className="text-xs text-costa-gris">Tocá una reserva para ver sus cobros, o un hueco libre para cargar una reserva</span>
+          <span className="text-xs text-costa-gris">Tocá una reserva para ver sus cobros, o un hueco libre para ofrecerlo o cargar una reserva</span>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -207,14 +243,17 @@ function TemporadaContent() {
                 <div key={c.propiedadId} className="grid grid-cols-[110px_1fr_56px] items-center gap-3">
                   <span className="font-semibold text-costa-navy text-sm">{nombreCasa(c.propiedadId)}</span>
                   <div className="relative h-11 rounded-md bg-costa-esmeralda-suave">
-                    {c.huecos.map(h => (
-                      <Link key={h.desde} href={`/admin/reservas?nueva=1&propiedad=${c.propiedadId}&desde=${h.desde}&hasta=${h.hasta}${demoAmp}`}
-                        title={`Libre del ${formatFecha(h.desde)} al ${formatFecha(h.hasta)} (${h.noches} noches). Tocá para cargar una reserva`}
-                        className="absolute top-0 bottom-0 flex items-center justify-center rounded-md text-[0.7em] font-semibold text-costa-esmeralda/70 hover:bg-costa-esmeralda/10 hover:text-costa-esmeralda transition-colors"
-                        style={{ left: pct(h.inicio), width: pct(h.noches) }}>
-                        {h.noches >= 4 && `${h.noches} libres`}
-                      </Link>
-                    ))}
+                    {c.huecos.map(h => {
+                      const elegido = oferta?.casaId === c.propiedadId && oferta.desde === h.desde
+                      return (
+                        <button key={h.desde} type="button" onClick={() => setOferta({ casaId: c.propiedadId, desde: h.desde, hasta: h.hasta })}
+                          title={`Libre del ${formatFecha(h.desde)} al ${formatFecha(h.hasta)} (${h.noches} noches). Tocá para ofrecerlo o cargar una reserva`}
+                          className={`absolute top-0 bottom-0 flex items-center justify-center rounded-md text-[0.7em] font-semibold transition-colors ${elegido ? 'bg-costa-esmeralda/20 text-costa-esmeralda ring-2 ring-costa-esmeralda' : 'text-costa-esmeralda/70 hover:bg-costa-esmeralda/10 hover:text-costa-esmeralda'}`}
+                          style={{ left: pct(h.inicio), width: pct(h.noches) }}>
+                          {h.noches >= 4 && `${h.noches} libres`}
+                        </button>
+                      )
+                    })}
                     {c.bloques.map(b => (
                       <Link key={String(b.reserva.id)} href={`/admin/reservas/${b.reserva.id}/cobros${demoQ}`}
                         title={`${b.reserva.inquilinos?.nombre?.trim() || 'Reserva'} · ${formatFecha(b.reserva.fecha_inicio)} al ${formatFecha(b.reserva.fecha_fin)}${b.confirmada ? '' : ' · sin confirmar'}`}
@@ -244,12 +283,21 @@ function TemporadaContent() {
             <span className="flex items-center gap-1.5"><i className="inline-block w-3.5 h-2.5 rounded-sm bg-costa-esmeralda-suave" />Libre</span>
             {posHoy !== null && <span className="flex items-center gap-1.5"><i className="inline-block w-0.5 h-3 bg-costa-coral-dark" />Hoy</span>}
           </div>
-          {huecoMayor && (
+          {huecoMayor && !oferta && (
             <p className="mt-3 rounded-lg bg-costa-coral/10 px-3 py-2 text-sm text-costa-navy">
               <span className="font-semibold text-costa-coral-dark">{huecoMayor.casa?.nombre}</span> tiene {huecoMayor.noches} noches libres seguidas, del {formatFecha(huecoMayor.desde)} al {formatFecha(huecoMayor.hasta)}.{' '}
-              <Link href={`/admin/reservas?nueva=1&propiedad=${huecoMayor.casa?.id}&desde=${huecoMayor.desde}&hasta=${huecoMayor.hasta}${demoAmp}`} className="font-semibold text-costa-esmeralda underline underline-offset-2">Cargar una reserva</Link>
+              <button type="button" onClick={() => setOferta({ casaId: String(huecoMayor.casa?.id), desde: huecoMayor.desde, hasta: huecoMayor.hasta })} className="font-semibold text-costa-esmeralda underline underline-offset-2">Ofrecer estas fechas</button>
             </p>
           )}
+          {oferta && (() => {
+            const casa = propiedades.find(p => String(p.id) === oferta.casaId)
+            if (!casa) return null
+            return (
+              <OfertaHueco key={`${oferta.casaId}-${oferta.desde}`} casa={casa} hueco={oferta}
+                sugerido={precioParaHueco(oferta.casaId, oferta.desde, oferta.hasta)}
+                linkSitio={URL_INFO_UTIL} demoAmp={demoAmp} onCerrar={() => setOferta(null)} />
+            )
+          })()}
         </CardContent>
       </Card>
 

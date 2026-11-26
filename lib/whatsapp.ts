@@ -64,3 +64,16 @@ export function mensajeIngreso(d: DatosMensaje, linkInfo: string) {
   return `${saludo(d)} Los esperamos el ${formatFecha(d.fecha_inicio)} desde las ${hora} hs en ${d.casa}. ` +
     `Acá tenés la info de la casa y teléfonos útiles: ${linkInfo}. Cualquier cosa, escribime. ¡Buen viaje!`
 }
+
+/** Ofrecer fechas libres: va sin número, para elegir el contacto en WhatsApp */
+export function mensajeOferta(d: { casa: string; desde: string; hasta: string; noches: number; precioNoche: number; moneda: string; linkSitio: string }) {
+  const partes = [
+    `¡Hola! Tenemos disponible ${d.casa} en Costa Esmeralda del ${formatFecha(d.desde)} al ${formatFecha(d.hasta)} (${d.noches} noche${d.noches !== 1 ? 's' : ''}).`,
+  ]
+  if (d.precioNoche > 0) {
+    partes.push(`Precio: ${importe(d.precioNoche, d.moneda)} por noche, ${importe(d.precioNoche * d.noches, d.moneda)} en total.`)
+  }
+  partes.push(`Fotos y detalles: ${d.linkSitio}`)
+  partes.push('¿Te interesa? Cualquier consulta, escribime.')
+  return partes.join(' ')
+}

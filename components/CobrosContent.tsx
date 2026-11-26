@@ -401,9 +401,9 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
   const montosSugeridos: { label: string; monto: number; moneda: string; concepto: string }[] = []
   if (reserva && !isCerrada) {
     const nadaCobrado = Object.values(cobradoOperacion).every(v => Math.round(v) === 0)
-    const totalMoneda = pactadoOperacion[monedaAlquiler] || 0
-    if (nadaCobrado && totalMoneda > 0) {
-      montosSugeridos.push({ label: 'Seña 50%', monto: Math.round(totalMoneda / 2), moneda: monedaAlquiler, concepto: 'seña' })
+    // La seña es el 50% del alquiler, como en el contrato y en la cotización
+    if (nadaCobrado && pactadoAlquiler > 0) {
+      montosSugeridos.push({ label: 'Seña 50%', monto: Math.round(pactadoAlquiler / 2), moneda: monedaAlquiler, concepto: 'seña' })
     }
     for (const m of [...monedasOperacion].reverse()) {
       if (Math.round(saldoOperacion[m]) > 0) {

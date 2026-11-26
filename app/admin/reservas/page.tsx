@@ -915,8 +915,9 @@ function ReservasContent() {
       ]
     }
 
-    // Sin pagos todavía, la seña pactada figura como lo que hay que abonar
-    const senaAAbonar = pagos.length === 0 ? Math.round(reserva.sena || 0) : 0
+    // Sin pagos todavía, figura la seña a abonar: el 50% del alquiler, como
+    // dice el contrato (el campo "seña" de la reserva ya no se usa)
+    const senaAAbonar = pagos.length === 0 ? Math.round(total * PORCENTAJE_RESERVA / 100) : 0
 
     const saldoPorMoneda: Record<string, number> = { ...totalPorMoneda }
     for (const p of pagos) saldoPorMoneda[p.moneda] = (saldoPorMoneda[p.moneda] || 0) - p.monto
@@ -981,7 +982,7 @@ function ReservasContent() {
         y += 5
       }
     } else if (senaAAbonar) {
-      doc.text('Sin pagos todavía · Seña a abonar para confirmar', 20, y)
+      doc.text(`Sin pagos todavía · Seña a abonar para confirmar (${PORCENTAJE_RESERVA}% del alquiler)`, 20, y)
       doc.text(importe(senaAAbonar, moneda), pageWidth - 20, y, { align: 'right' })
       y += 5
     } else {
@@ -1492,7 +1493,6 @@ function ReservasContent() {
   // Calculos del formulario
   const formNoches = calcularNoches(form.check_in, form.check_out)
   const formTotal = formNoches * Number(form.precio_noche)
-  const formSaldo = formTotal - Number(form.sena)
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>
