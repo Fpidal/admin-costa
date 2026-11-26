@@ -18,6 +18,7 @@ export const VERSIONES: Version[] = [
       'Resultado por año calendario en Temporada, con columna de acumulado de todos los años',
       'Huéspedes: el historial de reservas de cada huésped ya no se rompe',
       'Sección Versiones para ver los cambios que se van haciendo',
+      'Web pública: ahora sabe qué fechas están ocupadas (antes decía "Libre" siempre)',
     ],
   },
   {

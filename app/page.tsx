@@ -177,11 +177,12 @@ function LandingContent() {
       }
       const [p, r] = await Promise.all([
         supabase.from('propiedades').select('*').neq('publicada', false).is('eliminado_at', null).order('nombre'),
-        supabase.from('reservas').select('propiedad_id, fecha_inicio, fecha_fin, estado').in('estado', ['confirmada', 'pendiente']).gte('fecha_fin', hoyISO()),
+        // Solo casa y fechas ocupadas (función de la base, sin datos del huésped)
+        supabase.rpc('ocupacion_publica'),
       ])
       const props = (p.data || []) as Propiedad[]
       setPropiedades(props)
-      setReservas((r.data || []) as Reserva[])
+      setReservas(((r.data || []) as Omit<Reserva, 'estado'>[]).map(x => ({ ...x, estado: 'ocupada' })))
       if (props.length) {
         const { data } = await supabase.from('price_rules').select(COLUMNAS_REGLAS).in('property_id', props.map(x => x.id)).gte('end_date', hoyISO())
         setReglas(normalizarReglas(data || []))
