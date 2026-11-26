@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { demoGastos } from '@/lib/demoData'
+import { montosReserva } from '@/lib/resumenReservas'
 
 // Balance del año (caja): lo cobrado de alquiler y servicios en el año (según
 // la fecha de cada pago, sin depósitos) menos los gastos del año de cada casa.
@@ -82,15 +83,22 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
       conPago.add(cb.reserva_id)
     })
     const propios = gastos.filter(g => String(g.propiedad_id) === casaId && dentro(String(g.fecha).slice(0, 10)))
+    // Por cobrar: saldo de las reservas confirmadas que entran en el período (lo que falta que entre)
+    let porCobrarUsd = 0, porCobrarArs = 0
+    reservas.filter(r => String(r.propiedad_id) === casaId && r.estado === 'confirmada' && dentro(r.fecha_inicio.slice(0, 10)))
+      .forEach(r => {
+        const { saldo } = montosReserva(r as never, cobros)
+        porCobrarUsd += Math.max(0, saldo.USD || 0); porCobrarArs += Math.max(0, saldo.ARS || 0)
+      })
     return {
-      usd, ars, reservas: conPago.size,
+      usd, ars, reservas: conPago.size, porCobrarUsd, porCobrarArs,
       gastosArs: propios.reduce((a, g) => a + Number(g.monto), 0),
       sinPagar: propios.filter(g => !g.pagado).reduce((a, g) => a + Number(g.monto), 0),
     }
   }
 
   // Saldo inicial: todo lo de los años anteriores desde PRIMER_ANIO; saldo final: hasta el 31/12 del año
-  const vacio = { usd: 0, ars: 0, reservas: 0, gastosArs: 0, sinPagar: 0 }
+  const vacio = { usd: 0, ars: 0, reservas: 0, gastosArs: 0, sinPagar: 0, porCobrarUsd: 0, porCobrarArs: 0 }
   const filas = useMemo(() => casas.map(c => ({
     casa: c, ...calcular(c.id, desde, hasta),
     inicial: anio > PRIMER_ANIO ? calcular(c.id, `${PRIMER_ANIO}-01-01`, `${anio - 1}-12-31`) : vacio,
@@ -100,15 +108,18 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
 
   // Años con movimientos desde PRIMER_ANIO, más el actual
   const anios = useMemo(() => {
-    const set = new Set<number>([Math.max(PRIMER_ANIO, new Date().getFullYear())])
+    // Siempre el año actual y el que viene (que arranca con el saldo de este)
+    const actual = Math.max(PRIMER_ANIO, new Date().getFullYear())
+    const set = new Set<number>([actual, actual + 1])
     cobros.forEach(c => c.fecha && set.add(Number(String(c.fecha).slice(0, 4))))
     gastos.forEach(g => g.fecha && set.add(Number(String(g.fecha).slice(0, 4))))
     return [...set].filter(a => a >= PRIMER_ANIO).sort((a, b) => b - a)
   }, [cobros, gastos])
 
-  const sumar = (lista: { usd: number; ars: number; gastosArs: number; sinPagar: number; reservas: number }[]) =>
-    lista.reduce((a, f) => ({ usd: a.usd + f.usd, ars: a.ars + f.ars, gastosArs: a.gastosArs + f.gastosArs, sinPagar: a.sinPagar + f.sinPagar, reservas: a.reservas + f.reservas }),
-      { usd: 0, ars: 0, gastosArs: 0, sinPagar: 0, reservas: 0 })
+  type Montos = { usd: number; ars: number; gastosArs: number; sinPagar: number; reservas: number; porCobrarUsd: number; porCobrarArs: number }
+  const sumar = (lista: Montos[]) =>
+    lista.reduce((a, f) => ({ usd: a.usd + f.usd, ars: a.ars + f.ars, gastosArs: a.gastosArs + f.gastosArs, sinPagar: a.sinPagar + f.sinPagar, reservas: a.reservas + f.reservas, porCobrarUsd: a.porCobrarUsd + f.porCobrarUsd, porCobrarArs: a.porCobrarArs + f.porCobrarArs }),
+      { usd: 0, ars: 0, gastosArs: 0, sinPagar: 0, reservas: 0, porCobrarUsd: 0, porCobrarArs: 0 })
   const total = { ...sumar(filas), inicial: sumar(filas.map(f => f.inicial)), acum: sumar(filas.map(f => f.acum)) }
   const enUsd = (f: { usd: number; ars: number; gastosArs: number }) => dolar ? f.usd + (f.ars - f.gastosArs) / dolar : null
   const enArs = (f: { usd: number; ars: number; gastosArs: number }) => dolar ? f.usd * dolar + f.ars - f.gastosArs : null
@@ -124,7 +135,13 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
           {anio === PRIMER_ANIO ? '–' : iu === null ? '–' : `U$D ${fmt(iu)}`}
           {anio > PRIMER_ANIO && ia !== null && <span className="block text-[0.75em] font-normal text-costa-gris">$ {fmt(ia)}</span>}
         </td>
-        <td className="px-3 py-2 text-right tabular-nums text-costa-olivo">{f.usd ? `U$D ${fmt(f.usd)}` : '–'}{f.ars ? <span className="block">$ {fmt(f.ars)}</span> : null}</td>
+        <td className="px-3 py-2 text-right tabular-nums text-costa-olivo">{f.usd ? `U$D ${fmt(f.usd)}` : '–'}{f.ars ? <span className="block">$ {fmt(f.ars)}</span> : null}
+          {(f.porCobrarUsd > 0 || f.porCobrarArs > 0) && (
+            <span className="block text-[0.75em] font-semibold text-amber-700">
+              + {[f.porCobrarUsd > 0 && `U$D ${fmt(f.porCobrarUsd)}`, f.porCobrarArs > 0 && `$ ${fmt(f.porCobrarArs)}`].filter(Boolean).join(' + ')} por cobrar
+            </span>
+          )}
+        </td>
         <td className="px-3 py-2 text-right tabular-nums text-costa-coral-dark">{f.gastosArs ? `$ ${fmt(f.gastosArs)}` : '–'}
           {f.sinPagar > 0 && <span className="block text-[0.75em] font-normal text-costa-gris">$ {fmt(f.sinPagar)} sin pagar</span>}
           {dolar > 0 && f.gastosArs > 0 && <span className="block text-[0.75em] font-normal text-costa-gris">≈ U$D {fmt(f.gastosArs / dolar)}</span>}
@@ -136,6 +153,9 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
         <td className={`px-3 py-2 text-right tabular-nums border-l border-costa-borde font-bold ${tono(au)}`}>
           {au === null ? '–' : `U$D ${fmt(au)}`}
           {aa !== null && <span className="block text-[0.75em] font-normal text-costa-gris">$ {fmt(aa)}</span>}
+          {au !== null && (f.porCobrarUsd > 0 || f.porCobrarArs > 0) && (
+            <span className="block text-[0.75em] font-semibold text-amber-700">U$D {fmt(au + f.porCobrarUsd + f.porCobrarArs / dolar)} con lo por cobrar</span>
+          )}
         </td>
       </tr>
     )
@@ -153,7 +173,7 @@ export function ResultadoTemporada({ reservas, cobros, casas, userId, isDemo }: 
             </select>
           </h3>
           <p className="text-xs text-costa-gris mt-1">
-            Del {dmy(desde)} al {dmy(hasta)}: lo que entró en el año (pagos de alquiler y servicios, sin depósitos) menos los gastos del año de cada casa. El saldo final pasa como saldo inicial del año siguiente; el balance arranca en {PRIMER_ANIO}.
+            Del {dmy(desde)} al {dmy(hasta)}: lo que entró en el año (pagos de alquiler y servicios, sin depósitos) menos los gastos del año de cada casa. El saldo final pasa como saldo inicial del año siguiente; el balance arranca en {PRIMER_ANIO}. En naranja, lo que falta cobrar de las reservas confirmadas que entran en el año.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs">

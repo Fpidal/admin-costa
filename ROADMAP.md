@@ -3,7 +3,7 @@
 ## Actualizaciones Recientes (Noviembre 2026)
 
 ### Informes (antes Resumen)
-- Balance del año (caja) desde 2026: saldo inicial + cobrado − gastos = saldo al 31/12, que pasa al año siguiente
+- Balance del año (caja) desde 2026: saldo inicial + cobrado − gastos = saldo al 31/12, que pasa al año siguiente; el año próximo siempre visible, con lo por cobrar de las reservas confirmadas
 - En el menú principal; incluye el resultado del año (cobrado menos gastos, con acumulado), que antes estaba en Temporada
 - Evolución por temporada: precio de lista, cobrado por noche, noches, ocupación y total por casa, con variación contra la temporada anterior y gráfico
 - Noches sin confirmar aparte, temporada en curso marcada (variación parcial), precio cobrado mes por mes y bloque Fuera de temporada por año con el fin de semana largo de cada reserva
