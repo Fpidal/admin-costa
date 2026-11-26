@@ -78,6 +78,14 @@ const initialForm = {
   cotizacion: 0,
 }
 
+// "Expensas Noviembre 2026" → "Exp. Nov-26", para que entre en la tabla
+const conceptoCorto = (c: string) => {
+  const m = c?.match(/^expensas?\s+([a-záéíóú]+)\s+(\d{4})$/i)
+  if (!m) return c
+  const mes = m[1].charAt(0).toUpperCase() + m[1].slice(1, 3).toLowerCase()
+  return `Exp. ${mes}-${m[2].slice(2)}`
+}
+
 const fmtNum = (v: number) => new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Math.round(v))
 
 const initialNuevoProveedor = {
@@ -712,7 +720,7 @@ function AdministracionContent() {
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="default">{gasto.concepto}</Badge>
+                      <Badge variant="default">{conceptoCorto(gasto.concepto)}</Badge>
                       <Badge variant={gasto.pagado ? 'success' : 'warning'}>
                         {gasto.pagado ? 'Pagado' : 'Pendiente'}
                       </Badge>
@@ -767,25 +775,23 @@ function AdministracionContent() {
               <table className="w-full text-sm">
                 <thead className="bg-costa-beige/50 border-b border-costa-beige">
                   <tr>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Tipo</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Detalle</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
-                    <th className="px-4 py-2 text-left text-xs font-medium text-costa-gris uppercase">Fecha</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Importe</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Dólar</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">En dólares</th>
-                    <th className="px-4 py-2 text-center text-xs font-medium text-costa-gris uppercase">Estado</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-costa-gris uppercase">Acciones</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Tipo</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Detalle</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Propiedad</th>
+                    <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Fecha</th>
+                    <th className="px-3 py-2 text-right text-xs font-medium text-costa-gris uppercase">Importe</th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-costa-gris uppercase">Estado</th>
+                    <th className="px-3 py-2"></th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-costa-beige">
                   {gastosFiltrados.map((gasto) => (
                     <React.Fragment key={gasto.id}>
                       <tr className="hover:bg-costa-beige/30">
-                        <td className="px-4 py-3">
+                        <td className="px-3 py-3">
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
-                              <Badge variant="default">{gasto.concepto}</Badge>
+                              <Badge variant="default">{conceptoCorto(gasto.concepto)}</Badge>
                               {gasto.detalle && gasto.detalle.length > 0 && (
                                 <span className="text-xs text-costa-gris">({gasto.detalle.length} items)</span>
                               )}
@@ -800,18 +806,21 @@ function AdministracionContent() {
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-costa-navy">{gasto.descripcion || '-'}</td>
-                        <td className="px-4 py-3 text-costa-gris">{gasto.propiedades?.nombre || '-'}</td>
-                        <td className="px-4 py-3 text-costa-gris">{formatFecha(gasto.fecha)}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-costa-navy whitespace-nowrap">{importeGasto(gasto)}</td>
-                        <td className="px-4 py-3 text-right text-xs text-costa-gris whitespace-nowrap">{gasto.cotizacion ? `$ ${fmtNum(gasto.cotizacion)}` : esUsd(gasto) ? '–' : <span title="Sin dólar guardado: se usa el de hoy">hoy</span>}</td>
-                        <td className="px-4 py-3 text-right font-semibold text-costa-navy whitespace-nowrap">{gastoEnUsd(gasto, dolarHoy) !== null ? `U$D ${fmtNum(gastoEnUsd(gasto, dolarHoy) as number)}` : '–'}</td>
-                        <td className="px-4 py-3 text-center">
+                        <td className="px-3 py-3 text-costa-navy min-w-[150px]"><span className="line-clamp-2">{gasto.descripcion || '-'}</span></td>
+                        <td className="px-3 py-3 text-costa-gris"><span className="line-clamp-2">{gasto.propiedades?.nombre || '-'}</span></td>
+                        <td className="px-3 py-3 text-costa-gris whitespace-nowrap">{formatFecha(gasto.fecha)}</td>
+                        <td className="px-3 py-3 text-right whitespace-nowrap">
+                          <span className="font-semibold text-costa-navy">{importeGasto(gasto)}</span>
+                          {!esUsd(gasto) && gastoEnUsd(gasto, dolarHoy) !== null && (
+                            <span className="block text-xs text-costa-gris">U$D {fmtNum(gastoEnUsd(gasto, dolarHoy) as number)} · {gasto.cotizacion ? `a $ ${fmtNum(gasto.cotizacion)}` : 'dólar de hoy'}</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-center">
                           <Badge variant={gasto.pagado ? 'success' : 'warning'}>
                             {gasto.pagado ? 'Pagado' : 'Pendiente'}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-3 py-3 text-right">
                           <div className="flex justify-end gap-1">
                             {gasto.detalle && gasto.detalle.length > 0 && (
                               <Button variant="ghost" size="sm" onClick={() => abrirDetalle(gasto)} title="Ver detalle">
@@ -819,15 +828,9 @@ function AdministracionContent() {
                               </Button>
                             )}
                             {!gasto.pagado ? (
-                              <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>
-                                <Check size={14} className="mr-1" />
-                                Pagar
-                              </Button>
+                              <Button variant="primary" size="sm" onClick={() => marcarPagado(gasto.id)}>Pagar</Button>
                             ) : (
-                              <Button variant="ghost" size="sm" onClick={() => desmarcarPagado(gasto.id)} className="text-orange-500 hover:bg-orange-50">
-                                <RotateCcw size={14} className="mr-1" />
-                                Deshacer
-                              </Button>
+                              <Button variant="ghost" size="sm" onClick={() => desmarcarPagado(gasto.id)} className="text-orange-500 hover:bg-orange-50">Deshacer</Button>
                             )}
                             <Button variant="ghost" size="sm" onClick={() => openModal(gasto)}><Pencil size={14} /></Button>
                             <Button variant="ghost" size="sm" onClick={() => handleDelete(gasto.id)}><Trash2 size={14} className="text-costa-gris" /></Button>
@@ -837,7 +840,7 @@ function AdministracionContent() {
                       {/* Fila expandible con detalle */}
                       {gasto.detalle && gasto.detalle.length > 0 && expandedGastos.has(gasto.id) && (
                         <tr className="bg-costa-beige/20">
-                          <td colSpan={9} className="px-4 py-3">
+                          <td colSpan={7} className="px-3 py-3">
                             <div className="ml-8 border-l-2 border-costa-navy/20 pl-4">
                               <p className="text-xs font-medium text-costa-gris mb-2">Detalle de conceptos:</p>
                               <div className="space-y-1">
