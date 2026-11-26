@@ -129,7 +129,7 @@ export function EvolucionTemporadas({ reservas, cobros, casas, reglas }: {
         <div className="rounded-xl border border-costa-borde bg-costa-superficie p-4">
           <h3 className="text-base font-bold text-costa-esmeralda">Evolución por temporada</h3>
           <p className="text-xs text-costa-gris mt-1 mb-3">
-            Del 15/12 al 20/02, con reservas confirmadas y cerradas; las sin confirmar van aparte. Lista: el promedio por noche de Precios alquileres. La temporada en curso todavía se está vendiendo: su variación del total es parcial.
+            Del 15/12 al 20/02, con reservas confirmadas y cerradas; las sin confirmar van aparte. Lista: el promedio por noche de Precios alquileres; precio: lo que se pactó en cada reserva. La temporada en curso todavía se está vendiendo: su variación del total es parcial.
           </p>
 
           {datos.length > 1 && (
@@ -158,7 +158,7 @@ export function EvolucionTemporadas({ reservas, cobros, casas, reglas }: {
                 <tr className="border-b border-costa-borde text-[0.7em] uppercase tracking-wider text-costa-gris">
                   <th className="px-3 py-1.5 text-left font-semibold">Casa</th>
                   <th className={th}>Lista x noche</th>
-                  <th className={th}>Cobrado x noche</th>
+                  <th className={th}>Precio x noche</th>
                   <th className={th}>Var. precio</th>
                   <th className={th}>Noches</th>
                   <th className={th}>Sin confirmar</th>
@@ -204,8 +204,8 @@ export function EvolucionTemporadas({ reservas, cobros, casas, reglas }: {
             </table>
           </div>
 
-          {/* Precio cobrado por noche, mes por mes */}
-          <h4 className="mt-5 mb-1 text-sm font-bold text-costa-navy">Precio cobrado por noche, mes por mes</h4>
+          {/* Precio por noche, mes por mes */}
+          <h4 className="mt-5 mb-1 text-sm font-bold text-costa-navy">Precio por noche, mes por mes</h4>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -249,7 +249,7 @@ export function EvolucionTemporadas({ reservas, cobros, casas, reglas }: {
                   <th className="px-3 py-1.5 text-left font-semibold">Casa</th>
                   <th className={th}>Reservas</th>
                   <th className={th}>Noches</th>
-                  <th className={th}>Cobrado x noche</th>
+                  <th className={th}>Precio x noche</th>
                   <th className={th}>Var. precio</th>
                   <th className={th}>Total</th>
                   <th className={th}>Var. total</th>
