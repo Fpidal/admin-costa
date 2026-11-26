@@ -281,6 +281,8 @@ function ReservasContent() {
   // Una sola lista: vigentes, cerradas (antes "Pasados") o los pagos recibidos
   // (antes "Cobros"). La gestión de cada reserva vive en su ficha de cobros
   const [vista, setVista] = useState<'vigentes' | 'cerradas' | 'pagos'>('vigentes')
+  // Reserva elegida en "Pagos recibidos" (por defecto, la del pago más reciente)
+  const [pagoSel, setPagoSel] = useState<string | null>(null)
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [cobros, setCobros] = useState<Cobro[]>([])
   const [liquidaciones, setLiquidaciones] = useState<Liquidacion[]>([])
@@ -305,7 +307,6 @@ function ReservasContent() {
   const [nuevoAcompanante, setNuevoAcompanante] = useState<Acompanante>({ nombre: '', apellido: '', documento: '', edad: '' })
   const [editingAcompIdx, setEditingAcompIdx] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
-  const [expandedReservas, setExpandedReservas] = useState<Set<string>>(new Set())
   const [precioSugerido, setPrecioSugerido] = useState<{ precio: number; total: number; noches: number } | null>(null)
   const [cargandoPrecio, setCargandoPrecio] = useState(false)
   // Filtro de la pestaña Reservas: casa y período. Lo usan los recuadros, la
@@ -1862,124 +1863,102 @@ function ReservasContent() {
         </>
       )}
 
-      {/* Pagos recibidos de las reservas del filtro, agrupados por reserva */}
-      {vista === 'pagos' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Pagos recibidos</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {cobrosVista.length === 0 ? (
-              <div className="py-8 text-center text-gray-500">No hay pagos para este filtro</div>
-            ) : (
-              <div className="divide-y divide-costa-beige">
-                {/* Agrupar cobros por reserva_id */}
-                {Object.entries(
-                  cobrosVista.reduce((acc, cobro) => {
-                    const key = cobro.reserva_id
-                    if (!acc[key]) acc[key] = []
-                    acc[key].push(cobro)
-                    return acc
-                  }, {} as Record<number, Cobro[]>)
-                ).map(([reservaId, cobrosList]) => {
-                  const reservaPago = reservas.find(r => String(r.id) === String(reservaId))
-                  const isExpanded = expandedReservas.has(reservaId)
-                  const liquidacionReserva = liquidaciones.find(l => String(l.reserva_id) === String(reservaId))
-                  const cotizReserva = liquidacionReserva?.cotizacion_dolar || 0
-
-                  // Los pesos solo se pueden sumar a los dólares si la liquidación
-                  // tiene cotización cargada. Sin cotización van aparte: sumarlos
-                  // de una contaba $ 110.000 como U$D 110.000
-                  const { totalUSD, totalARS } = cobrosList.reduce((acc, c) => {
-                    if (c.moneda === 'USD') acc.totalUSD += c.monto
-                    else if (cotizReserva > 0) acc.totalUSD += c.monto / cotizReserva
-                    else acc.totalARS += c.monto
-                    return acc
-                  }, { totalUSD: 0, totalARS: 0 })
-
-                  return (
-                    <div key={reservaId}>
-                      {/* Fila principal - clickeable */}
-                      <div
-                        onClick={() => {
-                          const newSet = new Set(expandedReservas)
-                          if (isExpanded) newSet.delete(reservaId)
-                          else newSet.add(reservaId)
-                          setExpandedReservas(newSet)
-                        }}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-costa-beige/30 cursor-pointer"
-                      >
-                        <div className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
-                          <ChevronDown size={16} className="text-costa-gris" />
-                        </div>
-                        <div className="flex-1 flex items-center gap-4 min-w-0">
-                          <span className="font-medium text-costa-navy truncate">
-                            {reservaPago?.inquilinos?.nombre?.trim() || '-'}
-                          </span>
-                          <span className="text-xs text-costa-gris hidden sm:inline">
-                            {reservaPago?.propiedades?.nombre}
-                          </span>
-                          {reservaPago && (
-                            <span className="text-xs text-costa-gris tabular-nums hidden sm:inline">
-                              {formatFecha(reservaPago.fecha_inicio)} → {formatFecha(reservaPago.fecha_fin)}
+      {/* Pagos recibidos: lista de reservas a la izquierda y sus pagos a la derecha */}
+      {vista === 'pagos' && (() => {
+        const grupos = Object.entries(
+          cobrosVista.reduce((acc, c) => {
+            const k = String(c.reserva_id)
+            ;(acc[k] ||= []).push(c)
+            return acc
+          }, {} as Record<string, Cobro[]>)
+        )
+          .map(([id, lista]) => ({ id, lista: [...lista].sort((a, b) => a.fecha.localeCompare(b.fecha)), reserva: reservas.find(r => String(r.id) === id) }))
+          .sort((a, b) => (b.lista[b.lista.length - 1]?.fecha || '').localeCompare(a.lista[a.lista.length - 1]?.fecha || ''))
+        // Suma por moneda: la devolución resta; el depósito se muestra aparte
+        const sumar = (lista: Cobro[], deposito: boolean) => lista
+          .filter(c => (c.aplicar_a === 'deposito') === deposito)
+          .reduce((acc, c) => { acc[c.moneda] = (acc[c.moneda] || 0) + (c.concepto === 'devolucion_sena' ? -c.monto : c.monto); return acc }, {} as Record<string, number>)
+        const textoMontos = (o: Record<string, number>) => monedasCon(o).map(m => formatMonto(o[m], m)).join(' + ') || '–'
+        const sel = grupos.find(g => g.id === pagoSel) || grupos[0]
+        return (
+          <Card>
+            <CardHeader className="flex items-baseline justify-between gap-2">
+              <CardTitle>Pagos recibidos</CardTitle>
+              <span className="text-xs text-costa-gris">{cobrosVista.length} pago{cobrosVista.length !== 1 ? 's' : ''} en {grupos.length} reserva{grupos.length !== 1 ? 's' : ''}</span>
+            </CardHeader>
+            <CardContent className="p-0">
+              {grupos.length === 0 ? (
+                <div className="py-8 text-center text-gray-500">No hay pagos para este filtro</div>
+              ) : (
+                <div className="grid md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+                  {/* Reservas con pagos */}
+                  <ul className="divide-y divide-costa-borde/60 md:border-r md:border-costa-borde">
+                    {grupos.map(g => {
+                      const activo = sel?.id === g.id
+                      return (
+                        <li key={g.id}>
+                          <button type="button" onClick={() => setPagoSel(g.id)}
+                            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors ${activo ? 'bg-costa-esmeralda-suave' : 'hover:bg-costa-arena/60'}`}>
+                            <span className="min-w-0 flex-1">
+                              <span className={`block truncate font-semibold ${activo ? 'text-costa-esmeralda' : 'text-costa-navy'}`}>{g.reserva?.inquilinos?.nombre?.trim() || '-'}</span>
+                              <span className="block truncate text-xs text-costa-gris">
+                                {g.reserva?.propiedades?.nombre}{g.reserva && <> · {formatFecha(g.reserva.fecha_inicio)} → {formatFecha(g.reserva.fecha_fin)}</>}
+                                {g.reserva?.estado === 'cerrada' && ' · cerrada'}
+                              </span>
                             </span>
-                          )}
-                          {reservaPago?.estado === 'cerrada' && <span className="text-xs rounded-full bg-costa-arena px-2 py-0.5 text-costa-gris">cerrada</span>}
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-costa-gris">
-                            {cobrosList.length} cobro{cobrosList.length > 1 ? 's' : ''}
-                          </span>
-                          <span className="font-semibold text-costa-navy text-sm">
-                            {(totalUSD > 0 || totalARS === 0) && formatMonto(totalUSD, 'USD')}
-                            {totalARS > 0 && (
-                              <>
-                                {totalUSD > 0 && <span className="text-costa-gris font-normal"> + </span>}
-                                {formatMonto(totalARS, 'ARS')}
-                              </>
-                            )}
-                            {cotizReserva > 0 && cobrosList.some(c => c.moneda === 'ARS') && (
-                              <span className="text-xs text-costa-gris font-normal ml-1">
-                                (TC {formatMonto(cotizReserva, 'ARS')})
-                              </span>
-                            )}
-                          </span>
-                          <Link href={`/admin/reservas/${reservaId}/cobros${isDemo ? '?demo=true' : ''}`} onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="sm" title="Gestionar cobros">
-                              <Wallet size={14} />
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
+                            <span className="shrink-0 text-right">
+                              <span className="block font-semibold tabular-nums text-costa-navy">{textoMontos(sumar(g.lista, false))}</span>
+                              <span className="block text-xs text-costa-gris">{g.lista.length} pago{g.lista.length !== 1 ? 's' : ''}</span>
+                            </span>
+                          </button>
+                        </li>
+                      )
+                    })}
+                  </ul>
 
-                      {/* Detalle expandido */}
-                      {isExpanded && (
-                        <div className="bg-costa-beige/20 border-t border-costa-beige">
-                          {cobrosList.map((cobro) => (
-                            <div key={cobro.id} className="flex items-center gap-3 px-4 py-1.5 pl-10 text-sm border-b border-costa-beige/50 last:border-0">
-                              <span className="text-costa-gris w-20">{formatFecha(cobro.fecha)}</span>
-                              <Badge variant="info" className="text-xs">{cobro.concepto}</Badge>
-                              <span className="text-costa-gris text-xs capitalize flex-1">{cobro.medio_pago}</span>
-                              <span className="font-medium text-costa-navy">
-                                {formatMonto(cobro.monto, cobro.moneda)}
-                                {cobro.moneda === 'ARS' && cotizReserva > 0 && (
-                                  <span className="text-xs text-costa-gris font-normal ml-1">
-                                    ({formatMonto(cobro.monto / cotizReserva, 'USD')})
-                                  </span>
-                                )}
-                              </span>
-                            </div>
-                          ))}
+                  {/* Pagos de la reserva elegida */}
+                  {sel && (
+                    <div className="p-4 md:sticky md:top-4 self-start">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="min-w-0">
+                          <p className="font-bold text-costa-esmeralda truncate">{sel.reserva?.inquilinos?.nombre?.trim() || '-'}</p>
+                          <p className="text-xs text-costa-gris">{sel.reserva?.propiedades?.nombre}{sel.reserva && <> · {formatFecha(sel.reserva.fecha_inicio)} → {formatFecha(sel.reserva.fecha_fin)}</>}</p>
                         </div>
-                      )}
+                        <Link href={`/admin/reservas/${sel.id}/cobros${isDemo ? '?demo=true' : ''}`}
+                          className="shrink-0 inline-flex items-center gap-1 rounded-lg border border-costa-borde px-2.5 py-1 text-xs font-semibold text-costa-esmeralda hover:bg-costa-esmeralda-suave">
+                          <Wallet size={13} /> Ver ficha
+                        </Link>
+                      </div>
+                      <table className="w-full text-sm">
+                        <tbody>
+                          {sel.lista.map(c => (
+                            <tr key={c.id} className="border-b border-costa-borde/50 last:border-0">
+                              <td className="py-1.5 pr-2 tabular-nums text-costa-gris whitespace-nowrap">{formatFecha(c.fecha)}</td>
+                              <td className="py-1.5 pr-2 text-costa-navy">
+                                {conceptosCobro[c.concepto] || 'Pago'}
+                                <span className="text-xs text-costa-gris"> · {mediosCobro[c.medio_pago] || c.medio_pago}{c.aplicar_a === 'deposito' ? ' · depósito' : ''}</span>
+                              </td>
+                              <td className={`py-1.5 text-right font-semibold tabular-nums whitespace-nowrap ${c.concepto === 'devolucion_sena' ? 'text-costa-coral-dark' : c.aplicar_a === 'deposito' ? 'text-costa-gris' : 'text-costa-olivo'}`}>
+                                {c.concepto === 'devolucion_sena' ? '− ' : ''}{formatMonto(c.monto, c.moneda)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div className="mt-3 space-y-1 rounded-lg bg-costa-arena/70 px-3 py-2 text-sm">
+                        <div className="flex justify-between"><span className="text-costa-gris">Cobrado por alquiler y servicios</span><span className="font-bold tabular-nums text-costa-olivo">{textoMontos(sumar(sel.lista, false))}</span></div>
+                        {sel.lista.some(c => c.aplicar_a === 'deposito') && (
+                          <div className="flex justify-between"><span className="text-costa-gris">Depósito en garantía</span><span className="font-semibold tabular-nums text-costa-navy">{textoMontos(sumar(sel.lista, true))}</span></div>
+                        )}
+                      </div>
                     </div>
-                  )
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )
+      })()}
 
       {/* Modal */}
       <Modal

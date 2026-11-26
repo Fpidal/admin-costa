@@ -2,454 +2,343 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { supabase } from '@/lib/supabase'
-import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui'
-import { Building2, CalendarDays, Users, DollarSign, AlertCircle, Clock, CheckCircle, Receipt, Eye } from 'lucide-react'
-import { demoReservas, demoGastos, getDemoStats } from '@/lib/demoData'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui'
+import { demoReservas, demoPropiedades, demoCobros, demoGastos } from '@/lib/demoData'
+import { formatFecha, aFechaISO } from '@/lib/fechas'
+import {
+  filtrarReservas, monedasCon, rangoTemporada, temporadaDe, temporadaActual, etiquetaTemporada,
+  nochesEntre, FILTRO_INICIAL, type FiltroReservas, type PorMoneda,
+} from '@/lib/resumenReservas'
+import { metricas, nochesPorMes, demandaTemporada, nochesDe, MESES_CORTOS, type ReservaEst } from '@/lib/estadisticas'
 
-interface Propiedad {
-  id: number
-  nombre: string
-}
+// Tablero de Resumen: cuánto rinde cada temporada, qué meses y fechas se
+// piden más y cómo se compara una casa con la otra.
 
-interface Reserva {
-  id: number | string
-  huesped: string
-  check_in: string
-  check_out: string
-  fecha_inicio: string
-  fecha_fin: string
-  estado: string
-  monto: number
-  cantidad_personas: number
-  propiedad_id: number | string
-  propiedades?: Propiedad | { id: string; nombre: string; direccion: string }
+// Un color fijo por casa, en el orden de la lista (validado para daltonismo)
+const COLORES_CASA = ['#009480', '#c8692b', '#5b6ad0']
+const COLOR_DEMANDA = '#009480'
+
+interface Propiedad { id: string; nombre: string; lote: string | null }
+interface Reserva extends ReservaEst {
+  propiedades?: { nombre: string }
   inquilinos?: { nombre: string }
 }
+interface Cobro { reserva_id: number | string; monto: number; moneda: string; concepto: string; aplicar_a: string }
+interface Gasto { id: number | string; concepto: string; monto: number; fecha: string | null; fecha_vencimiento: string | null; pagado: boolean; propiedad_id: string | null }
 
-interface Gasto {
-  id: number | string
-  concepto: string
-  monto: number
-  fecha_vencimiento: string
-  pagado: boolean
-  tipo: string
-  propiedad_id: number | string
-  propiedades?: Propiedad | { id: string; nombre: string; direccion: string }
+const importe = (v: number, moneda: string) =>
+  `${moneda === 'USD' ? 'U$D' : '$'} ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(Math.round(v))}`
+const importes = (o: PorMoneda, vacio = '–') => monedasCon(o).map(m => importe(o[m], m)).join(' + ') || vacio
+// Para los indicadores: el dólar como cifra principal y los pesos debajo
+const principal = (o: PorMoneda) => importe(o.USD || 0, 'USD')
+const enPesos = (o: PorMoneda) => (Math.round(o.ARS || 0) > 0 ? `+ ${importe(o.ARS, 'ARS')}` : '')
+const soloPositivos = (o: PorMoneda) => Object.fromEntries(Object.entries(o).filter(([, v]) => v > 0))
+
+function Tile({ titulo, valor, detalle, tono = 'text-costa-navy' }: { titulo: string; valor: string; detalle?: React.ReactNode; tono?: string }) {
+  return (
+    <div className="rounded-xl border border-costa-borde bg-costa-superficie px-4 py-3">
+      <p className="text-xs text-costa-gris">{titulo}</p>
+      <p className={`mt-0.5 text-lg font-bold leading-tight tabular-nums ${tono}`}>{valor}</p>
+      {detalle && <p className="mt-0.5 text-xs text-costa-gris">{detalle}</p>}
+    </div>
+  )
 }
 
-interface Cobro {
-  id: number
-  monto: number
-  moneda: string
-  aplicar_a: string
-}
-
-const formatMonto = (monto: number) => {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(monto)
-}
-
-const formatMontoUSD = (monto: number) => {
-  return `U$D ${new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(monto)}`
-}
-
-const formatFecha = (fecha: string) => {
-  return parseFechaLocal(fecha).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
-}
-
-function DashboardContent() {
+function ResumenContent() {
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
+  const demoQ = isDemo ? '?demo=true' : ''
   const { userId } = useAuth()
 
-  const [inquilinosCount, setInquilinosCount] = useState(0)
-  const [reservasPendientes, setReservasPendientes] = useState(0)
-  const [gastosRealizados, setGastosRealizados] = useState(0)
-  const [gastosPendientesTotal, setGastosPendientesTotal] = useState(0)
-  const [ingresosAlquiler, setIngresosAlquiler] = useState({ usd: 0, ars: 0 })
-  const [expensasTotal, setExpensasTotal] = useState(0)
-  const [proximasReservas, setProximasReservas] = useState<Reserva[]>([])
-  const [gastosPendientesList, setGastosPendientesList] = useState<Gasto[]>([])
-  const [alertas, setAlertas] = useState<{ tipo: string; titulo: string; mensaje: string }[]>([])
+  const [reservas, setReservas] = useState<Reserva[]>([])
+  const [cobros, setCobros] = useState<Cobro[]>([])
+  const [propiedades, setPropiedades] = useState<Propiedad[]>([])
+  const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
+  const [filtro, setFiltro] = useState<FiltroReservas>({ ...FILTRO_INICIAL, tipo: 'temporada', valor: String(temporadaActual()) })
 
   useEffect(() => {
     if (isDemo) {
-      // Cargar datos demo
-      const stats = getDemoStats()
-      setInquilinosCount(stats.totalInquilinos)
-      setReservasPendientes(stats.reservasPendientes)
-      setGastosRealizados(stats.gastosPagados)
-      setGastosPendientesTotal(stats.gastosPendientes)
-      setIngresosAlquiler({ usd: stats.ingresosAlquiler, ars: 0 })
-      setExpensasTotal(stats.expensasPendientes)
-
-      // Próximas reservas demo
-      const hoy = new Date().toISOString().split('T')[0]
-      const proximas = demoReservas
-        .filter(r => r.fecha_inicio >= hoy)
-        .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))
-        .slice(0, 5) as unknown as Reserva[]
-      setProximasReservas(proximas)
-
-      // Gastos pendientes demo
-      const gastosPend = demoGastos
-        .filter(g => !g.pagado)
-        .sort((a, b) => a.fecha_vencimiento.localeCompare(b.fecha_vencimiento))
-        .slice(0, 5) as unknown as Gasto[]
-      setGastosPendientesList(gastosPend)
-
-      // Alertas demo
-      const alertasTemp: { tipo: string; titulo: string; mensaje: string }[] = []
-      if (stats.reservasPendientes > 0) {
-        alertasTemp.push({
-          tipo: 'warning',
-          titulo: 'Reservas pendientes',
-          mensaje: `Hay ${stats.reservasPendientes} reserva${stats.reservasPendientes > 1 ? 's' : ''} pendiente${stats.reservasPendientes > 1 ? 's' : ''} de confirmar`
-        })
-      }
-      // Gastos vencidos demo
-      const gastosVencidos = demoGastos.filter(g => !g.pagado && g.fecha_vencimiento < hoy)
-      gastosVencidos.forEach(gasto => {
-        alertasTemp.push({
-          tipo: 'danger',
-          titulo: 'Gasto vencido',
-          mensaje: `${gasto.concepto} venció el ${formatFecha(gasto.fecha_vencimiento)}`
-        })
-      })
-      setAlertas(alertasTemp)
-
+      setReservas(demoReservas as unknown as Reserva[])
+      setCobros(demoCobros as unknown as Cobro[])
+      setPropiedades(demoPropiedades.map(p => ({ id: p.id, nombre: p.nombre, lote: null })))
+      setGastos(demoGastos as unknown as Gasto[])
       setLoading(false)
       return
     }
-
-    async function fetchData() {
-      if (!userId) return
-
-      try {
-        const hoy = new Date().toISOString().split('T')[0]
-
-        // Inquilinos: contar cantidad_personas de todas las reservas activas
-        const { data: reservasActivas } = await supabase
-          .from('reservas')
-          .select('cantidad_personas')
-          .eq('user_id', userId)
-          .is('eliminado_at', null)
-          .in('estado', ['confirmada', 'pendiente'])
-        const totalInquilinos = reservasActivas?.reduce((acc, r) => acc + (r.cantidad_personas || 1), 0) || 0
-        setInquilinosCount(totalInquilinos)
-
-        // Reservas pendientes
-        const { count: resPendientes } = await supabase
-          .from('reservas')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .is('eliminado_at', null)
-          .eq('estado', 'pendiente')
-        setReservasPendientes(resPendientes || 0)
-
-        // Gastos realizados (pagados) - todos los gastos pagados
-        const { data: gastosPagados } = await supabase
-          .from('gastos')
-          .select('monto')
-          .eq('user_id', userId)
-          .is('eliminado_at', null)
-          .eq('pagado', true)
-        const totalGastosRealizados = gastosPagados?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
-        setGastosRealizados(totalGastosRealizados)
-
-        // Gastos pendientes (no pagados) - todos los gastos pendientes
-        const { data: gastosPend } = await supabase
-          .from('gastos')
-          .select('monto')
-          .eq('user_id', userId)
-          .is('eliminado_at', null)
-          .eq('pagado', false)
-        const totalGastosPendientes = gastosPend?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
-        setGastosPendientesTotal(totalGastosPendientes)
-
-        // Ingresos por alquiler: `aplicar_a = 'alquiler'` ya deja afuera la
-        // limpieza final, el lavadero y el depósito, que van con su propio
-        // aplicar_a. Es el mismo criterio que usa la pantalla de cobros.
-        const [{ data: cobrosAlquiler }, { data: liquidaciones }] = await Promise.all([
-          supabase
-            .from('cobros')
-            .select('monto, moneda, concepto, reserva_id, reservas!inner(eliminado_at)')
-            .eq('user_id', userId)
-            .is('reservas.eliminado_at', null)
-            .eq('aplicar_a', 'alquiler'),
-          supabase
-            .from('liquidaciones')
-            .select('reserva_id, cotizacion_dolar')
-            .eq('user_id', userId),
-        ])
-
-        const cotizPorReserva = new Map(
-          (liquidaciones || []).map(l => [String(l.reserva_id), l.cotizacion_dolar || 0])
-        )
-
-        const ingresos = (cobrosAlquiler || []).reduce((acc, c) => {
-          // una devolución de seña es plata que salió, así que resta
-          const monto = (c.concepto === 'devolucion_sena' ? -1 : 1) * (c.monto || 0)
-          const cotiz = cotizPorReserva.get(String(c.reserva_id)) || 0
-          if (c.moneda === 'USD') acc.usd += monto
-          else if (cotiz > 0) acc.usd += monto / cotiz
-          else acc.ars += monto
-          return acc
-        }, { usd: 0, ars: 0 })
-        setIngresosAlquiler(ingresos)
-
-        // Expensas pendientes (gastos de tipo expensa no pagados)
-        const { data: expensas } = await supabase
-          .from('gastos')
-          .select('monto')
-          .eq('user_id', userId)
-          .is('eliminado_at', null)
-          .eq('tipo', 'expensa')
-          .eq('pagado', false)
-        const totalExpensas = expensas?.reduce((acc, g) => acc + (g.monto || 0), 0) || 0
-        setExpensasTotal(totalExpensas)
-
-        // Próximas reservas
-        const { data: proxReservas } = await supabase
-          .from('reservas')
-          .select('*, propiedades(nombre), inquilinos(nombre)')
-          .eq('user_id', userId)
-          .is('eliminado_at', null)
-          .gte('fecha_inicio', hoy)
-          .in('estado', ['confirmada', 'pendiente'])
-          .order('fecha_inicio', { ascending: true })
-          .limit(5)
-        setProximasReservas(proxReservas || [])
-
-        // Lista de gastos pendientes
-        const { data: gastosList } = await supabase
-          .from('gastos')
-          .select('*, propiedades(nombre)')
-          .eq('user_id', userId)
-          .is('eliminado_at', null)
-          .eq('pagado', false)
-          .order('fecha_vencimiento', { ascending: true })
-          .limit(5)
-        setGastosPendientesList(gastosList || [])
-
-        // Alertas
-        const alertasTemp: { tipo: string; titulo: string; mensaje: string }[] = []
-
-        // Reservas pendientes de confirmar
-        if ((resPendientes || 0) > 0) {
-          alertasTemp.push({
-            tipo: 'warning',
-            titulo: 'Reservas pendientes',
-            mensaje: `Hay ${resPendientes} reserva${(resPendientes || 0) > 1 ? 's' : ''} pendiente${(resPendientes || 0) > 1 ? 's' : ''} de confirmar`
-          })
-        }
-
-        // Gastos vencidos
-        const { data: gastosVencidos } = await supabase
-          .from('gastos')
-          .select('concepto, fecha_vencimiento')
-          .eq('user_id', userId)
-          .is('eliminado_at', null)
-          .eq('pagado', false)
-          .lt('fecha_vencimiento', hoy)
-
-        gastosVencidos?.forEach(gasto => {
-          alertasTemp.push({
-            tipo: 'danger',
-            titulo: 'Gasto vencido',
-            mensaje: `${gasto.concepto} venció el ${formatFecha(gasto.fecha_vencimiento)}`
-          })
-        })
-
-        setAlertas(alertasTemp)
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      } finally {
-        setLoading(false)
-      }
+    if (!userId) return
+    async function cargar() {
+      const [r, c, p, g] = await Promise.all([
+        supabase.from('reservas').select('*, propiedades(nombre), inquilinos(nombre)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio'),
+        supabase.from('cobros').select('reserva_id, monto, moneda, concepto, aplicar_a, reservas!inner(eliminado_at)').eq('user_id', userId).is('reservas.eliminado_at', null),
+        supabase.from('propiedades').select('id, nombre, lote').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
+        supabase.from('gastos').select('id, concepto, monto, fecha, fecha_vencimiento, pagado, propiedad_id').eq('user_id', userId).is('eliminado_at', null),
+      ])
+      if (r.data) setReservas(r.data)
+      if (c.data) setCobros(c.data)
+      if (p.data) setPropiedades(p.data)
+      if (g.data) setGastos(g.data)
+      setLoading(false)
     }
-
-    fetchData()
+    cargar()
   }, [isDemo, userId])
 
-  const stats = [
-    { name: 'Inquilinos', value: inquilinosCount.toString(), icon: Users, color: 'text-costa-navy', bg: 'bg-costa-beige' },
-    { name: 'Reservas pendientes', value: reservasPendientes.toString(), icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-    {
-      name: 'Ingresos alquiler',
-      value: ingresosAlquiler.ars !== 0
-        ? `${ingresosAlquiler.usd !== 0 ? formatMontoUSD(ingresosAlquiler.usd) + ' + ' : ''}${formatMonto(ingresosAlquiler.ars)}`
-        : formatMontoUSD(ingresosAlquiler.usd),
-      icon: DollarSign, color: 'text-costa-olivo', bg: 'bg-costa-olivo/10'
-    },
-  ]
+  if (loading) return <div className="flex items-center justify-center h-64 text-costa-gris">Cargando...</div>
 
-  const statsGastos = [
-    { name: 'Gastos realizados', value: formatMonto(gastosRealizados), icon: CheckCircle, color: 'text-costa-olivo', bg: 'bg-costa-olivo/10' },
-    { name: 'Gastos pendientes', value: formatMonto(gastosPendientesTotal), icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { name: 'Expensas', value: formatMonto(expensasTotal), icon: Receipt, color: 'text-costa-navy', bg: 'bg-costa-beige' },
-  ]
+  const hoy = aFechaISO(new Date())
+  const ids = propiedades.map(p => String(p.id))
+  const colorDe = (id: string) => COLORES_CASA[ids.indexOf(id) % COLORES_CASA.length]
+  const nombreDe = (id: string) => propiedades.find(p => String(p.id) === id)?.nombre || ''
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Cargando...</div>
-      </div>
-    )
+  // Opciones del período
+  const temporadas = Array.from(new Set([temporadaActual(), ...reservas.map(r => temporadaDe(r.fecha_inicio)).filter((t): t is number => t !== null)])).sort((a, b) => b - a)
+  const anios = Array.from(new Set([new Date().getFullYear(), ...reservas.map(r => Number(r.fecha_inicio.slice(0, 4)))])).sort((a, b) => b - a)
+  const esTemporada = filtro.tipo === 'temporada' && !!filtro.valor
+  const rango = esTemporada ? rangoTemporada(Number(filtro.valor)) : null
+  const periodoTexto = esTemporada ? etiquetaTemporada(Number(filtro.valor)) : filtro.tipo === 'anio' ? `Año ${filtro.valor}` : 'Todas las reservas'
+
+  // Reservas del período (por fecha de ingreso). Las estadísticas usan las
+  // confirmadas y cerradas; las pendientes se cuentan aparte
+  const delPeriodo = filtrarReservas(reservas, filtro).filter(r => r.estado !== 'cancelada')
+  const firmes = delPeriodo.filter(r => r.estado !== 'pendiente')
+  const pendientes = delPeriodo.filter(r => r.estado === 'pendiente')
+  const total = metricas(firmes, cobros)
+  const porCasa = ids.map(id => metricas(firmes.filter(r => String(r.propiedad_id) === id), cobros, id))
+  const pctCobrado = total.total.USD ? Math.round(((total.cobrado.USD || 0) / total.total.USD) * 100) : null
+
+  // Ocupación (solo tiene sentido en una temporada: noches dentro del 15/12–20/02)
+  const nochesTemporada = rango ? nochesEntre(rango.desde, rango.hasta) : 0
+  const nochesEnRango = (rs: Reserva[]) => rango ? rs.reduce((a, r) => a + nochesDe(r).filter(n => n >= rango.desde && n < rango.hasta).length, 0) : 0
+  const ocupacion = rango && ids.length ? Math.round((nochesEnRango(firmes) / (nochesTemporada * ids.length)) * 100) : null
+  const ocupacionCasa = (id: string) => rango ? Math.round((nochesEnRango(firmes.filter(r => String(r.propiedad_id) === id)) / nochesTemporada) * 100) : null
+
+  // Noches por mes: en una temporada, dic-ene-feb; si no, los 12 meses
+  const meses = esTemporada ? [11, 0, 1] : [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+  const dentroPeriodo = rango ? (n: string) => n >= rango.desde && n < rango.hasta : filtro.tipo === 'anio' ? (n: string) => n.startsWith(filtro.valor) : undefined
+  const porMes = nochesPorMes(firmes, ids, meses, dentroPeriodo)
+  const totalesMes = porMes.map(f => ({ mes: f.mes as string, noches: ids.reduce((a, id) => a + (f[id] as number), 0) }))
+  const conNoches = totalesMes.filter(m => m.noches > 0)
+  const mesFuerte = conNoches.length ? conNoches.reduce((a, b) => (b.noches > a.noches ? b : a)) : null
+  // El más flojo entre los meses que tuvieron reservas (los vacíos no dicen nada)
+  const mesFlojo = conNoches.length > 1 ? conNoches.reduce((a, b) => (b.noches < a.noches ? b : a)) : null
+
+  // Demanda día por día en temporada alta (la elegida, o todas las del período)
+  const temporadasDemanda = esTemporada ? [Number(filtro.valor)] : Array.from(new Set(delPeriodo.map(r => temporadaDe(r.fecha_inicio)).filter((t): t is number => t !== null)))
+  const demanda = demandaTemporada(reservas.filter(r => r.estado !== 'cancelada'), ids, temporadasDemanda)
+  // Semanas más y menos pedidas (promedio móvil de 7 días)
+  const semanas = demanda.length >= 7 ? demanda.slice(0, demanda.length - 6).map((_, i) => ({
+    desde: demanda[i].dia, hasta: demanda[i + 6].dia,
+    prom: Math.round(demanda.slice(i, i + 7).reduce((a, d) => a + d.ocupacion, 0) / 7),
+  })) : []
+  const semanaTop = semanas.length ? semanas.reduce((a, b) => (b.prom > a.prom ? b : a)) : null
+  const semanaFloja = semanas.length ? semanas.reduce((a, b) => (b.prom < a.prom ? b : a)) : null
+
+  // Gastos pagados del período (por fecha del gasto)
+  const enPeriodo = (iso: string | null) => {
+    if (!iso) return false
+    if (rango) return iso >= rango.desde && iso <= rango.hasta
+    if (filtro.tipo === 'anio') return iso.startsWith(filtro.valor)
+    return true
   }
+  const gastosPagados = gastos.filter(g => g.pagado && enPeriodo(g.fecha || g.fecha_vencimiento))
+  const gastosCasa = (id: string) => gastosPagados.filter(g => String(g.propiedad_id) === id).reduce((a, g) => a + (g.monto || 0), 0)
+
+  const proximas = reservas.filter(r => r.estado !== 'cancelada' && r.estado !== 'cerrada' && r.fecha_inicio.slice(0, 10) >= hoy).slice(0, 5)
+  const gastosPendientes = gastos.filter(g => !g.pagado).sort((a, b) => (a.fecha_vencimiento || '').localeCompare(b.fecha_vencimiento || '')).slice(0, 5)
+
+  const filasComparacion: { label: string; valor: (i: number, id: string) => string }[] = [
+    { label: 'Reservas', valor: i => String(porCasa[i].reservas) },
+    { label: 'Noches vendidas', valor: i => String(porCasa[i].noches) },
+    ...(rango ? [{ label: 'Ocupación en temporada', valor: (_: number, id: string) => `${ocupacionCasa(id)}%` }] : []),
+    { label: 'Tarifa promedio por noche', valor: i => porCasa[i].tarifaPromedio ? importe(porCasa[i].tarifaPromedio as number, 'USD') : '–' },
+    { label: 'Total reservado', valor: i => importes(porCasa[i].total) },
+    { label: 'Cobrado', valor: i => importes(porCasa[i].cobrado) },
+    { label: 'Pendiente de cobro', valor: i => importes(Object.fromEntries(Object.entries(porCasa[i].saldo).filter(([, v]) => v > 0))) },
+    { label: 'Estadía promedio', valor: i => porCasa[i].estadiaPromedio ? `${porCasa[i].estadiaPromedio} noches` : '–' },
+    { label: 'Personas por reserva', valor: i => porCasa[i].personasPromedio ? String(porCasa[i].personasPromedio) : '–' },
+    { label: 'Anticipación al reservar', valor: i => porCasa[i].anticipacionPromedio !== null ? `${porCasa[i].anticipacionPromedio} días` : '–' },
+    { label: 'Gastos pagados', valor: (_: number, id: string) => { const g = gastosCasa(id); return g ? importe(g, 'ARS') : '–' } },
+  ]
+
+  const selectClase = 'rounded-lg border border-costa-borde bg-costa-superficie px-2.5 py-1.5 text-sm font-semibold text-costa-navy'
+  const ejeTexto = { fontSize: 11, fill: '#6b7c93' }
 
   return (
-    <div>
-      <PageHeader
-        title="Resumen"
-        description="Resumen general de tu gestión de propiedades"
-      />
+    <div className="vista-compacta">
+      <PageHeader title="Resumen" description={`${periodoTexto} · ${propiedades.map(p => p.nombre).join(', ')}`}>
+        <select className={selectClase} value={filtro.tipo} aria-label="Período"
+          onChange={e => {
+            const tipo = e.target.value as FiltroReservas['tipo']
+            setFiltro({ ...FILTRO_INICIAL, tipo, valor: tipo === 'temporada' ? String(temporadas[0]) : tipo === 'anio' ? String(anios[0]) : '' })
+          }}>
+          <option value="temporada">Temporada</option>
+          <option value="anio">Año</option>
+          <option value="todo">Todo</option>
+        </select>
+        {filtro.tipo !== 'todo' && (
+          <select className={selectClase} value={filtro.valor} aria-label={filtro.tipo === 'temporada' ? 'Temporada' : 'Año'} onChange={e => setFiltro({ ...filtro, valor: e.target.value })}>
+            {(filtro.tipo === 'temporada' ? temporadas : anios).map(a => (
+              <option key={a} value={String(a)}>{filtro.tipo === 'temporada' ? `${a}/${String(a + 1).slice(-2)}` : a}</option>
+            ))}
+          </select>
+        )}
+      </PageHeader>
 
-      {/* Demo Mode Banner */}
-      {isDemo && (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
-          <Eye className="w-5 h-5 text-amber-600" />
-          <span className="text-amber-800 font-medium">Modo Demo</span>
-          <span className="text-amber-600 text-sm">- Los datos mostrados son ficticios</span>
-        </div>
+      {/* Indicadores */}
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4">
+        <Tile titulo="Total reservado" valor={principal(total.total)}
+          detalle={<>{enPesos(total.total) && <span className="block">{enPesos(total.total)}</span>}{pendientes.length ? <span className="text-red-700 font-semibold">+ {pendientes.length} sin confirmar</span> : `${total.reservas} reservas`}</>} />
+        <Tile titulo="Cobrado" valor={principal(total.cobrado)} tono="text-costa-olivo"
+          detalle={<>{enPesos(total.cobrado) && <span className="block">{enPesos(total.cobrado)}</span>}{pctCobrado !== null ? `${pctCobrado}% del total` : ''}</>} />
+        <Tile titulo="Pendiente de cobro" valor={principal(soloPositivos(total.saldo))} tono="text-costa-coral-dark"
+          detalle={enPesos(soloPositivos(total.saldo)) || undefined} />
+        {ocupacion !== null
+          ? <Tile titulo="Ocupación" valor={`${ocupacion}%`} detalle={`${nochesEnRango(firmes)} de ${nochesTemporada * ids.length} noches`} />
+          : <Tile titulo="Noches vendidas" valor={String(total.noches)} detalle={`${total.reservas} reservas`} />}
+        <Tile titulo="Tarifa promedio" valor={total.tarifaPromedio ? importe(total.tarifaPromedio, 'USD') : '–'} detalle="por noche" />
+        <Tile titulo="Estadía promedio" valor={total.estadiaPromedio ? `${total.estadiaPromedio} noches` : '–'}
+          detalle={total.anticipacionPromedio !== null ? `reservan con ${total.anticipacionPromedio} días de anticipación` : undefined} />
+      </div>
+
+      {firmes.length === 0 ? (
+        <Card className="mb-4"><CardContent className="py-10 text-center text-costa-gris">No hay reservas confirmadas en {periodoTexto.toLowerCase()}.</CardContent></Card>
+      ) : (
+        <>
+          <div className="grid gap-4 lg:grid-cols-2 mb-4">
+            {/* Noches por mes y por casa */}
+            <Card>
+              <CardHeader><CardTitle>Noches ocupadas por mes</CardTitle></CardHeader>
+              <CardContent>
+                <div className="h-64" role="img" aria-label="Noches ocupadas por mes y por casa">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={porMes} barGap={2} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                      <CartesianGrid stroke="#e8dfd2" vertical={false} />
+                      <XAxis dataKey="mes" tick={ejeTexto} axisLine={false} tickLine={false} />
+                      <YAxis tick={ejeTexto} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip cursor={{ fill: 'rgba(20,80,76,0.06)' }} contentStyle={{ borderRadius: 8, border: '1px solid #e8dfd2', fontSize: 12 }}
+                        formatter={(v, name) => [`${v} noches`, nombreDe(String(name))]} />
+                      <Legend formatter={(v) => <span style={{ color: '#1b2c42', fontSize: 12 }}>{nombreDe(String(v))}</span>} iconType="circle" iconSize={8} />
+                      {ids.map(id => <Bar key={id} dataKey={id} fill={colorDe(id)} radius={[4, 4, 0, 0]} maxBarSize={36} />)}
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                {mesFuerte && (
+                  <p className="mt-2 text-sm text-costa-navy">
+                    Mes más fuerte: <span className="font-bold">{mesFuerte.mes}</span> ({mesFuerte.noches} noches)
+                    {mesFlojo && mesFlojo.mes !== mesFuerte.mes && <> · más flojo: <span className="font-bold">{mesFlojo.mes}</span> ({mesFlojo.noches} noches)</>}
+                    {!esTemporada && <span className="text-costa-gris"> · sumando {filtro.tipo === 'anio' ? `el año ${filtro.valor}` : 'todos los años'}</span>}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Casa contra casa */}
+            <Card>
+              <CardHeader><CardTitle>Casa contra casa</CardTitle></CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-costa-borde">
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-costa-gris" />
+                        {ids.map(id => (
+                          <th key={id} className="px-4 py-2 text-right text-sm font-bold text-costa-navy whitespace-nowrap">
+                            <span className="inline-block h-2.5 w-2.5 rounded-full mr-1.5 align-middle" style={{ background: colorDe(id) }} />{nombreDe(id)}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filasComparacion.map(f => (
+                        <tr key={f.label} className="border-b border-costa-borde/50 last:border-0">
+                          <td className="px-4 py-2 text-costa-gris whitespace-nowrap">{f.label}</td>
+                          {ids.map((id, i) => <td key={id} className="px-4 py-2 text-right font-semibold text-costa-navy tabular-nums whitespace-nowrap">{f.valor(i, id)}</td>)}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Demanda en temporada alta */}
+          {demanda.length > 0 && (
+            <Card className="mb-4">
+              <CardHeader className="flex flex-wrap items-baseline justify-between gap-2">
+                <CardTitle>Qué fechas se piden más</CardTitle>
+                <span className="text-xs text-costa-gris">
+                  % de casas ocupadas cada día del 15/12 al 20/02{temporadasDemanda.length > 1 ? `, promedio de ${temporadasDemanda.length} temporadas` : ''}
+                </span>
+              </CardHeader>
+              <CardContent>
+                <div className="h-48" role="img" aria-label="Ocupación día por día en temporada alta">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={demanda} barCategoryGap={1} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                      <CartesianGrid stroke="#e8dfd2" vertical={false} />
+                      <XAxis dataKey="dia" tick={ejeTexto} axisLine={false} tickLine={false} interval={6} />
+                      <YAxis tick={ejeTexto} axisLine={false} tickLine={false} domain={[0, 100]} ticks={[0, 50, 100]} unit="%" />
+                      <Tooltip cursor={{ fill: 'rgba(20,80,76,0.06)' }} contentStyle={{ borderRadius: 8, border: '1px solid #e8dfd2', fontSize: 12 }}
+                        formatter={(v) => [`${v}% ocupado`, 'Confirmadas']} labelFormatter={(l) => `Noche del ${l}`} />
+                      <Bar dataKey="ocupacion" fill={COLOR_DEMANDA} radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                {semanaTop && semanaFloja && (
+                  <p className="mt-2 text-sm text-costa-navy">
+                    Semana más pedida: <span className="font-bold">{semanaTop.desde} al {semanaTop.hasta}</span> ({semanaTop.prom}% ocupado)
+                    {' · '}más floja: <span className="font-bold">{semanaFloja.desde} al {semanaFloja.hasta}</span> ({semanaFloja.prom}%)
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
 
-      {/* Stats Grid - Reservas e Ingresos */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-        {stats.map((stat) => (
-          <Card key={stat.name}>
-            <CardContent className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${stat.bg}`}>
-                <stat.icon className={`w-6 h-6 ${stat.color}`} />
-              </div>
-              <div>
-                <p className="text-sm text-costa-gris">{stat.name}</p>
-                <p className="text-2xl font-bold text-costa-navy">{stat.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Stats Grid - Gastos y Expensas */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        {statsGastos.map((stat) => (
-          <Card key={stat.name}>
-            <CardContent className="flex items-center gap-4">
-              <div className={`p-3 rounded-lg ${stat.bg}`}>
-                <stat.icon className={`w-6 h-6 ${stat.color}`} />
-              </div>
-              <div>
-                <p className="text-sm text-costa-gris">{stat.name}</p>
-                <p className="text-2xl font-bold text-costa-navy">{stat.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Próximas reservas */}
+      {/* Próximas entradas y gastos pendientes */}
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle>Próximas Reservas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {proximasReservas.length === 0 ? (
-              <p className="text-gray-500 text-sm">No hay reservas próximas</p>
-            ) : (
-              <div className="space-y-4">
-                {proximasReservas.map((reserva: Reserva) => (
-                  <div key={reserva.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="font-medium text-gray-900">{reserva.propiedades?.nombre || 'Propiedad'}</p>
-                      <p className="text-sm text-gray-500">
-                        {reserva.inquilinos?.nombre || '-'} • {formatFecha(reserva.fecha_inicio)} - {formatFecha(reserva.fecha_fin)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-costa-gris">{reserva.cantidad_personas || 1} pers.</span>
-                      <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                        reserva.estado === 'confirmada'
-                          ? 'bg-costa-olivo/20 text-costa-olivo'
-                          : 'bg-yellow-100 text-yellow-700'
-                      }`}>
-                        {reserva.estado === 'confirmada' ? 'Confirmada' : 'Pendiente'}
-                      </span>
-                    </div>
-                  </div>
+          <CardHeader className="flex items-baseline justify-between"><CardTitle>Próximas entradas</CardTitle><Link href={`/admin/temporada${demoQ}`} className="text-xs font-semibold text-costa-esmeralda">Ver temporada</Link></CardHeader>
+          <CardContent className="p-0">
+            {proximas.length === 0 ? <p className="px-6 py-6 text-sm text-costa-gris">No hay ingresos próximos.</p> : (
+              <ul className="divide-y divide-costa-borde/60">
+                {proximas.map(r => (
+                  <li key={String(r.id)}>
+                    <Link href={`/admin/reservas/${r.id}/cobros${demoQ}`} className="flex items-center gap-3 px-6 py-2.5 text-sm hover:bg-costa-arena/50">
+                      <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: colorDe(String(r.propiedad_id)) }} />
+                      <span className="w-24 shrink-0 font-semibold text-costa-navy truncate">{nombreDe(String(r.propiedad_id))}</span>
+                      <span className="flex-1 min-w-0 truncate text-costa-navy">{r.inquilinos?.nombre?.trim() || '-'}</span>
+                      <span className="shrink-0 tabular-nums text-costa-gris">{formatFecha(r.fecha_inicio)}</span>
+                      {r.estado === 'pendiente' && <span className="shrink-0 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700">Sin confirmar</span>}
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
             )}
           </CardContent>
         </Card>
-
-        {/* Gastos pendientes */}
         <Card>
-          <CardHeader>
-            <CardTitle>Gastos Pendientes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {gastosPendientesList.length === 0 ? (
-              <p className="text-gray-500 text-sm">No hay gastos pendientes</p>
-            ) : (
-              <div className="space-y-4">
-                {gastosPendientesList.map((gasto) => (
-                  <div key={gasto.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {gasto.concepto} {gasto.propiedades?.nombre ? `- ${gasto.propiedades.nombre}` : ''}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        Vence: {gasto.fecha_vencimiento ? formatFecha(gasto.fecha_vencimiento) : 'Sin fecha'}
-                      </p>
-                    </div>
-                    <span className="font-semibold text-gray-900">{formatMonto(gasto.monto)}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Alertas */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-500" />
-              Alertas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {alertas.length === 0 ? (
-              <p className="text-gray-500 text-sm">No hay alertas</p>
-            ) : (
-              <div className="space-y-3">
-                {alertas.map((alerta, i) => (
-                  <div
-                    key={i}
-                    className={`flex items-start gap-3 p-3 rounded-lg ${
-                      alerta.tipo === 'danger' ? 'bg-costa-coral/10' : 'bg-costa-beige'
-                    }`}
-                  >
-                    <AlertCircle className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
-                      alerta.tipo === 'danger' ? 'text-costa-coral' : 'text-costa-gris'
-                    }`} />
-                    <div>
-                      <p className={`font-medium ${
-                        alerta.tipo === 'danger' ? 'text-costa-coral' : 'text-costa-navy'
-                      }`}>{alerta.titulo}</p>
-                      <p className={`text-sm ${
-                        alerta.tipo === 'danger' ? 'text-costa-coral' : 'text-costa-gris'
-                      }`}>{alerta.mensaje}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <CardHeader className="flex items-baseline justify-between"><CardTitle>Gastos pendientes</CardTitle><Link href={`/admin/gastos${demoQ}`} className="text-xs font-semibold text-costa-esmeralda">Ver gastos</Link></CardHeader>
+          <CardContent className="p-0">
+            {gastosPendientes.length === 0 ? <p className="px-6 py-6 text-sm text-costa-gris">No hay gastos pendientes.</p> : (
+              <ul className="divide-y divide-costa-borde/60">
+                {gastosPendientes.map(g => {
+                  const vencido = !!g.fecha_vencimiento && g.fecha_vencimiento < hoy
+                  return (
+                    <li key={String(g.id)} className="flex items-center gap-3 px-6 py-2.5 text-sm">
+                      <span className="flex-1 min-w-0 truncate text-costa-navy">{g.concepto}{g.propiedad_id && <span className="text-costa-gris"> · {nombreDe(String(g.propiedad_id))}</span>}</span>
+                      {g.fecha_vencimiento && <span className={`shrink-0 tabular-nums ${vencido ? 'font-semibold text-red-700' : 'text-costa-gris'}`}>{vencido ? 'venció ' : 'vence '}{formatFecha(g.fecha_vencimiento)}</span>}
+                      <span className="shrink-0 font-semibold tabular-nums text-costa-navy">{importe(g.monto || 0, 'ARS')}</span>
+                    </li>
+                  )
+                })}
+              </ul>
             )}
           </CardContent>
         </Card>
@@ -458,10 +347,10 @@ function DashboardContent() {
   )
 }
 
-export default function Dashboard() {
+export default function ResumenPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-gray-500">Cargando...</div></div>}>
-      <DashboardContent />
+    <Suspense fallback={<div className="flex items-center justify-center h-64 text-costa-gris">Cargando...</div>}>
+      <ResumenContent />
     </Suspense>
   )
 }
