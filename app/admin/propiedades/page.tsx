@@ -955,7 +955,7 @@ function PropiedadesContent() {
                     {/* Fila 2: Acciones, con texto en vez de íconos sueltos */}
                     <div className="grid grid-cols-2 gap-1.5">
                       <button type="button" onClick={() => compartirWhatsApp(propiedad)}
-                        className="rounded-lg border border-green-200 bg-green-50 px-2 py-1.5 text-xs font-semibold text-green-700 hover:bg-green-100 transition-colors">
+                        className="rounded-lg border border-costa-borde bg-costa-superficie px-2 py-1.5 text-xs font-semibold text-costa-esmeralda hover:bg-costa-arena transition-colors">
                         Compartir
                       </button>
                       <button type="button"
@@ -963,15 +963,15 @@ function PropiedadesContent() {
                           setSelectedPropiedadId(String(propiedad.id))
                           setActiveTab('precios')
                         }}
-                        className="rounded-lg border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 transition-colors">
+                        className="rounded-lg border border-costa-borde bg-costa-superficie px-2 py-1.5 text-xs font-semibold text-costa-esmeralda hover:bg-costa-arena transition-colors">
                         Precios
                       </button>
                       <button type="button" onClick={() => openModal(propiedad)}
-                        className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
+                        className="rounded-lg border border-costa-borde bg-costa-superficie px-2 py-1.5 text-xs font-semibold text-costa-esmeralda hover:bg-costa-arena transition-colors">
                         Editar
                       </button>
                       <button type="button" onClick={() => handleDelete(propiedad.id)}
-                        className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-100 transition-colors">
+                        className="rounded-lg border border-costa-borde bg-costa-superficie px-2 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 transition-colors">
                         Eliminar
                       </button>
                     </div>
