@@ -94,7 +94,7 @@ function TemporadaContent() {
     async function cargar() {
       const [r, c, p] = await Promise.all([
         supabase.from('reservas').select('*, propiedades(nombre, lote), inquilinos(nombre, telefono)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio'),
-        supabase.from('cobros').select('reserva_id, monto, moneda, concepto, aplicar_a, reservas!inner(eliminado_at)').eq('user_id', userId).is('reservas.eliminado_at', null),
+        supabase.from('cobros').select('reserva_id, monto, moneda, concepto, aplicar_a, fecha, reservas!inner(eliminado_at)').eq('user_id', userId).is('reservas.eliminado_at', null),
         supabase.from('propiedades').select('id, nombre, lote, precio_alquiler').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
       ])
       if (r.data) setReservas(r.data)
