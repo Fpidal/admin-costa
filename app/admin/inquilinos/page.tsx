@@ -383,6 +383,11 @@ function InquilinosContent() {
                       </div>
                     )}
                   </div>
+                  {inquilino.observaciones && (
+                    <p className="mb-2 rounded-lg bg-costa-arena/70 px-3 py-2 text-xs leading-snug text-costa-navy whitespace-pre-line break-words">
+                      {inquilino.observaciones}
+                    </p>
+                  )}
                   <div className="flex items-center justify-between pt-2 border-t border-costa-beige">
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1 text-xs text-costa-gris">
@@ -415,7 +420,7 @@ function InquilinosContent() {
                       <th className="px-2 py-2 text-center text-xs font-medium text-costa-gris uppercase">Pers.</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Origen</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Reservas</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase">Obs.</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase w-full min-w-[280px]">Observaciones</th>
                       <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase"></th>
                     </tr>
                   </thead>
@@ -460,9 +465,10 @@ function InquilinosContent() {
                             <span className="text-costa-gris text-xs">-</span>
                           )}
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 min-w-[280px]">
+                          {/* Completas, con sus renglones: la columna toma el espacio que sobra */}
                           {inquilino.observaciones ? (
-                            <p className="text-xs text-costa-gris truncate max-w-[120px]" title={inquilino.observaciones}>
+                            <p className="text-xs leading-snug text-costa-navy whitespace-pre-line break-words">
                               {inquilino.observaciones}
                             </p>
                           ) : (

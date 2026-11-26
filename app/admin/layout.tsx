@@ -271,21 +271,21 @@ function AdminLayoutContent({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-costa-beige">
-        <div className="text-costa-gris">Cargando...</div>
+      <div className="min-h-screen flex items-center justify-center bg-costa-esmeralda text-white/80" style={{ fontFamily: 'var(--font-manrope), system-ui, sans-serif' }}>
+        <div className="">Cargando...</div>
       </div>
     )
   }
 
   if (isInactive) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-costa-beige to-costa-beige-light">
+      <div className="min-h-screen flex items-center justify-center bg-costa-esmeralda" style={{ fontFamily: 'var(--font-manrope), system-ui, sans-serif' }}>
         <div className="w-full max-w-md p-8">
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-costa-coral/10 flex items-center justify-center">
               <Lock size={32} className="text-costa-coral" />
             </div>
-            <h1 className="text-2xl font-semibold text-costa-navy mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>
+            <h1 className="text-2xl font-bold text-costa-esmeralda mb-2">
               Cuenta Desactivada
             </h1>
             <p className="text-costa-gris mb-6">
@@ -297,7 +297,7 @@ function AdminLayoutContent({
                 setIsInactive(false)
                 router.push('/')
               }}
-              className="w-full py-3 bg-costa-navy text-white rounded-lg font-medium hover:bg-costa-navy/90 transition-colors"
+              className="w-full py-3 bg-costa-esmeralda text-white rounded-lg font-medium hover:bg-costa-esmeralda-light transition-colors"
             >
               Volver al inicio
             </button>
@@ -309,13 +309,13 @@ function AdminLayoutContent({
 
   if (isPendingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-costa-beige to-costa-beige-light">
+      <div className="min-h-screen flex items-center justify-center bg-costa-esmeralda" style={{ fontFamily: 'var(--font-manrope), system-ui, sans-serif' }}>
         <div className="w-full max-w-md p-8">
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
             <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
               <Clock size={32} className="text-amber-600" />
             </div>
-            <h1 className="text-2xl font-semibold text-costa-navy mb-2" style={{ fontFamily: 'var(--font-playfair)' }}>
+            <h1 className="text-2xl font-bold text-costa-esmeralda mb-2">
               Autorización Pendiente
             </h1>
             <p className="text-costa-gris mb-6">
@@ -327,7 +327,7 @@ function AdminLayoutContent({
                 setIsPendingAuth(false)
                 router.push('/')
               }}
-              className="w-full py-3 bg-costa-navy text-white rounded-lg font-medium hover:bg-costa-navy/90 transition-colors"
+              className="w-full py-3 bg-costa-esmeralda text-white rounded-lg font-medium hover:bg-costa-esmeralda-light transition-colors"
             >
               Volver al inicio
             </button>
@@ -340,11 +340,11 @@ function AdminLayoutContent({
   // Pantalla para establecer nueva contraseña (después de recovery)
   if (isSettingNewPassword) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-costa-beige to-costa-beige-light">
+      <div className="min-h-screen flex items-center justify-center bg-costa-esmeralda" style={{ fontFamily: 'var(--font-manrope), system-ui, sans-serif' }}>
         <div className="w-full max-w-md p-8">
           <div className="bg-white rounded-2xl shadow-xl p-8">
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
+              <h1 className="text-3xl font-bold text-costa-esmeralda">
                 Admin Costa
               </h1>
               <p className="text-sm text-costa-gris mt-2">
@@ -365,7 +365,7 @@ function AdminLayoutContent({
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-10 pr-12 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                    className="w-full pl-10 pr-12 py-3 border border-costa-borde rounded-lg focus:ring-2 focus:ring-costa-esmeralda focus:border-transparent transition-all"
                     placeholder="Mínimo 6 caracteres"
                     required
                     minLength={6}
@@ -393,7 +393,7 @@ function AdminLayoutContent({
                     type={showPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                    className="w-full pl-10 pr-4 py-3 border border-costa-borde rounded-lg focus:ring-2 focus:ring-costa-esmeralda focus:border-transparent transition-all"
                     placeholder="Repetir contraseña"
                     required
                     minLength={6}
@@ -412,7 +412,7 @@ function AdminLayoutContent({
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-costa-navy text-white rounded-lg font-medium hover:bg-costa-navy/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 bg-costa-esmeralda text-white rounded-lg font-medium hover:bg-costa-esmeralda-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting ? 'Guardando...' : 'Guardar nueva contraseña'}
               </button>
@@ -425,12 +425,12 @@ function AdminLayoutContent({
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-costa-beige to-costa-beige-light">
+      <div className="min-h-screen flex items-center justify-center bg-costa-esmeralda" style={{ fontFamily: 'var(--font-manrope), system-ui, sans-serif' }}>
         <div className="w-full max-w-md p-8">
           <div className="bg-white rounded-2xl shadow-xl p-8">
             {/* Logo */}
             <div className="text-center mb-8">
-              <h1 className="text-3xl font-semibold text-costa-navy" style={{ fontFamily: 'var(--font-playfair)' }}>
+              <h1 className="text-3xl font-bold text-costa-esmeralda">
                 Admin Costa
               </h1>
               <p className="text-sm text-costa-gris mt-2">
@@ -459,7 +459,7 @@ function AdminLayoutContent({
                         type="text"
                         value={nombre}
                         onChange={(e) => setNombre(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                        className="w-full pl-10 pr-4 py-3 border border-costa-borde rounded-lg focus:ring-2 focus:ring-costa-esmeralda focus:border-transparent transition-all"
                         placeholder="Tu nombre completo"
                         required
                       />
@@ -478,7 +478,7 @@ function AdminLayoutContent({
                         <select
                           value={barrio}
                           onChange={(e) => setBarrio(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all appearance-none bg-white"
+                          className="w-full pl-10 pr-4 py-3 border border-costa-borde rounded-lg focus:ring-2 focus:ring-costa-esmeralda focus:border-transparent transition-all appearance-none bg-white"
                           required
                         >
                           <option value="">Seleccionar...</option>
@@ -500,7 +500,7 @@ function AdminLayoutContent({
                           type="text"
                           value={lote}
                           onChange={(e) => setLote(e.target.value)}
-                          className="w-full pl-10 pr-4 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                          className="w-full pl-10 pr-4 py-3 border border-costa-borde rounded-lg focus:ring-2 focus:ring-costa-esmeralda focus:border-transparent transition-all"
                           placeholder="Ej: 123"
                           required
                         />
@@ -516,7 +516,7 @@ function AdminLayoutContent({
                       type="tel"
                       value={telefono}
                       onChange={(e) => setTelefono(e.target.value)}
-                      className="w-full px-4 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                      className="w-full px-4 py-3 border border-costa-borde rounded-lg focus:ring-2 focus:ring-costa-esmeralda focus:border-transparent transition-all"
                       placeholder="Ej: 11 1234-5678"
                     />
                   </div>
@@ -536,7 +536,7 @@ function AdminLayoutContent({
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                    className="w-full pl-10 pr-4 py-3 border border-costa-borde rounded-lg focus:ring-2 focus:ring-costa-esmeralda focus:border-transparent transition-all"
                     placeholder="tu@email.com"
                     required
                     autoFocus={!isRegistering}
@@ -558,7 +558,7 @@ function AdminLayoutContent({
                       type={showPassword ? 'text' : 'password'}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="w-full pl-10 pr-12 py-3 border border-costa-beige rounded-lg focus:ring-2 focus:ring-costa-navy focus:border-transparent transition-all"
+                      className="w-full pl-10 pr-12 py-3 border border-costa-borde rounded-lg focus:ring-2 focus:ring-costa-esmeralda focus:border-transparent transition-all"
                       placeholder={isRegistering ? 'Mínimo 6 caracteres' : 'Tu contraseña'}
                       required
                       minLength={6}
@@ -588,7 +588,7 @@ function AdminLayoutContent({
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-3 bg-costa-navy text-white rounded-lg font-medium hover:bg-costa-navy/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-3 bg-costa-esmeralda text-white rounded-lg font-medium hover:bg-costa-esmeralda-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submitting
                   ? 'Procesando...'
