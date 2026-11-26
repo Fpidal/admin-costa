@@ -14,7 +14,7 @@ import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib
 import { CobrosContent } from '@/components/CobrosContent'
 import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
-import { montosReserva, sumarMontos, monedasCon, filtrarReservas, describirPeriodo, temporadaDe, etiquetaTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
+import { montosReserva, sumarMontos, monedasCon, filtrarReservas, describirPeriodo, temporadaDe, temporadaActual, etiquetaTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
 import { DATOS_LOCADOR_DEMO, DATOS_LOCADOR_VACIOS, camposFaltantes, type DatosLocador } from '@/lib/datosLocador'
 
@@ -1419,7 +1419,11 @@ function ReservasContent() {
     saldo: sumarMontos(montosResumen.map(m => m.saldo)),
   }
   const pendientes = reservasResumen.filter(r => r.estado === 'pendiente').length
-  const opcionesTemporada = Array.from(new Set(reservas.map(r => temporadaDe(r.fecha_inicio)))).sort((a, b) => b - a)
+  // Temporadas con reservas, más la actual aunque todavía no tenga ninguna
+  const opcionesTemporada = Array.from(new Set([
+    temporadaActual(),
+    ...reservas.map(r => temporadaDe(r.fecha_inicio)).filter((t): t is number => t !== null),
+  ])).sort((a, b) => b - a)
   const opcionesAnio = Array.from(new Set(reservas.map(r => Number(r.fecha_inicio.slice(0, 4))))).sort((a, b) => b - a)
   const nombreCasa = (id: string) => {
     const p = propiedades.find(p => String(p.id) === id)
@@ -1428,8 +1432,8 @@ function ReservasContent() {
   const casasFiltro = filtro.propiedadId ? nombreCasa(filtro.propiedadId) : 'Todas las casas'
 
   function cambiarTipoPeriodo(tipo: TipoPeriodo) {
-    // Al elegir temporada o año arranca en el más reciente
-    const valor = tipo === 'temporada' ? String(opcionesTemporada[0] ?? '') : tipo === 'anio' ? String(opcionesAnio[0] ?? '') : ''
+    // La temporada arranca en la actual; el año, en el más reciente
+    const valor = tipo === 'temporada' ? String(temporadaActual()) : tipo === 'anio' ? String(opcionesAnio[0] ?? '') : ''
     setFiltro({ ...filtro, tipo, valor })
   }
 
@@ -1542,7 +1546,7 @@ function ReservasContent() {
             </label>
             {(filtro.tipo === 'temporada' || filtro.tipo === 'anio') && (
               <label className="space-y-0.5">
-                <span className="block text-xs font-medium text-costa-navy">{filtro.tipo === 'temporada' ? 'Temporada (jul a jun)' : 'Año'}</span>
+                <span className="block text-xs font-medium text-costa-navy">{filtro.tipo === 'temporada' ? 'Temporada (15/12 al 20/02)' : 'Año'}</span>
                 <select
                   value={filtro.valor}
                   onChange={(e) => setFiltro({ ...filtro, valor: e.target.value })}

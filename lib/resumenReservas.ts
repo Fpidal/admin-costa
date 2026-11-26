@@ -88,23 +88,30 @@ export interface FiltroReservas {
 
 export const FILTRO_INICIAL: FiltroReservas = { propiedadId: '', tipo: 'todo', valor: '', desde: '', hasta: '' }
 
-// La temporada va de julio a junio: la 2026/27 junta todo el verano 26-27
-const MES_INICIO_TEMPORADA = 7
+// Temporada alta: del 15 de diciembre al 20 de febrero. La "2026/27" va del
+// 15/12/2026 al 20/02/2027. Lo que ingresa fuera de esas fechas no es de ninguna
+const INICIO_TEMPORADA = '12-15' // MM-DD
+const FIN_TEMPORADA = '02-20'
 
-export const temporadaDe = (fecha: string) => {
-  const d = parseFechaLocal(fecha)
-  return d.getMonth() + 1 >= MES_INICIO_TEMPORADA ? d.getFullYear() : d.getFullYear() - 1
+/** Año de inicio de la temporada a la que pertenece la fecha, o null si cae fuera */
+export const temporadaDe = (fecha: string): number | null => {
+  const anio = Number(fecha.slice(0, 4))
+  const mmdd = fecha.slice(5, 10)
+  if (mmdd >= INICIO_TEMPORADA) return anio
+  if (mmdd <= FIN_TEMPORADA) return anio - 1
+  return null
 }
 
 export const etiquetaTemporada = (anio: number) => `Temporada ${anio}/${String(anio + 1).slice(-2)}`
+
+/** Temporada en curso o la próxima: la de diciembre de este año, o la que sigue abierta en enero-febrero */
+export const temporadaActual = (hoy = new Date()) => (hoy.getMonth() + 1 <= 2 ? hoy.getFullYear() - 1 : hoy.getFullYear())
 
 /** Rango [desde, hasta] (YYYY-MM-DD, inclusive) del filtro; null = sin límite */
 function rangoDe(f: FiltroReservas): { desde: string | null; hasta: string | null } {
   if (f.tipo === 'temporada' && f.valor) {
     const a = Number(f.valor)
-    const mm = String(MES_INICIO_TEMPORADA).padStart(2, '0')
-    const fin = new Date(a + 1, MES_INICIO_TEMPORADA - 1, 0) // último día del mes anterior
-    return { desde: `${a}-${mm}-01`, hasta: `${a + 1}-${String(fin.getMonth() + 1).padStart(2, '0')}-${String(fin.getDate()).padStart(2, '0')}` }
+    return { desde: `${a}-${INICIO_TEMPORADA}`, hasta: `${a + 1}-${FIN_TEMPORADA}` }
   }
   if (f.tipo === 'anio' && f.valor) return { desde: `${f.valor}-01-01`, hasta: `${f.valor}-12-31` }
   if (f.tipo === 'rango') return { desde: f.desde || null, hasta: f.hasta || null }
