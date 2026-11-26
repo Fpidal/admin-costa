@@ -5,6 +5,8 @@
 import { jsPDF } from 'jspdf'
 import { montosReserva, nochesEntre, sumarMontos, monedasCon, type PorMoneda } from './resumenReservas'
 import type { ServicioExtra } from './serviciosReserva'
+import { generarFeriadosAnio } from './calendarioArgentina'
+import { colorCasa } from './coloresCasas'
 
 export interface ReservaReporte {
   id: number | string
@@ -250,6 +252,9 @@ export function generarReporteReservasPDF(opts: {
   tot(totales.cobrado, col.cob.x, OLIVO)
   tot(totales.saldo, col.sdo.x, CORAL)
 
+  // ---------- Hoja con el calendario de los meses del reporte ----------
+  if (reservas.length) dibujarCalendarios(doc, reservas, `${opts.casas} · ${opts.periodo}`)
+
   // ---------- Pie en cada hoja ----------
   const paginas = doc.getNumberOfPages()
   for (let p = 1; p <= paginas; p++) {
@@ -263,4 +268,112 @@ export function generarReporteReservasPDF(opts: {
 
   const nombreArchivo = `Reporte_reservas_${opts.periodo.replace(/[^\w]+/g, '_')}_${hoy.replace(/\//g, '-')}.pdf`
   doc.save(nombreArchivo)
+}
+
+const MESES_PDF = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
+const hexRGB = (h: string): RGB => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)]
+
+/** Calendarios de los meses que abarcan las reservas, con los días pintados por casa */
+function dibujarCalendarios(doc: jsPDF, reservas: ReservaReporte[], subtitulo: string) {
+  const activas = reservas.filter(r => r.estado !== 'cancelada')
+  if (!activas.length) return
+  const W = doc.internal.pageSize.getWidth()
+  const M = 12
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const iso = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`
+
+  // Meses desde el primer ingreso hasta la última noche (máximo 12)
+  const ini = activas.map(r => r.fecha_inicio).sort()[0]
+  const ultimaNoche = activas.map(r => r.fecha_fin).sort().reverse()[0]
+  const meses: { y: number; m: number }[] = []
+  let y = Number(ini.slice(0, 4)), m = Number(ini.slice(5, 7)) - 1
+  const finY = Number(ultimaNoche.slice(0, 4)), finM = Number(ultimaNoche.slice(5, 7)) - 1
+  while ((y < finY || (y === finY && m <= finM)) && meses.length < 12) {
+    meses.push({ y, m })
+    m++; if (m > 11) { m = 0; y++ }
+  }
+  // Si la última reserva sale el día 1, ese mes no tiene noches
+  if (meses.length > 1 && ultimaNoche.slice(8) === '01') meses.pop()
+
+  const casas = [...new Set(activas.map(r => r.propiedades?.nombre || 'Casa'))]
+  const color = Object.fromEntries(casas.map((c, i) => [c, hexRGB(colorCasa(c, i))]))
+  const feriados = new Set<string>()
+  new Set(meses.map(x => x.y)).forEach(a => generarFeriadosAnio(a).forEach(f => feriados.add(f.fecha)))
+
+  doc.addPage()
+  doc.setFillColor(...NAVY)
+  doc.rect(0, 0, W, 18, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(14)
+  doc.text('Calendario de ocupación', M, 11)
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.text(subtitulo, W - M, 11, { align: 'right' })
+
+  // Leyenda
+  let lx = M
+  const ly = 25
+  doc.setFontSize(7.5)
+  casas.forEach(c => {
+    doc.setFillColor(...color[c]); doc.roundedRect(lx, ly - 2.6, 4, 3, 0.6, 0.6, 'F')
+    doc.setTextColor(...NAVY); doc.text(c, lx + 5.5, ly); lx += doc.getTextWidth(c) + 11
+  })
+  doc.setDrawColor(200, 195, 188); doc.setFillColor(255, 255, 255); doc.roundedRect(lx, ly - 2.6, 4, 3, 0.6, 0.6, 'FD')
+  doc.setFillColor(140, 140, 140); doc.rect(lx + 0.6, ly - 0.2, 2.8, 0.6, 'F')
+  doc.setTextColor(...NAVY); doc.text('Sin confirmar (barra del color de la casa)', lx + 5.5, ly)
+  lx += doc.getTextWidth('Sin confirmar (barra del color de la casa)') + 11
+  doc.setFillColor(233, 185, 143); doc.rect(lx, ly - 2.2, 4, 0.8, 'F'); doc.text('Feriado', lx + 5.5, ly)
+
+  // Grilla de meses: 3 por fila hasta 6 meses; 4 por fila si son más
+  const porFila = meses.length <= 6 ? 3 : 4
+  const filas = Math.ceil(meses.length / porFila)
+  const gapX = 8, gapY = 6
+  const top = 31
+  const anchoMes = (W - 2 * M - gapX * (porFila - 1)) / porFila
+  const altoDisp = doc.internal.pageSize.getHeight() - top - 14
+  const celda = Math.min(anchoMes / 7, (altoDisp / filas - gapY - 9) / 6.4)
+  const anchoGrid = celda * 7
+
+  meses.forEach(({ y: yy, m: mm }, idx) => {
+    const fx = idx % porFila, fy = Math.floor(idx / porFila)
+    const x0 = M + fx * (anchoMes + gapX) + (anchoMes - anchoGrid) / 2
+    const y0 = top + fy * (celda * 6.4 + 9 + gapY)
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...NAVY)
+    doc.text(`${MESES_PDF[mm]} ${yy}`, x0 + anchoGrid / 2, y0 + 3.5, { align: 'center' })
+    doc.setFontSize(6.5); doc.setTextColor(...GRIS)
+    ;['L', 'M', 'M', 'J', 'V', 'S', 'D'].forEach((d, i) => doc.text(d, x0 + celda * i + celda / 2, y0 + 7.5, { align: 'center' }))
+    const off = (new Date(yy, mm, 1).getDay() + 6) % 7
+    const dias = new Date(yy, mm + 1, 0).getDate()
+    for (let d = 1; d <= dias; d++) {
+      const pos = off + d - 1
+      const cx = x0 + (pos % 7) * celda, cy = y0 + 9 + Math.floor(pos / 7) * celda
+      const f = iso(yy, mm, d)
+      const en = activas.filter(r => f >= r.fecha_inicio && f < r.fecha_fin)
+      const conf = en.filter(r => r.estado !== 'pendiente')
+      const pend = en.filter(r => r.estado === 'pendiente')
+      const s = celda - 0.8
+      const c1 = conf[0] && color[conf[0].propiedades?.nombre || 'Casa']
+      const c2 = conf[1] && color[conf[1].propiedades?.nombre || 'Casa']
+      if (c1 && c2) {
+        doc.setFillColor(...c1); doc.triangle(cx, cy, cx + s, cy, cx, cy + s, 'F')
+        doc.setFillColor(...c2); doc.triangle(cx + s, cy, cx + s, cy + s, cx, cy + s, 'F')
+      } else if (c1) {
+        doc.setFillColor(...c1); doc.roundedRect(cx, cy, s, s, 0.8, 0.8, 'F')
+      } else {
+        doc.setDrawColor(232, 223, 210); doc.setFillColor(255, 255, 255); doc.roundedRect(cx, cy, s, s, 0.8, 0.8, 'FD')
+      }
+      if (feriados.has(f)) { doc.setFillColor(233, 185, 143); doc.rect(cx + 0.6, cy + 0.4, s - 1.2, 0.6, 'F') }
+      pend.slice(0, 2).forEach((r, k) => {
+        doc.setFillColor(...color[r.propiedades?.nombre || 'Casa'])
+        const w = pend.length > 1 ? (s - 1.6) / 2 : s - 1.6
+        doc.rect(cx + 0.8 + k * w, cy + s - 1.6, w, 0.9, 'F')
+      })
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(Math.min(8, celda * 1.6))
+      if (c1) doc.setTextColor(255, 255, 255)
+      else if (feriados.has(f)) doc.setTextColor(138, 63, 18)
+      else doc.setTextColor(...NAVY)
+      doc.text(String(d), cx + s / 2, cy + s / 2 + 1, { align: 'center' })
+    }
+  })
 }

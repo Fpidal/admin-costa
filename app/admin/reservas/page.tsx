@@ -14,6 +14,7 @@ import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
 import { montosReserva, sumarMontos, monedasCon, filtrarReservas, nochesEntre, describirPeriodo, temporadaDe, temporadaActual, etiquetaTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
+import { CalendarioTrimestre } from '@/components/CalendarioTrimestre'
 import { AvisosCobranza } from '@/components/AvisosCobranza'
 import { vencimientoSaldo, armarAvisos, nombreCasa as casaDeReserva } from '@/lib/cobranza'
 import { etiquetaCobro } from '@/lib/conceptosCobro'
@@ -1696,28 +1697,39 @@ function ReservasContent() {
 
         return (
           <>
-            {/* Números del filtro, en un renglón */}
-            {vista === 'pagos' ? (() => {
-              const sumar = (deposito: boolean) => cobrosVista.filter(c => (c.aplicar_a === 'deposito') === deposito)
-                .reduce((acc, c) => { acc[c.moneda] = (acc[c.moneda] || 0) + (c.concepto === 'devolucion_sena' ? -c.monto : c.monto); return acc }, {} as PorMoneda)
-              const dep = sumar(true)
-              return (
-                <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-costa-gris">
-                  <span><b className="text-costa-navy">{cobrosVista.length}</b> pago{cobrosVista.length !== 1 ? 's' : ''} en {lista.length} reserva{lista.length !== 1 ? 's' : ''}</span>
-                  <span>Cobrado <b className="text-costa-olivo tabular-nums">{montosTexto(sumar(false)) || 'U$D 0'}</b></span>
-                  {monedasCon(dep).length > 0 && <span>Depósitos en garantía <b className="text-costa-navy tabular-nums">{montosTexto(dep)}</b></span>}
+            {/* Números del filtro, en un cuadro */}
+            {(() => {
+              const celda = (etiqueta: string, valor: React.ReactNode, color: string, nota?: React.ReactNode) => (
+                <div key={etiqueta} className="min-w-0 px-4 py-2.5">
+                  <p className="text-[0.7em] font-semibold uppercase tracking-wider text-costa-gris">{etiqueta}</p>
+                  <p className={`mt-0.5 text-base font-extrabold tabular-nums leading-tight ${color}`}>{valor}</p>
+                  {nota && <p className="mt-0.5 text-[0.75em] text-costa-gris">{nota}</p>}
                 </div>
               )
-            })() : (
-            <div className="mb-3 flex flex-wrap gap-x-6 gap-y-1 text-sm text-costa-gris">
-              <span><b className="text-costa-navy">{reservasResumen.length}</b> reserva{reservasResumen.length !== 1 ? 's' : ''}</span>
-              <span>Total <b className="text-costa-navy tabular-nums">{montosTexto(resumen.total) || 'U$D 0'}</b></span>
-              <span>Cobrado <b className="text-costa-olivo tabular-nums">{montosTexto(resumen.cobrado) || 'U$D 0'}</b></span>
-              <span>Por cobrar <b className="text-amber-700 tabular-nums">{montosTexto(positivos(resumen.saldo)) || 'U$D 0'}</b></span>
-              {pendientes > 0 && <span className="font-semibold text-red-700">{pendientes} sin confirmar · {montosTexto(totalAConfirmar)}</span>}
-              {vista === 'vigentes' && cerradasPeriodo > 0 && <span>· {cerradasPeriodo} cerrada{cerradasPeriodo !== 1 ? 's' : ''} en el período</span>}
-            </div>
-            )}
+              const cuadro = 'mb-3 grid grid-cols-2 sm:flex sm:flex-wrap rounded-xl border border-costa-borde bg-costa-superficie divide-costa-borde sm:divide-x [&>*]:sm:flex-1'
+              if (vista === 'pagos') {
+                const sumar = (deposito: boolean) => cobrosVista.filter(c => (c.aplicar_a === 'deposito') === deposito)
+                  .reduce((acc, c) => { acc[c.moneda] = (acc[c.moneda] || 0) + (c.concepto === 'devolucion_sena' ? -c.monto : c.monto); return acc }, {} as PorMoneda)
+                const dep = sumar(true)
+                return (
+                  <div className={cuadro}>
+                    {celda('Pagos', cobrosVista.length, 'text-costa-navy', `en ${lista.length} reserva${lista.length !== 1 ? 's' : ''}`)}
+                    {celda('Cobrado', montosTexto(sumar(false)) || 'U$D 0', 'text-costa-olivo', 'sin depósitos')}
+                    {celda('Depósitos en garantía', montosTexto(dep) || '—', 'text-costa-navy')}
+                  </div>
+                )
+              }
+              return (
+                <div className={cuadro}>
+                  {celda('Reservas', reservasResumen.length, 'text-costa-navy',
+                    vista === 'vigentes' && cerradasPeriodo > 0 ? `+ ${cerradasPeriodo} cerrada${cerradasPeriodo !== 1 ? 's' : ''} en el período` : undefined)}
+                  {celda('Total', montosTexto(resumen.total) || 'U$D 0', 'text-costa-navy', pendientes > 0 ? 'sin las que faltan confirmar' : undefined)}
+                  {celda('Cobrado', montosTexto(resumen.cobrado) || 'U$D 0', 'text-costa-olivo')}
+                  {celda('Por cobrar', montosTexto(positivos(resumen.saldo)) || 'U$D 0', 'text-amber-700')}
+                  {pendientes > 0 && celda('Sin confirmar', montosTexto(totalAConfirmar), 'text-red-700', `${pendientes} reserva${pendientes !== 1 ? 's' : ''}`)}
+                </div>
+              )
+            })()}
 
             {/* Avisos plegados en una línea */}
             {avisos.length > 0 && (
@@ -1791,6 +1803,23 @@ function ReservasContent() {
           </>
         )
       })()}
+
+      {/* Tres meses de calendario con los días alquilados de cada casa */}
+      {vista === 'vigentes' && (
+        <div className="mt-6">
+          <CalendarioTrimestre
+            reservas={reservas}
+            casas={propiedades.map(p => ({ id: String(p.id), nombre: p.nombre }))}
+            onElegir={(id) => {
+              const r = reservas.find(x => x.id === id)
+              if (!r) return
+              setVista(r.estado === 'cerrada' ? 'cerradas' : 'vigentes')
+              setReservaSel(id)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+          />
+        </div>
+      )}
 
       {/* Modal */}
       <Modal
