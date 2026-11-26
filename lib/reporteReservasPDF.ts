@@ -42,6 +42,7 @@ const NAVY: RGB = [30, 58, 95]
 const GRIS: RGB = [107, 124, 147]
 const OLIVO: RGB = [92, 107, 74]
 const CORAL: RGB = [201, 104, 74]
+const ROJO: RGB = [220, 38, 38]
 const BEIGE: RGB = [245, 235, 224]
 const BEIGE_CLARO: RGB = [250, 246, 241]
 
@@ -68,11 +69,16 @@ export function generarReporteReservasPDF(opts: {
 }) {
   const reservas = [...opts.reservas].sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))
   const filas = reservas.map(r => ({ r, ...montosReserva(r, opts.cobros) }))
+  // Los totales cuentan solo lo confirmado (y lo cerrado); las reservas
+  // pendientes de confirmar se listan, pero su importe va aparte, en rojo
+  const firmes = filas.filter(f => f.r.estado !== 'pendiente')
   const totales = {
-    total: sumarMontos(filas.map(f => f.total)),
-    cobrado: sumarMontos(filas.map(f => f.cobrado)),
-    saldo: sumarMontos(filas.map(f => f.saldo)),
+    total: sumarMontos(firmes.map(f => f.total)),
+    cobrado: sumarMontos(firmes.map(f => f.cobrado)),
+    saldo: sumarMontos(firmes.map(f => f.saldo)),
   }
+  const aConfirmar = sumarMontos(filas.filter(f => f.r.estado === 'pendiente').map(f => f.total))
+  const notaAConfirmar = lineas(aConfirmar).length ? `+ ${lineas(aConfirmar).join(' + ')} a confirmar` : ''
   const totalNoches = reservas.reduce((acc, r) => acc + nochesEntre(r.fecha_inicio, r.fecha_fin), 0)
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
@@ -94,8 +100,10 @@ export function generarReporteReservasPDF(opts: {
   doc.text(`${reservas.length} reserva${reservas.length !== 1 ? 's' : ''} · Generado el ${hoy}`, W - M, 20, { align: 'right' })
 
   // ---------- Recuadros ----------
-  const kpis: { label: string; valores: string[]; nota: string; color: RGB }[] = [
-    { label: 'TOTAL RESERVADO', valores: lineas(totales.total), nota: 'alquiler + servicios con cargo', color: NAVY },
+  const kpis: { label: string; valores: string[]; nota: string; color: RGB; notaRoja?: boolean }[] = [
+    notaAConfirmar
+      ? { label: 'TOTAL RESERVADO', valores: lineas(totales.total), nota: notaAConfirmar, color: NAVY, notaRoja: true }
+      : { label: 'TOTAL RESERVADO', valores: lineas(totales.total), nota: 'alquiler + servicios con cargo', color: NAVY },
     { label: 'COBRADO', valores: lineas(totales.cobrado), nota: 'sin contar depósitos en garantía', color: OLIVO },
     { label: 'PENDIENTE DE COBRO', valores: lineas(totales.saldo), nota: 'saldo a cobrar', color: CORAL },
     { label: 'RESERVAS', valores: [`${reservas.length}`], nota: `${totalNoches} noches`, color: NAVY },
@@ -119,9 +127,9 @@ export function generarReporteReservasPDF(opts: {
     doc.setTextColor(...k.color)
     const vals = k.valores.length ? k.valores : ['—']
     vals.forEach((v, j) => doc.text(v, x + 4, kY + 11.5 + j * 5))
-    doc.setFont('helvetica', 'normal')
+    doc.setFont('helvetica', k.notaRoja ? 'bold' : 'normal')
     doc.setFontSize(6.5)
-    doc.setTextColor(...GRIS)
+    doc.setTextColor(...(k.notaRoja ? ROJO : GRIS))
     doc.text(k.nota, x + 4, kY + 11.5 + vals.length * 5)
   })
 
@@ -235,7 +243,7 @@ export function generarReporteReservasPDF(opts: {
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(7.5)
   doc.setTextColor(...NAVY)
-  doc.text('Totales', M + 2, y + 4.5)
+  doc.text(notaAConfirmar ? 'Totales (sin las pendientes de confirmar)' : 'Totales', M + 2, y + 4.5)
   const tot = (o: PorMoneda, x: number, color: RGB) =>
     lineas(o).forEach((t, j) => { doc.setTextColor(...color); doc.text(t, x, y + 4.5 + j * 3.6, { align: 'right' }) })
   tot(totales.total, col.tot.x, NAVY)

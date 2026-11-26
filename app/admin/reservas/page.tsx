@@ -1412,13 +1412,17 @@ function ReservasContent() {
   const reservasReporte = reservasFiltradas.filter(r => r.estado !== 'cancelada')
   const reservasResumen = reservasReporte.filter(r => r.estado !== 'cerrada')
   const cerradasPeriodo = reservasReporte.length - reservasResumen.length
-  const montosResumen = reservasResumen.map(r => montosReserva(r, cobros))
+  // Total y pendiente de cobro cuentan solo lo confirmado; lo que falta
+  // confirmar se muestra aparte, en rojo, bajo el total
+  const montosResumen = reservasResumen.filter(r => r.estado !== 'pendiente').map(r => montosReserva(r, cobros))
   const resumen = {
     total: sumarMontos(montosResumen.map(m => m.total)),
     cobrado: sumarMontos(montosResumen.map(m => m.cobrado)),
     saldo: sumarMontos(montosResumen.map(m => m.saldo)),
   }
-  const pendientes = reservasResumen.filter(r => r.estado === 'pendiente').length
+  const reservasAConfirmar = reservasResumen.filter(r => r.estado === 'pendiente')
+  const pendientes = reservasAConfirmar.length
+  const totalAConfirmar = sumarMontos(reservasAConfirmar.map(r => montosReserva(r, cobros).total))
   // Temporadas con reservas, más la actual aunque todavía no tenga ninguna
   const opcionesTemporada = Array.from(new Set([
     temporadaActual(),
@@ -1595,6 +1599,14 @@ function ReservasContent() {
           <CardContent className="py-3">
             <p className="text-sm text-costa-gris">Total reservado</p>
             <MontosResumen montos={resumen.total} className="text-costa-navy" />
+            {monedasCon(totalAConfirmar).length > 0 && (
+              <p className="text-xs font-semibold text-red-600 mt-0.5">
+                Pendiente de confirmar{' '}
+                {monedasCon(totalAConfirmar).map((m, i) => (
+                  <span key={m}>{i > 0 && ' + '}<FormatMontoStyled monto={totalAConfirmar[m]} moneda={m} /></span>
+                ))}
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
