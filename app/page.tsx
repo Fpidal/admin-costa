@@ -82,6 +82,24 @@ const formatWhatsApp = (telefono: string | null | undefined): string => {
   return limpio
 }
 
+/** Mensaje de consulta por WhatsApp: casa, link a sus fotos y, si buscó fechas, cuáles */
+function mensajeConsulta(
+  p: { id: string | number; nombre: string; lote?: string | null },
+  idioma: string,
+  fechas: { checkIn: string; checkOut: string } | null,
+) {
+  const dmy = (iso: string) => iso.split('-').reverse().join('/')
+  const link = typeof window !== 'undefined' ? `${window.location.origin}/casa/${p.id}` : ''
+  if (idioma === 'es') {
+    const casa = `${p.nombre}${p.lote ? ` (Lote ${p.lote})` : ''}`
+    const cuando = fechas ? ` del ${dmy(fechas.checkIn)} al ${dmy(fechas.checkOut)}` : ''
+    return `¡Hola! Vi en la web ${casa} en Costa Esmeralda y quería consultar disponibilidad y precio${cuando}. Somos ___ personas. ${link}`
+  }
+  const casa = `${p.nombre}${p.lote ? ` (Lot ${p.lote})` : ''}`
+  const cuando = fechas ? ` from ${dmy(fechas.checkIn)} to ${dmy(fechas.checkOut)}` : ''
+  return `Hi! I saw ${casa} in Costa Esmeralda on your website and would like to ask about availability and price${cuando}. We are ___ people. ${link}`
+}
+
 function LandingContent() {
   const searchParams = useSearchParams()
   const isDemo = searchParams.get('demo') === 'true'
@@ -1117,7 +1135,7 @@ function LandingContent() {
                           {t('view')}
                         </button>
                         <a
-                          href={`https://wa.me/${formatWhatsApp(propiedad.telefono_contacto)}?text=Hola! Me interesa la propiedad ${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}`}
+                          href={`https://wa.me/${formatWhatsApp(propiedad.telefono_contacto)}?text=${encodeURIComponent(mensajeConsulta(propiedad, language, fechasBusqueda))}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center justify-center gap-1 py-2.5 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors"
@@ -1643,7 +1661,7 @@ function LandingContent() {
               {/* Botones de acción */}
               <div className="flex gap-3">
                 <a
-                  href={`https://wa.me/${formatWhatsApp(propiedadModal.telefono_contacto)}?text=${language === 'es' ? 'Hola! Me interesa la propiedad' : 'Hi! I\'m interested in the property'} ${propiedadModal.nombre}${propiedadModal.lote ? ` - ${language === 'es' ? 'Lote' : 'Lot'} ${propiedadModal.lote}` : ''}`}
+                  href={`https://wa.me/${formatWhatsApp(propiedadModal.telefono_contacto)}?text=${encodeURIComponent(mensajeConsulta(propiedadModal, language, fechasBusqueda))}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center justify-center gap-2 flex-1 py-3 bg-costa-olivo hover:bg-costa-olivo/90 text-white rounded-lg font-medium transition-colors"

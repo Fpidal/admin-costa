@@ -295,7 +295,7 @@ function TemporadaContent() {
             return (
               <OfertaHueco key={`${oferta.casaId}-${oferta.desde}`} casa={casa} hueco={oferta}
                 sugerido={precioParaHueco(oferta.casaId, oferta.desde, oferta.hasta)}
-                linkSitio={URL_INFO_UTIL} demoAmp={demoAmp} onCerrar={() => setOferta(null)} />
+                linkSitio={`${URL_INFO_UTIL}casa/${casa.id}`} demoAmp={demoAmp} onCerrar={() => setOferta(null)} />
             )
           })()}
         </CardContent>
