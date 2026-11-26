@@ -292,7 +292,12 @@ export function PanelReglasPrecios({
       },
     ]
 
-    setLocalRules(newRules)
+    // El preset reemplaza solo las reglas que empiezan en ese año; las de otros
+    // años (por ejemplo, Fiestas del año anterior) se conservan.
+    setLocalRules(prev => [
+      ...prev.filter(r => r.start_date < `${year}-01-01` || r.start_date > `${year}-12-31`),
+      ...newRules,
+    ])
     setHasChanges(true)
     setIsPresetModalOpen(false)
   }
