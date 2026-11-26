@@ -28,7 +28,7 @@ interface Props {
 }
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
-const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const CLAVE_DIA = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab']
 // Escala de un solo verde: más oscuro, más caro
 const NIVELES = ['bg-[#f3f8f6]', 'bg-[#dcebe6]', 'bg-[#b9d7ce]', 'bg-[#8fbfb1]']
@@ -288,7 +288,8 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
   }
 
   const diasMes = new Date(anio, mes + 1, 0).getDate()
-  const offset = new Date(anio, mes, 1).getDay()
+  // Semana de lunes a domingo: el lunes va en la primera columna
+  const offset = (new Date(anio, mes, 1).getDay() + 6) % 7
   const seg = 'px-3 py-1.5 rounded-md text-xs font-semibold transition-colors'
   const btn = 'h-9 px-3 rounded-lg border border-costa-borde bg-costa-superficie text-xs font-semibold text-costa-esmeralda hover:bg-costa-arena transition-colors'
 
@@ -350,7 +351,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
             {Array.from({ length: diasMes }).map((_, i) => {
               const d = i + 1
               const iso = isoDe(anio, mes, d)
-              const dow = (offset + i) % 7
+              const dow = new Date(anio, mes, i + 1).getDay()
               const feriado = feriados.get(iso)
               const enSel = selA && iso >= selA && iso <= (selB || selA)
               return (
