@@ -167,21 +167,21 @@ export function PanelFeriados({ year, onFeriadosChange }: PanelFeriadosProps) {
       <div className="flex items-center justify-between">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex-1 flex items-center justify-between p-2 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+          className="flex-1 flex items-center justify-between px-1 py-1 rounded-lg text-costa-esmeralda"
         >
           <div className="flex items-center gap-2">
-            <Flag size={16} className="text-blue-600" />
-            <span className="font-medium text-blue-900">Feriados Argentina {year}</span>
-            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+            <Flag size={16} className="text-[#c8692b]" />
+            <span className="text-sm font-bold text-costa-esmeralda">Feriados {year}</span>
+            <span className="text-xs text-costa-gris bg-costa-arena px-2 py-0.5 rounded-full">
               {feriados.length} feriados
             </span>
             {feriadosCustom.length > 0 && (
-              <span className="text-xs text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+              <span className="text-xs text-costa-esmeralda bg-costa-esmeralda-suave px-2 py-0.5 rounded-full">
                 {feriadosCustom.length} personalizados
               </span>
             )}
           </div>
-          {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <span className="flex items-center gap-1 text-xs font-semibold">{expanded ? 'Ocultar' : 'Ver'}{expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}</span>
         </button>
         <Button size="sm" variant="secondary" onClick={openAddModal} className="ml-2">
           <Plus size={14} />
@@ -193,20 +193,20 @@ export function PanelFeriados({ year, onFeriadosChange }: PanelFeriadosProps) {
         <div className="space-y-4">
           {/* Fines de semana largos */}
           <div>
-            <h4 className="text-xs font-semibold text-costa-navy mb-2 flex items-center gap-1">
+            <h4 className="text-xs font-bold text-costa-esmeralda mb-2 flex items-center gap-1">
               <Calendar size={12} />
-              Fines de Semana Largos ({fdsLargos.length})
+              Fines de semana largos ({fdsLargos.length})
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
               {fdsLargos.map((fds, i) => (
                 <div
                   key={i}
-                  className="p-2 bg-amber-50 border border-amber-200 rounded text-xs"
+                  className="p-2.5 bg-white border border-costa-borde rounded-lg text-xs"
                 >
-                  <div className="font-medium text-amber-800">{fds.nombre}</div>
-                  <div className="text-amber-600">
+                  <div className="font-semibold text-costa-esmeralda">{fds.nombre}</div>
+                  <div className="text-costa-gris mt-0.5">
                     {formatFecha(fds.fechaInicio)} → {formatFecha(fds.fechaFin)}
-                    <span className="ml-2 px-1.5 py-0.5 bg-amber-200 rounded text-amber-700">
+                    <span className="ml-2 px-1.5 py-0.5 bg-[#f6e1cf] rounded text-[#8a3f12] font-semibold">
                       {fds.dias} días
                     </span>
                   </div>
@@ -217,25 +217,25 @@ export function PanelFeriados({ year, onFeriadosChange }: PanelFeriadosProps) {
 
           {/* Lista de feriados por mes */}
           <div>
-            <h4 className="text-xs font-semibold text-costa-navy mb-2">
+            <h4 className="text-xs font-bold text-costa-esmeralda mb-2">
               Todos los feriados
-              <span className="font-normal text-costa-gris ml-1">(click para editar)</span>
+              <span className="font-normal text-costa-gris ml-1">(los que agregaste vos se pueden editar)</span>
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto">
               {Object.entries(feriadosPorMes).map(([mes, feriadosMes]) => (
                 <div key={mes}>
-                  <div className="text-[10px] font-semibold text-costa-gris uppercase mb-1">{mes}</div>
+                  <div className="text-[10px] font-bold text-costa-gris uppercase tracking-wider mb-1">{mes}</div>
                   <div className="space-y-0.5">
                     {feriadosMes.map((f, i) => (
                       <div
                         key={i}
                         onClick={() => f.esCustom && openEditModal(f)}
-                        className={`text-[10px] p-1 rounded flex items-center justify-between group ${
+                        className={`text-[11px] px-1.5 py-1 rounded-md flex items-center justify-between group ${
                           f.esCustom
-                            ? 'bg-purple-50 text-purple-700 cursor-pointer hover:bg-purple-100'
+                            ? 'bg-costa-esmeralda-suave text-costa-esmeralda cursor-pointer hover:bg-[#d3e6e1]'
                             : f.esFinDeSemanaLargo
-                              ? 'bg-amber-50 text-amber-700'
-                              : 'bg-gray-50 text-gray-700'
+                              ? 'bg-[#f6e1cf] text-[#8a3f12]'
+                              : 'bg-white border border-costa-borde text-costa-esmeralda'
                         }`}
                       >
                         <div className="flex-1 min-w-0">
@@ -262,18 +262,18 @@ export function PanelFeriados({ year, onFeriadosChange }: PanelFeriadosProps) {
           </div>
 
           {/* Leyenda */}
-          <div className="flex gap-4 text-[10px] pt-2 border-t border-costa-beige">
+          <div className="flex gap-4 text-[11px] pt-2 border-t border-costa-borde">
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded bg-amber-200"></span>
-              <span className="text-costa-gris">FDS largo</span>
+              <span className="w-3 h-2.5 rounded bg-[#f6e1cf]"></span>
+              <span className="text-costa-gris">Fin de semana largo</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded bg-gray-200"></span>
+              <span className="w-3 h-2.5 rounded bg-white border border-costa-borde"></span>
               <span className="text-costa-gris">Oficial</span>
             </div>
             <div className="flex items-center gap-1">
-              <span className="w-2 h-2 rounded bg-purple-200"></span>
-              <span className="text-costa-gris">Personalizado</span>
+              <span className="w-3 h-2.5 rounded bg-costa-esmeralda-suave"></span>
+              <span className="text-costa-gris">Agregado por vos</span>
             </div>
           </div>
         </div>
