@@ -405,7 +405,7 @@ function ReservasContent() {
     fetchPrecioSugerido()
   }, [form.propiedad_id, form.check_in, form.check_out, isDemo])
 
-  function openModal(reserva?: Reserva) {
+  function openModal(reserva?: Reserva, prefill?: Partial<typeof initialForm>) {
     if (reserva) {
       setEditingId(reserva.id)
       setForm({
@@ -444,13 +444,27 @@ function ReservasContent() {
       setAcompanantesExpanded(acomps.length > 0)
     } else {
       setEditingId(null)
-      setForm(initialForm)
+      setForm({ ...initialForm, ...prefill })
       setAcompanantes([])
       setCantidadAcompanantes(0)
       setAcompanantesExpanded(false)
     }
     setModalOpen(true)
   }
+
+  // Desde la pantalla Temporada, tocar un hueco libre abre la reserva nueva
+  // con la casa y las fechas cargadas: ?nueva=1&propiedad=..&desde=..&hasta=..
+  const pedidoNueva = searchParams.get('nueva') === '1'
+  useEffect(() => {
+    if (!pedidoNueva || loading) return
+    openModal(undefined, {
+      propiedad_id: searchParams.get('propiedad') || '',
+      check_in: searchParams.get('desde') || '',
+      check_out: searchParams.get('hasta') || '',
+    })
+    window.history.replaceState(null, '', window.location.pathname + (isDemo ? '?demo=true' : ''))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedidoNueva, loading])
 
   function closeModal() {
     setModalOpen(false)

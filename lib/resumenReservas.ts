@@ -102,6 +102,9 @@ export const temporadaDe = (fecha: string): number | null => {
   return null
 }
 
+/** Primer y último día (YYYY-MM-DD) de la temporada que empieza en diciembre de `anio` */
+export const rangoTemporada = (anio: number) => ({ desde: `${anio}-${INICIO_TEMPORADA}`, hasta: `${anio + 1}-${FIN_TEMPORADA}` })
+
 export const etiquetaTemporada = (anio: number) => `Temporada ${anio}/${String(anio + 1).slice(-2)}`
 
 /** Temporada en curso o la próxima: la de diciembre de este año, o la que sigue abierta en enero-febrero */

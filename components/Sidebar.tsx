@@ -18,12 +18,14 @@ import {
   Shield,
   Trash2,
   Images,
-  UserCog
+  UserCog,
+  Sun,
 } from 'lucide-react'
 import { useState } from 'react'
 import { CampanitaMensajes } from './CampanitaMensajes'
 
 const navigation = [
+  { name: 'Temporada', href: '/admin/temporada', icon: Sun },
   { name: 'Propiedades', href: '/admin/propiedades', icon: Building2 },
   { name: 'Piezas', href: '/admin/piezas', icon: Images },
   { name: 'Reservas', href: '/admin/reservas', icon: CalendarDays },
