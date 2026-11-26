@@ -13,6 +13,7 @@ import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
 import Link from 'next/link'
 import { EtapasReserva, type Etapa } from '@/components/EtapasReserva'
 import { vencimientoSaldo } from '@/lib/cobranza'
+import { CONCEPTOS, etiquetaCobro, tipoDe, type TipoMovimiento } from '@/lib/conceptosCobro'
 
 // Electricidad incluida en el precio, igual que en el contrato. Se prorratea
 // por noche, así una estadía de 15 días incluye unos 321 kWh
@@ -73,21 +74,7 @@ interface Liquidacion {
   fecha_liquidacion: string
 }
 
-// El depósito es la única distinción que importa: entra como garantía y sale,
-// no computa como ingreso. Todo lo demás va al bloque de alquiler y servicios.
-// Los valores 'limpieza' y 'lavadero' quedan por los cobros ya cargados.
-const aplicarAOptions = [
-  { value: 'alquiler', label: 'Alquiler y servicios' },
-  { value: 'deposito', label: 'Depósito (garantía)' },
-]
-
-const conceptoOptions = [
-  { value: 'seña', label: 'Seña' },
-  { value: 'devolucion_sena', label: 'Devolución de seña' },
-  { value: 'anticipo', label: 'Anticipo' },
-  { value: 'liquidacion', label: 'Liquidación' },
-  { value: 'otro', label: 'Otro' },
-]
+// Los conceptos de cada tipo (alquiler o depósito) están en lib/conceptosCobro
 
 const mediosPago = [
   { value: 'efectivo', label: 'Efectivo' },
@@ -346,10 +333,18 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
 
   const saldoDeposito = pactadoDeposito - cobradoDeposito
 
+  // Depósito: lo recibido y lo devuelto van por separado (antes la
+  // devolución se sumaba como si fuera otro depósito recibido)
   const cobrosDeposito = cobros.filter(c => c.aplicar_a === 'deposito')
   const cobradoDepositoPorMoneda: Record<string, number> = {}
+  const devueltoDepositoPorMoneda: Record<string, number> = {}
   for (const c of cobrosDeposito) {
-    cobradoDepositoPorMoneda[c.moneda] = (cobradoDepositoPorMoneda[c.moneda] || 0) + c.monto
+    const destino = c.concepto === 'devolucion_sena' ? devueltoDepositoPorMoneda : cobradoDepositoPorMoneda
+    destino[c.moneda] = (destino[c.moneda] || 0) + c.monto
+  }
+  const porDevolverPorMoneda: Record<string, number> = {}
+  for (const m of new Set([...Object.keys(cobradoDepositoPorMoneda), ...Object.keys(devueltoDepositoPorMoneda)])) {
+    porDevolverPorMoneda[m] = (cobradoDepositoPorMoneda[m] || 0) - (devueltoDepositoPorMoneda[m] || 0)
   }
 
   /* La operación es lo que se cobra de verdad: alquiler + limpieza + lavadero.
@@ -412,6 +407,14 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     }
   }
 
+  // Depósito: si no entró nada, el pactado; si queda algo en garantía, devolverlo
+  const sugeridosDeposito: { label: string; monto: number; moneda: string; concepto: string }[] = []
+  if (reserva && !isCerrada) {
+    const quedan = Object.entries(porDevolverPorMoneda).filter(([, v]) => Math.round(v) > 0)
+    if (!cobrosDeposito.length && pactadoDeposito > 0) sugeridosDeposito.push({ label: 'Depósito pactado', monto: Math.round(pactadoDeposito), moneda: 'USD', concepto: 'seña' })
+    for (const [m, v] of quedan) sugeridosDeposito.push({ label: 'Devolver lo que queda', monto: Math.round(v), moneda: m, concepto: 'devolucion_sena' })
+  }
+
   function usarMontoSugerido(s: { monto: number; moneda: string; concepto: string }) {
     setCobroForm(f => ({ ...f, aplicar_a: 'alquiler', monto: s.monto, moneda: s.moneda, concepto: s.concepto }))
   }
@@ -437,6 +440,8 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       setCobroForm({
         fecha: cobro.fecha,
         aplicar_a: cobro.aplicar_a === 'deposito' ? 'deposito' : 'alquiler',
+        // Un concepto viejo que no está en la lista del tipo (ej. "anticipo")
+        // se muestra como el primero, sin perderse si no se toca
         concepto: cobro.concepto || 'seña',
         descripcion: cobro.descripcion || '',
         monto: cobro.monto,
@@ -630,7 +635,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     doc.setFont('helvetica', 'bold')
     doc.text('Aplicado a:', margin, y)
     doc.setFont('helvetica', 'normal')
-    const aplicarALabel = aplicarAOptions.find(a => a.value === cobro.aplicar_a)?.label || cobro.aplicar_a
+    const aplicarALabel = tipoDe(cobro.aplicar_a) === 'deposito' ? 'Depósito en garantía' : 'Alquiler y servicios'
     doc.text(aplicarALabel, margin + 35, y)
 
     if (cobro.concepto) {
@@ -638,7 +643,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       doc.setFont('helvetica', 'bold')
       doc.text('Concepto:', margin, y)
       doc.setFont('helvetica', 'normal')
-      const conceptoLabel = conceptoOptions.find(c => c.value === cobro.concepto)?.label || cobro.concepto
+      const conceptoLabel = etiquetaCobro(cobro)
       doc.text(conceptoLabel, margin + 35, y)
     }
 
@@ -871,7 +876,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                   {cobrosOperacion.map(c => (
                     <div key={c.id} className="flex justify-between text-xs py-0.5 gap-2">
                       <span className="text-costa-gris min-w-0">
-                        {formatFecha(c.fecha)} - {conceptoOptions.find(opt => opt.value === c.concepto)?.label || c.concepto || 'Pago'}
+                        {formatFecha(c.fecha)} - {etiquetaCobro(c)}
                         {c.descripcion && <span className="italic"> · {c.descripcion}</span>}
                       </span>
                       <span className={c.concepto === 'devolucion_sena' ? 'text-costa-coral flex-shrink-0' : 'text-costa-olivo flex-shrink-0'}>
@@ -925,6 +930,28 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                   )}
                 </span>
               </div>
+              {Object.keys(devueltoDepositoPorMoneda).length > 0 && (
+                <>
+                  <div className="flex justify-between py-1 border-b border-costa-beige">
+                    <span className="text-costa-gris">Depósito devuelto</span>
+                    <span className="text-right">
+                      {Object.entries(devueltoDepositoPorMoneda).map(([m, v]) => (
+                        <span key={m} className="block font-medium text-costa-navy">− <FormatMontoStyled monto={v} moneda={m} /></span>
+                      ))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-costa-beige">
+                    <span className="text-costa-gris">Queda en garantía</span>
+                    <span className="text-right">
+                      {Object.entries(porDevolverPorMoneda).map(([m, v]) => (
+                        <span key={m} className={`block font-semibold ${Math.round(v) === 0 ? 'text-costa-olivo' : 'text-costa-navy'}`}>
+                          {Math.round(v) === 0 ? 'Nada · devuelto ✓' : <FormatMontoStyled monto={v} moneda={m} />}
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                </>
+              )}
 
               {liquidacion ? (
                 <>
@@ -1037,11 +1064,11 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
                       <td className="py-1.5">{formatFecha(cobro.fecha)}</td>
                       <td className="py-1.5">
                         <Badge variant={cobro.aplicar_a === 'alquiler' ? 'info' : cobro.aplicar_a === 'deposito' ? 'warning' : 'default'}>
-                          {aplicarAOptions.find(a => a.value === cobro.aplicar_a)?.label || cobro.aplicar_a}
+                          {tipoDe(cobro.aplicar_a) === 'deposito' ? 'Depósito' : 'Alquiler y servicios'}
                         </Badge>
                       </td>
                       <td className="py-1.5 text-costa-gris">
-                        {conceptoOptions.find(c => c.value === cobro.concepto)?.label || cobro.concepto || '-'}
+                        {etiquetaCobro(cobro)}
                       </td>
                       <td className="py-1.5 text-costa-gris">
                         {mediosPago.find(m => m.value === cobro.medio_pago)?.label}
@@ -1118,7 +1145,21 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
       {/* Modal nuevo cobro */}
       <Modal isOpen={modalOpen} onClose={() => { setModalOpen(false); setEditingCobroId(null); setCobroForm(initialCobroForm); }} title={editingCobroId ? "Editar Pago" : "Registrar Pago"}>
         <form onSubmit={handleSaveCobro} className="space-y-4">
-          {!editingCobroId && montosSugeridos.length > 0 && (
+          {!editingCobroId && tipoDe(cobroForm.aplicar_a) === 'deposito' && sugeridosDeposito.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-costa-gris">Cargar:</span>
+              {sugeridosDeposito.map(s => {
+                const activo = cobroForm.monto === s.monto && cobroForm.concepto === s.concepto
+                return (
+                  <button key={s.label} type="button" onClick={() => setCobroForm(f => ({ ...f, aplicar_a: 'deposito', monto: s.monto, moneda: s.moneda, concepto: s.concepto }))}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${activo ? 'bg-costa-navy text-white border-costa-navy' : 'text-costa-navy border-costa-navy/25 hover:bg-costa-navy/5'}`}>
+                    {s.label} · {s.moneda === 'USD' ? 'U$D' : '$'} {new Intl.NumberFormat('es-AR').format(s.monto)}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+          {!editingCobroId && tipoDe(cobroForm.aplicar_a) === 'alquiler' && montosSugeridos.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-costa-gris">Cargar:</span>
               {montosSugeridos.map(s => {
@@ -1132,24 +1173,39 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
               })}
             </div>
           )}
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Aplicar a"
-              value={cobroForm.aplicar_a}
-              onChange={(e) => {
-                const aplicar_a = e.target.value
-                const monedaAuto = aplicar_a === 'deposito' ? 'USD' : monedaAlquiler
-                setCobroForm({ ...cobroForm, aplicar_a, moneda: monedaAuto })
-              }}
-              options={aplicarAOptions}
-              required
-            />
-            <Select
-              label="Concepto"
-              value={cobroForm.concepto}
-              onChange={(e) => setCobroForm({ ...cobroForm, concepto: e.target.value })}
-              options={conceptoOptions}
-            />
+          {/* Primero qué se registra: el alquiler (ingreso) o el depósito (garantía
+              que se devuelve). Cada uno tiene sus propios conceptos */}
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Qué registrás">
+            {([['alquiler', 'Alquiler y servicios', 'Es ingreso de la reserva'], ['deposito', 'Depósito en garantía', 'Se devuelve al salir']] as const).map(([t, titulo, sub]) => {
+              const activo = tipoDe(cobroForm.aplicar_a) === t
+              return (
+                <button key={t} type="button"
+                  onClick={() => {
+                    // Al cambiar de tipo se carga lo más probable de ese tipo
+                    const sug = t === 'deposito' ? sugeridosDeposito[0] : montosSugeridos.find(m => m.label === 'Saldo') || montosSugeridos[0]
+                    setCobroForm({ ...cobroForm, aplicar_a: t, concepto: sug?.concepto || CONCEPTOS[t as TipoMovimiento][0].value, moneda: sug?.moneda || (t === 'deposito' ? 'USD' : monedaAlquiler), monto: sug?.monto || 0 })
+                  }}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${activo ? 'border-costa-esmeralda bg-costa-esmeralda-suave' : 'border-costa-borde hover:bg-costa-arena'}`}>
+                  <span className={`block text-sm font-bold ${activo ? 'text-costa-esmeralda' : 'text-costa-navy'}`}>{titulo}</span>
+                  <span className="block text-xs text-costa-gris">{sub}</span>
+                </button>
+              )
+            })}
+          </div>
+          <div>
+            <p className="mb-1 text-xs font-medium text-costa-navy">Concepto</p>
+            <div className="flex flex-wrap gap-2">
+              {CONCEPTOS[tipoDe(cobroForm.aplicar_a)].map(c => {
+                const activo = cobroForm.concepto === c.value
+                return (
+                  <button key={c.value} type="button" title={c.ayuda} onClick={() => setCobroForm({ ...cobroForm, concepto: c.value })}
+                    className={`rounded-full border px-3 py-1 text-sm font-semibold transition-colors ${activo ? 'border-costa-esmeralda bg-costa-esmeralda text-white' : 'border-costa-borde text-costa-navy hover:bg-costa-arena'}`}>
+                    {c.label}
+                  </button>
+                )
+              })}
+            </div>
+            <p className="mt-1 text-xs text-costa-gris">{CONCEPTOS[tipoDe(cobroForm.aplicar_a)].find(c => c.value === cobroForm.concepto)?.ayuda || ''}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

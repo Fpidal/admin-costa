@@ -16,6 +16,7 @@ import { montosReserva, sumarMontos, monedasCon, filtrarReservas, nochesEntre, d
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
 import { AvisosCobranza } from '@/components/AvisosCobranza'
 import { vencimientoSaldo, armarAvisos, nombreCasa as casaDeReserva } from '@/lib/cobranza'
+import { etiquetaCobro } from '@/lib/conceptosCobro'
 import { linkWhatsApp, mensajeConfirmacion, mensajeRecordatorioSaldo, mensajeIngreso } from '@/lib/whatsapp'
 import { DATOS_LOCADOR_DEMO, DATOS_LOCADOR_VACIOS, camposFaltantes, type DatosLocador } from '@/lib/datosLocador'
 
@@ -171,13 +172,6 @@ const USOS_Y_CUIDADOS = [
 const URL_INFO_UTIL = 'https://admin-costa.vercel.app/'
 const URL_COSTA = 'https://costa-esmeralda.com.ar/'
 
-const conceptosCobro: Record<string, string> = {
-  'seña': 'Seña',
-  devolucion_sena: 'Devolución de seña',
-  anticipo: 'Anticipo',
-  liquidacion: 'Liquidación',
-  otro: 'Pago',
-}
 
 const mediosCobro: Record<string, string> = {
   efectivo: 'Efectivo',
@@ -877,7 +871,7 @@ function ReservasContent() {
     const pagos = cobrosReserva
       .filter(c => c.aplicar_a !== 'deposito')
       .map(c => ({
-        label: [formatFecha(c.fecha), conceptosCobro[c.concepto] || 'Pago', mediosCobro[c.medio_pago]].filter(Boolean).join(' · '),
+        label: [formatFecha(c.fecha), etiquetaCobro(c), mediosCobro[c.medio_pago]].filter(Boolean).join(' · '),
         monto: Math.round(c.concepto === 'devolucion_sena' ? -(c.monto || 0) : (c.monto || 0)),
         moneda: c.moneda || 'ARS',
       }))
@@ -1689,7 +1683,7 @@ function ReservasContent() {
                     {cobrosR.map(c => (
                       <li key={c.id} className="flex items-center gap-3 border-b border-costa-borde/50 py-1.5 last:border-0">
                         <span className="w-24 shrink-0 tabular-nums text-costa-gris">{formatFecha(c.fecha)}</span>
-                        <span className="flex-1 min-w-0 truncate text-costa-navy">{conceptosCobro[c.concepto] || 'Pago'}<span className="text-xs text-costa-gris"> · {mediosCobro[c.medio_pago] || c.medio_pago}{c.aplicar_a === 'deposito' ? ' · depósito' : ''}</span></span>
+                        <span className="flex-1 min-w-0 truncate text-costa-navy">{etiquetaCobro(c)}<span className="text-xs text-costa-gris"> · {mediosCobro[c.medio_pago] || c.medio_pago}</span></span>
                         <span className={`shrink-0 font-semibold tabular-nums ${c.concepto === 'devolucion_sena' ? 'text-red-700' : c.aplicar_a === 'deposito' ? 'text-costa-gris' : 'text-costa-olivo'}`}>{c.concepto === 'devolucion_sena' ? '− ' : ''}{formatMonto(c.monto, c.moneda)}</span>
                       </li>
                     ))}
