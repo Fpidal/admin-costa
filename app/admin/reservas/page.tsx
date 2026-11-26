@@ -1571,14 +1571,22 @@ function ReservasContent() {
           const debe = monedasCon(saldo).some(m => saldo[m] > 0)
           const noches = calcularNoches(r.fecha_inicio, r.fecha_fin)
           const liq = liquidaciones.find(l => String(l.reserva_id) === String(r.id))
-          const cobrosR = cobros.filter(c => c.reserva_id === r.id).sort((a, b) => a.fecha.localeCompare(b.fecha))
+          // Por fecha y, dentro del mismo día, en el orden en que se cargaron
+          const cobrosR = cobros.filter(c => c.reserva_id === r.id)
+            .sort((a, b) => a.fecha.localeCompare(b.fecha) || (a.created_at || '').localeCompare(b.created_at || '') || a.id - b.id)
+          // El depósito está resuelto si hay liquidación, si no se pidió, o si
+          // entró y se devolvió entero como pago ("devolución" aplicada a depósito)
+          const movDeposito = cobrosR.filter(c => c.aplicar_a === 'deposito')
+          const netoDeposito = movDeposito.reduce((a, c) => a + (c.concepto === 'devolucion_sena' ? -c.monto : c.monto), 0)
+          const depositoDevuelto = movDeposito.some(c => c.concepto === 'devolucion_sena') && Math.round(netoDeposito) <= 0
+          const cerrada = r.estado === 'cerrada'
           const pasos = [
             { t: 'Consulta', ok: true },
-            { t: 'Seña', ok: monedasCon(cobrado).some(m => cobrado[m] > 0) || !debe },
-            { t: 'Saldo', ok: !debe },
-            { t: 'Ingreso', ok: hoyISO >= r.fecha_inicio.slice(0, 10) },
-            { t: 'Salida', ok: hoyISO >= r.fecha_fin.slice(0, 10) },
-            { t: 'Depósito', ok: !!liq || !r.deposito },
+            { t: 'Seña', ok: cerrada || monedasCon(cobrado).some(m => cobrado[m] > 0) || !debe },
+            { t: 'Saldo', ok: cerrada || !debe },
+            { t: 'Ingreso', ok: cerrada || hoyISO >= r.fecha_inicio.slice(0, 10) },
+            { t: 'Salida', ok: cerrada || hoyISO >= r.fecha_fin.slice(0, 10) },
+            { t: 'Depósito', ok: cerrada || !!liq || !r.deposito || depositoDevuelto },
           ]
           const ahora = pasos.findIndex(p => !p.ok)
           const sena = Math.round(noches * (r.precio_noche || 0) * PORCENTAJE_RESERVA / 100)
@@ -1591,7 +1599,7 @@ function ReservasContent() {
                 <div className="min-w-0">
                   <h2 className="text-lg font-bold text-costa-navy truncate">{r.inquilinos?.nombre?.trim() || 'Sin titular'}</h2>
                   <p className="text-sm text-costa-gris">
-                    {r.propiedades?.nombre}{r.propiedades?.lote ? ` · Lote ${r.propiedades.lote}` : ''} · {formatFecha(r.fecha_inicio)} → {formatFecha(r.fecha_fin)} · {noches} noches · {r.cantidad_personas || 1} personas
+                    {r.propiedades?.nombre}{r.propiedades?.lote ? ` · Lote ${r.propiedades.lote}` : ''} · {formatFecha(r.fecha_inicio)} → {formatFecha(r.fecha_fin)} · {noches} noches · {r.cantidad_personas || 1} persona{(r.cantidad_personas || 1) !== 1 ? 's' : ''}
                   </p>
                 </div>
                 <div className="shrink-0">{etiqueta(r)}</div>
