@@ -7,13 +7,15 @@ import { parseFechaLocal } from '@/lib/fechas'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
 import { Card, CardHeader, CardTitle, CardContent, Button, Badge, Modal, Input, Select, Textarea, InputNumber } from '@/components/ui'
-import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock, AlertTriangle } from 'lucide-react'
+import { Plus, Calendar, User, Home, Pencil, Trash2, DollarSign, Users, X, ChevronDown, ChevronUp, Check, Zap, Clock, FileText, FileSignature, Wallet, Archive, Lock, AlertTriangle, Download } from 'lucide-react'
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
 import { CobrosContent } from '@/components/CobrosContent'
 import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
+import { montosReserva, sumarMontos, monedasCon, filtrarReservas, describirPeriodo, temporadaDe, etiquetaTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
+import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
 import { DATOS_LOCADOR_DEMO, DATOS_LOCADOR_VACIOS, camposFaltantes, type DatosLocador } from '@/lib/datosLocador'
 
 interface Propiedad {
@@ -207,6 +209,19 @@ const FormatMontoStyled = ({ monto, moneda = 'ARS' }: { monto: number, moneda?: 
   )
 }
 
+// Importes de un recuadro de resumen, una línea por moneda
+const MontosResumen = ({ montos, className = '' }: { montos: PorMoneda, className?: string }) => {
+  const lista = monedasCon(montos)
+  if (!lista.length) return <p className={`text-2xl font-bold ${className}`}><FormatMontoStyled monto={0} moneda="USD" /></p>
+  return (
+    <div className={`font-bold ${className}`}>
+      {lista.map((m, i) => (
+        <p key={m} className={i === 0 ? 'text-2xl' : 'text-base'}><FormatMontoStyled monto={montos[m]} moneda={m} /></p>
+      ))}
+    </div>
+  )
+}
+
 const formatFecha = (fecha: string) => {
   return parseFechaLocal(fecha).toLocaleDateString('es-AR')
 }
@@ -290,6 +305,9 @@ function ReservasContent() {
   const [expandedReservas, setExpandedReservas] = useState<Set<string>>(new Set())
   const [precioSugerido, setPrecioSugerido] = useState<{ precio: number; total: number; noches: number } | null>(null)
   const [cargandoPrecio, setCargandoPrecio] = useState(false)
+  // Filtro de la pestaña Reservas: casa y período. Lo usan los recuadros, la
+  // tabla y el reporte PDF
+  const [filtro, setFiltro] = useState<FiltroReservas>(FILTRO_INICIAL)
 
   useEffect(() => {
     if (isDemo) {
@@ -1382,20 +1400,44 @@ function ReservasContent() {
     doc.save(`Contrato_001-${idCorto}_${locatario.nombre.replace(/\s/g, '_')}.pdf`)
   }
 
-  // Calcular totales
-  const calcularTotal = (r: Reserva) => {
-    const noches = calcularNoches(r.fecha_inicio, r.fecha_fin)
-    return noches * (r.precio_noche || 0)
-  }
-
-  const totalConfirmadas = reservas.filter(r => r.estado === 'confirmada').reduce((acc, r) => acc + calcularTotal(r), 0)
   // La pestaña Cobros muestra solo los alquileres abiertos: los cerrados se
   // ven con sus cobros en Pasados
   const idsCerradas = new Set(reservas.filter(r => r.estado === 'cerrada').map(r => r.id))
   const cobrosAbiertos = cobros.filter(c => !idsCerradas.has(c.reserva_id))
 
-  const totalSenas = reservas.filter(r => r.estado !== 'cancelada').reduce((acc, r) => acc + (r.sena || 0), 0)
-  const pendientes = reservas.filter(r => r.estado === 'pendiente').length
+  // Reservas del filtro. Los recuadros y el PDF suman también las cerradas
+  // (así un año o temporada pasada da completo) pero no las canceladas
+  const reservasFiltradas = filtrarReservas(reservas, filtro)
+  const reservasResumen = reservasFiltradas.filter(r => r.estado !== 'cancelada')
+  const montosResumen = reservasResumen.map(r => montosReserva(r, cobros))
+  const resumen = {
+    total: sumarMontos(montosResumen.map(m => m.total)),
+    cobrado: sumarMontos(montosResumen.map(m => m.cobrado)),
+    saldo: sumarMontos(montosResumen.map(m => m.saldo)),
+  }
+  const pendientes = reservasResumen.filter(r => r.estado === 'pendiente').length
+  const opcionesTemporada = Array.from(new Set(reservas.map(r => temporadaDe(r.fecha_inicio)))).sort((a, b) => b - a)
+  const opcionesAnio = Array.from(new Set(reservas.map(r => Number(r.fecha_inicio.slice(0, 4))))).sort((a, b) => b - a)
+  const nombreCasa = (id: string) => {
+    const p = propiedades.find(p => String(p.id) === id)
+    return p ? `${p.nombre}${p.lote ? ` (Lote ${p.lote})` : ''}` : ''
+  }
+  const casasFiltro = filtro.propiedadId ? nombreCasa(filtro.propiedadId) : 'Todas las casas'
+
+  function cambiarTipoPeriodo(tipo: TipoPeriodo) {
+    // Al elegir temporada o año arranca en el más reciente
+    const valor = tipo === 'temporada' ? String(opcionesTemporada[0] ?? '') : tipo === 'anio' ? String(opcionesAnio[0] ?? '') : ''
+    setFiltro({ ...filtro, tipo, valor })
+  }
+
+  function descargarReporte() {
+    generarReporteReservasPDF({
+      reservas: reservasResumen,
+      cobros,
+      casas: casasFiltro,
+      periodo: describirPeriodo(filtro),
+    })
+  }
 
   // Calculos del formulario
   const formNoches = calcularNoches(form.check_in, form.check_out)
@@ -1465,49 +1507,117 @@ function ReservasContent() {
 
       {activeTab === 'reservas' && (
         <>
-      {/* Stats */}
+      {/* Filtro: casa y período */}
+      <Card className="mb-3">
+        <CardContent className="py-3">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="space-y-0.5">
+              <span className="block text-xs font-medium text-costa-navy">Casa</span>
+              <select
+                value={filtro.propiedadId}
+                onChange={(e) => setFiltro({ ...filtro, propiedadId: e.target.value })}
+                className="px-2.5 py-1.5 rounded-lg border border-costa-gris/30 text-sm text-costa-navy bg-costa-white focus:outline-none focus:ring-1 focus:ring-costa-navy"
+              >
+                <option value="">Todas</option>
+                {propiedades.map(p => (
+                  <option key={p.id} value={String(p.id)}>{p.nombre}{p.lote ? ` - Lote ${p.lote}` : ''}</option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-0.5">
+              <span className="block text-xs font-medium text-costa-navy">Período</span>
+              <select
+                value={filtro.tipo}
+                onChange={(e) => cambiarTipoPeriodo(e.target.value as TipoPeriodo)}
+                className="px-2.5 py-1.5 rounded-lg border border-costa-gris/30 text-sm text-costa-navy bg-costa-white focus:outline-none focus:ring-1 focus:ring-costa-navy"
+              >
+                <option value="todo">Todo</option>
+                <option value="temporada">Temporada</option>
+                <option value="anio">Año</option>
+                <option value="rango">Entre fechas</option>
+              </select>
+            </label>
+            {(filtro.tipo === 'temporada' || filtro.tipo === 'anio') && (
+              <label className="space-y-0.5">
+                <span className="block text-xs font-medium text-costa-navy">{filtro.tipo === 'temporada' ? 'Temporada (jul a jun)' : 'Año'}</span>
+                <select
+                  value={filtro.valor}
+                  onChange={(e) => setFiltro({ ...filtro, valor: e.target.value })}
+                  className="px-2.5 py-1.5 rounded-lg border border-costa-gris/30 text-sm text-costa-navy bg-costa-white focus:outline-none focus:ring-1 focus:ring-costa-navy"
+                >
+                  {(filtro.tipo === 'temporada' ? opcionesTemporada : opcionesAnio).map(a => (
+                    <option key={a} value={String(a)}>{filtro.tipo === 'temporada' ? etiquetaTemporada(a).replace('Temporada ', '') : a}</option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {filtro.tipo === 'rango' && (
+              <>
+                <Input label="Ingreso desde" type="date" value={filtro.desde} onChange={(e) => setFiltro({ ...filtro, desde: e.target.value })} className="w-auto" />
+                <Input label="Ingreso hasta" type="date" value={filtro.hasta} onChange={(e) => setFiltro({ ...filtro, hasta: e.target.value })} className="w-auto" />
+              </>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              {(filtro.propiedadId || filtro.tipo !== 'todo') && (
+                <Button variant="ghost" size="sm" onClick={() => setFiltro(FILTRO_INICIAL)}>
+                  <X size={14} /> Limpiar
+                </Button>
+              )}
+              <Button variant="secondary" size="sm" onClick={descargarReporte} disabled={reservasResumen.length === 0}>
+                <Download size={15} /> Reporte PDF
+              </Button>
+            </div>
+          </div>
+          <p className="text-xs text-costa-gris mt-2">
+            {casasFiltro} · {describirPeriodo(filtro)} · cuenta las reservas cuyo ingreso cae en el período, incluidas las cerradas
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Resumen del filtro */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
         <Card>
           <CardContent className="py-3">
-            <p className="text-sm text-costa-gris">Total reservas</p>
-            <p className="text-2xl font-bold text-costa-navy">{reservas.length}</p>
+            <p className="text-sm text-costa-gris">Reservas</p>
+            <p className="text-2xl font-bold text-costa-navy">{reservasResumen.length}</p>
+            {pendientes > 0 && <p className="text-xs text-costa-coral">{pendientes} pendiente{pendientes !== 1 ? 's' : ''} de confirmar</p>}
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-3">
-            <p className="text-sm text-costa-gris">Pendientes</p>
-            <p className="text-2xl font-bold text-costa-coral">{pendientes}</p>
+            <p className="text-sm text-costa-gris">Total reservado</p>
+            <MontosResumen montos={resumen.total} className="text-costa-navy" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-3">
-            <p className="text-sm text-costa-gris">Ingresos confirmados</p>
-            <p className="text-2xl font-bold text-costa-olivo">{formatMonto(totalConfirmadas)}</p>
+            <p className="text-sm text-costa-gris">Cobrado</p>
+            <MontosResumen montos={resumen.cobrado} className="text-costa-olivo" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="py-3">
-            <p className="text-sm text-costa-gris">Total señas</p>
-            <p className="text-2xl font-bold text-costa-navy">{formatMonto(totalSenas)}</p>
+            <p className="text-sm text-costa-gris">Pendiente de cobro</p>
+            <MontosResumen montos={resumen.saldo} className="text-costa-coral" />
           </CardContent>
         </Card>
       </div>
 
       {/* Vista móvil - Cards */}
       <div className="sm:hidden space-y-3">
-        {reservas.length === 0 ? (
+        {reservasFiltradas.filter(r => r.estado !== 'cerrada').length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-gray-500">No hay reservas registradas</CardContent>
+            <CardContent className="py-12 text-center text-gray-500">No hay reservas para este filtro</CardContent>
           </Card>
         ) : (
-          reservas.filter(r => r.estado !== 'cerrada').map((reserva) => {
+          reservasFiltradas.filter(r => r.estado !== 'cerrada').map((reserva) => {
             const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-            const total = noches * (reserva.precio_noche || 0)
-            const cobradoAlquiler = cobros
-              .filter(c => c.reserva_id === reserva.id && c.aplicar_a === 'alquiler' && c.concepto !== 'devolucion_sena')
-              .reduce((acc, c) => acc + (c.monto || 0), 0)
-            const saldo = total - cobradoAlquiler
-            const moneda = reserva.moneda || 'ARS'
+            // Mismo cálculo que la tabla: servicios incluidos y por moneda
+            const { total, cobrado, saldo } = montosReserva(reserva, cobros)
+            const haySaldo = monedasCon(saldo).some(m => saldo[m] > 0)
+            const lineasMonto = (o: PorMoneda) => monedasCon(o).length
+              ? monedasCon(o).map(m => <span key={m} className="block"><FormatMontoStyled monto={o[m]} moneda={m} /></span>)
+              : <span>-</span>
             return (
               <Card key={reserva.id}>
                 <CardContent className="p-4">
@@ -1532,16 +1642,16 @@ function ReservasContent() {
                   <div className="grid grid-cols-3 gap-2 text-center py-2 bg-costa-beige/30 rounded-lg mb-3">
                     <div>
                       <p className="text-xs text-costa-gris">Total</p>
-                      <p className="font-semibold text-costa-navy text-sm"><FormatMontoStyled monto={total} moneda={moneda} /></p>
+                      <p className="font-semibold text-costa-navy text-sm">{lineasMonto(total)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-costa-gris">Cobrado</p>
-                      <p className="font-semibold text-costa-olivo text-sm"><FormatMontoStyled monto={cobradoAlquiler} moneda={moneda} /></p>
+                      <p className="font-semibold text-costa-olivo text-sm">{lineasMonto(cobrado)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-costa-gris">Saldo</p>
-                      <p className={`font-semibold text-sm ${saldo > 0 ? 'text-amber-600' : 'text-costa-olivo'}`}>
-                        <FormatMontoStyled monto={saldo} moneda={moneda} />
+                      <p className={`font-semibold text-sm ${haySaldo ? 'text-amber-600' : 'text-costa-olivo'}`}>
+                        {lineasMonto(saldo)}
                       </p>
                     </div>
                   </div>
@@ -1573,8 +1683,8 @@ function ReservasContent() {
       <Card className="hidden sm:block">
         <CardHeader><CardTitle>Todas las reservas</CardTitle></CardHeader>
         <CardContent className="p-0">
-          {reservas.length === 0 ? (
-            <div className="py-12 text-center text-gray-500">No hay reservas registradas</div>
+          {reservasFiltradas.filter(r => r.estado !== 'cerrada').length === 0 ? (
+            <div className="py-12 text-center text-gray-500">No hay reservas para este filtro</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -1590,26 +1700,11 @@ function ReservasContent() {
                     <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Estado</th>
                   </tr>
                 </thead>
-                {reservas.filter(r => r.estado !== 'cerrada').map((reserva) => {
+                {reservasFiltradas.filter(r => r.estado !== 'cerrada').map((reserva) => {
                     const noches = calcularNoches(reserva.fecha_inicio, reserva.fecha_fin)
-                    const moneda = reserva.moneda || 'ARS'
                     // El total incluye los servicios, para que el saldo sea el real.
                     // Si están en otra moneda se muestra una línea por moneda.
-                    const totalPorMoneda: Record<string, number> = {}
-                    const sumar = (m: string, v: number) => { if (v) totalPorMoneda[m] = (totalPorMoneda[m] || 0) + v }
-                    sumar(moneda, noches * (reserva.precio_noche || 0))
-                    for (const serv of serviciosConPrecio(reserva)) sumar(serv.moneda, serv.monto)
-
-                    // Cuenta todo lo cobrado menos el depósito, que es garantía
-                    const cobradoPorMoneda: Record<string, number> = {}
-                    for (const c of cobros.filter(c => c.reserva_id === reserva.id && c.aplicar_a !== 'deposito')) {
-                      const v = c.concepto === 'devolucion_sena' ? -(c.monto || 0) : (c.monto || 0)
-                      cobradoPorMoneda[c.moneda] = (cobradoPorMoneda[c.moneda] || 0) + v
-                    }
-
-                    const monedasFila = Array.from(new Set([...Object.keys(totalPorMoneda), ...Object.keys(cobradoPorMoneda)])).sort()
-                    const saldoPorMoneda: Record<string, number> = {}
-                    for (const m of monedasFila) saldoPorMoneda[m] = (totalPorMoneda[m] || 0) - (cobradoPorMoneda[m] || 0)
+                    const { total: totalPorMoneda, cobrado: cobradoPorMoneda, saldo: saldoPorMoneda, monedas: monedasFila } = montosReserva(reserva, cobros)
                     const haySaldo = monedasFila.some(m => Math.round(saldoPorMoneda[m]) > 0)
                     return (
                     <tbody key={reserva.id} className="border-b border-costa-beige last:border-b-0 hover:bg-costa-beige/30">
@@ -2037,6 +2132,16 @@ function ReservasContent() {
                                 </div>
                               )
                             })()}
+
+                            {/* Eliminar: manda a la Papelera, igual que en Reservas */}
+                            <div className="flex justify-end pt-3 border-t border-costa-beige">
+                              <button
+                                onClick={() => handleDelete(reserva.id)}
+                                className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium text-costa-coral border border-costa-coral/30 hover:bg-costa-coral/10 transition-colors"
+                              >
+                                <Trash2 size={13} /> Eliminar
+                              </button>
+                            </div>
                           </div>
                         )}
                       </div>
