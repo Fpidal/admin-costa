@@ -1965,7 +1965,7 @@ function ReservasContent() {
         isOpen={modalOpen}
         onClose={closeModal}
         title={editingId ? 'Editar Reserva' : 'Nueva Reserva'}
-        size="lg"
+        size="xl"
         actions={
           <>
             <Button type="button" variant="secondary" size="sm" onClick={closeModal}>Cancelar</Button>
@@ -1975,9 +1975,8 @@ function ReservasContent() {
           </>
         }
       >
-        <form id="reserva-form" onSubmit={handleSubmit} className="space-y-4">
-          <p className="text-sm font-medium text-gray-700 border-b pb-2">Propiedad y titular</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form id="reserva-form" onSubmit={handleSubmit} className="space-y-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <Select
               label="Casa"
               value={form.propiedad_id}
@@ -1997,7 +1996,7 @@ function ReservasContent() {
               <button
                 type="button"
                 onClick={() => setNuevoTitularOpen(!nuevoTitularOpen)}
-                className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-costa-olivo border border-costa-olivo/30 hover:bg-costa-olivo/10 transition-colors"
+                className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-costa-esmeralda hover:bg-costa-esmeralda-light shadow-sm transition-colors"
               >
                 <Plus size={13} /> Nuevo
               </button>
@@ -2086,20 +2085,17 @@ function ReservasContent() {
             </div>
           )}
 
-          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Fechas y horarios</p>
           {/* Las fechas llevan más ancho que las horas: si no, se cortaba el año */}
-          <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1.5fr_1fr] gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1.5fr_1fr_auto] gap-3 items-end">
             <Input label="Ingreso" type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value, check_out: form.check_out && form.check_out < e.target.value ? e.target.value : form.check_out })} required />
             <Input label="Hora" type="time" value={form.horario_ingreso} onChange={(e) => setForm({ ...form, horario_ingreso: e.target.value })} />
             <Input label="Salida" type="date" value={form.check_out} min={form.check_in || undefined} onChange={(e) => setForm({ ...form, check_out: e.target.value })} required />
             <Input label="Hora" type="time" value={form.horario_salida} onChange={(e) => setForm({ ...form, horario_salida: e.target.value })} />
+            <p className="pb-1.5 text-sm text-costa-esmeralda whitespace-nowrap"><span className="text-lg font-bold">{formNoches}</span> noche{formNoches !== 1 ? 's' : ''}</p>
           </div>
-          {formNoches > 0 && (
-            <p className="-mt-2 text-sm text-costa-esmeralda"><span className="text-lg font-bold">{formNoches}</span> noche{formNoches !== 1 ? 's' : ''}</p>
-          )}
 
           {/* Estado con radio buttons */}
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 rounded-lg bg-costa-arena border border-costa-borde">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-3 py-2 rounded-lg bg-costa-arena border border-costa-borde">
             <span className="text-sm font-medium text-costa-navy">Estado:</span>
             {estadosReserva.map((estado) => (
               <label key={estado.value} className="flex items-center gap-2 cursor-pointer">
@@ -2121,8 +2117,7 @@ function ReservasContent() {
             )}
           </div>
 
-          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Tarifas y pagos</p>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-3">
             <Select label="Moneda" value={form.moneda} onChange={(e) => setForm({ ...form, moneda: e.target.value })} options={monedas} />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2168,7 +2163,7 @@ function ReservasContent() {
             })) totalForm[sv.moneda] = (totalForm[sv.moneda] || 0) + sv.monto
             const sena = Math.round(formTotal * PORCENTAJE_RESERVA / 100)
             return (
-              <div className="rounded-lg border border-costa-borde bg-costa-arena/60 p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+              <div className="rounded-lg border border-costa-borde bg-costa-arena/60 px-3 py-2 grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                 <div>
                   <p className="text-xs text-costa-gris">Total</p>
                   <p className="font-bold text-costa-navy">{monedasCon(totalForm).map(m => <span key={m} className="block">{formatMonto(totalForm[m], m)}</span>)}</p>
@@ -2189,9 +2184,108 @@ function ReservasContent() {
             )
           })()}
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <div className="space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-costa-gris">Servicios</p>
+          {/* Cada servicio se tilda y, si se quiere, se le pone precio. En blanco
+              queda incluido sin cargo (la limpieza figura bonificada). */}
+          <div className="p-2.5 bg-costa-arena/50 border border-costa-borde rounded-lg space-y-1.5">
+            {([
+              { check: 'ropa_blanca', monto: 'monto_ropa_blanca', moneda: 'moneda_ropa_blanca', label: 'Ropa blanca', ayuda: '' },
+              { check: 'incluye_limpieza', monto: 'limpieza_final', moneda: 'moneda_limpieza', label: 'Limpieza final', ayuda: 'puede incluir el lavadero' },
+              { check: 'incluye_lavadero', monto: 'monto_lavadero', moneda: 'moneda_lavadero', label: 'Lavadero', ayuda: '' },
+            ] as const).map(serv => (
+              <div key={serv.check} className="flex items-center gap-2 min-h-9">
+                <label className="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                  <input
+                    type="checkbox"
+                    checked={form[serv.check]}
+                    onChange={(e) => setForm({ ...form, [serv.check]: e.target.checked })}
+                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-700">{serv.label}</span>
+                  {serv.ayuda && <span className="text-xs text-gray-400 truncate hidden lg:inline">{serv.ayuda}</span>}
+                </label>
+                {form[serv.check] && (
+                  <>
+                    <div className="w-28 shrink-0">
+                      <InputNumber
+                        value={form[serv.monto] || ''}
+                        onChange={(val) => setForm({ ...form, [serv.monto]: val })}
+                        placeholder="Sin cargo"
+                      />
+                    </div>
+                    <select
+                      value={form[serv.moneda]}
+                      onChange={(e) => setForm({ ...form, [serv.moneda]: e.target.value })}
+                      className="w-16 shrink-0 px-1.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="ARS">$</option>
+                      <option value="USD">U$D</option>
+                    </select>
+                  </>
+                )}
+              </div>
+            ))}
+
+            {form.servicios_extra.map((extra, idx) => {
+              const cambiar = (cambios: Partial<ServicioExtra>) => setForm({
+                ...form,
+                servicios_extra: form.servicios_extra.map((x, i) => (i === idx ? { ...x, ...cambios } : x)),
+              })
+              return (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={extra.concepto}
+                    onChange={(e) => cambiar({ concepto: e.target.value })}
+                    placeholder="Ej: mucama cada 3 días"
+                    className="flex-1 min-w-0 px-2.5 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <div className="w-28 shrink-0">
+                    <InputNumber value={extra.monto || ''} onChange={(val) => cambiar({ monto: val })} placeholder="Sin cargo" />
+                  </div>
+                  <select
+                    value={extra.moneda}
+                    onChange={(e) => cambiar({ moneda: e.target.value })}
+                    className="w-16 shrink-0 px-1.5 py-1.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="ARS">$</option>
+                    <option value="USD">U$D</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => setForm({ ...form, servicios_extra: form.servicios_extra.filter((_, i) => i !== idx) })}
+                    className="p-2 w-8 text-costa-gris hover:bg-costa-beige rounded"
+                    title="Quitar"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              )
+            })}
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, servicios_extra: [...form.servicios_extra, { concepto: '', monto: 0, moneda: form.moneda }] })}
+              className="inline-flex items-center gap-1 pt-1 text-sm font-medium text-costa-navy hover:underline"
+            >
+              <Plus size={14} /> Agregar otro servicio
+            </button>
+          </div>
+
+          <Textarea
+            label="Comentario sobre los servicios"
+            value={form.comentario_servicios}
+            onChange={(e) => setForm({ ...form, comentario_servicios: e.target.value })}
+            placeholder="Ej: la ropa blanca incluye sábanas y toallas, no toallones de pileta"
+            rows={2}
+          />
+
+            </div>
+            <div className="space-y-3">
           {/* Acompañantes: para la reserva alcanza con cuántos son */}
-          <div className="border rounded-lg">
-            <div className="flex items-center justify-between gap-3 p-3">
+          <div className="border border-costa-borde rounded-lg">
+            <div className="flex items-center justify-between gap-3 px-3 pt-2.5 pb-1">
               <span className="text-sm font-medium text-gray-700 flex items-center gap-2">
                 <Users size={16} />
                 Acompañantes
@@ -2228,7 +2322,7 @@ function ReservasContent() {
               </div>
             </div>
 
-            <div className="px-3 pb-3">
+            <div className="px-3 pb-2.5">
               <button
                 type="button"
                 onClick={() => setAcompanantesExpanded(!acompanantesExpanded)}
@@ -2334,105 +2428,9 @@ function ReservasContent() {
             )}
           </div>
 
-          <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Servicios adicionales</p>
-          {/* Cada servicio se tilda y, si se quiere, se le pone precio. En blanco
-              queda incluido sin cargo (la limpieza figura bonificada). */}
-          <div className="p-3 bg-gray-50 rounded-lg space-y-2">
-            {([
-              { check: 'ropa_blanca', monto: 'monto_ropa_blanca', moneda: 'moneda_ropa_blanca', label: 'Ropa blanca', ayuda: '' },
-              { check: 'incluye_limpieza', monto: 'limpieza_final', moneda: 'moneda_limpieza', label: 'Limpieza final', ayuda: 'puede incluir el lavadero' },
-              { check: 'incluye_lavadero', monto: 'monto_lavadero', moneda: 'moneda_lavadero', label: 'Lavadero', ayuda: '' },
-            ] as const).map(serv => (
-              <div key={serv.check} className="flex flex-wrap sm:flex-nowrap items-center gap-2 min-h-10">
-                <label className="flex items-center gap-2 cursor-pointer w-full sm:w-auto sm:flex-1">
-                  <input
-                    type="checkbox"
-                    checked={form[serv.check]}
-                    onChange={(e) => setForm({ ...form, [serv.check]: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">{serv.label}</span>
-                  {serv.ayuda && <span className="text-xs text-gray-400">{serv.ayuda}</span>}
-                </label>
-                {form[serv.check] && (
-                  <>
-                    <div className="flex-1 sm:w-36 sm:flex-none">
-                      <InputNumber
-                        value={form[serv.monto] || ''}
-                        onChange={(val) => setForm({ ...form, [serv.monto]: val })}
-                        placeholder="Sin cargo"
-                      />
-                    </div>
-                    <select
-                      value={form[serv.moneda]}
-                      onChange={(e) => setForm({ ...form, [serv.moneda]: e.target.value })}
-                      className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      <option value="ARS">$</option>
-                      <option value="USD">U$D</option>
-                    </select>
-                    <span className="w-8 hidden sm:block" />
-                  </>
-                )}
-              </div>
-            ))}
-
-            {form.servicios_extra.map((extra, idx) => {
-              const cambiar = (cambios: Partial<ServicioExtra>) => setForm({
-                ...form,
-                servicios_extra: form.servicios_extra.map((x, i) => (i === idx ? { ...x, ...cambios } : x)),
-              })
-              return (
-                <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-                  <input
-                    type="text"
-                    value={extra.concepto}
-                    onChange={(e) => cambiar({ concepto: e.target.value })}
-                    placeholder="Ej: Ropa blanca adicional, mucama cada 3 días"
-                    className="w-full sm:flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <div className="flex-1 sm:w-36 sm:flex-none">
-                    <InputNumber value={extra.monto || ''} onChange={(val) => cambiar({ monto: val })} placeholder="Sin cargo" />
-                  </div>
-                  <select
-                    value={extra.moneda}
-                    onChange={(e) => cambiar({ moneda: e.target.value })}
-                    className="w-20 px-2 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    <option value="ARS">$</option>
-                    <option value="USD">U$D</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => setForm({ ...form, servicios_extra: form.servicios_extra.filter((_, i) => i !== idx) })}
-                    className="p-2 w-8 text-costa-gris hover:bg-costa-beige rounded"
-                    title="Quitar"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              )
-            })}
-            <button
-              type="button"
-              onClick={() => setForm({ ...form, servicios_extra: [...form.servicios_extra, { concepto: '', monto: 0, moneda: form.moneda }] })}
-              className="inline-flex items-center gap-1 pt-1 text-sm font-medium text-costa-navy hover:underline"
-            >
-              <Plus size={14} /> Agregar otro servicio
-            </button>
-          </div>
-
-          <Textarea
-            label="Comentario sobre los servicios"
-            value={form.comentario_servicios}
-            onChange={(e) => setForm({ ...form, comentario_servicios: e.target.value })}
-            placeholder="Ej: la ropa blanca incluye sábanas y toallas, no toallones de pileta"
-            rows={2}
-          />
-
           {/* Control de electricidad - Solo KW Inicial */}
-          <div className="border rounded-lg p-4 bg-yellow-50/50">
-            <div className="flex items-center gap-3 mb-3">
+          <div className="border border-costa-borde rounded-lg px-3 py-2.5 bg-yellow-50/50">
+            <div className="flex items-center gap-3">
               <Zap size={16} className="text-yellow-600" />
               <span className="text-sm font-medium text-gray-700">Control de Luz</span>
               <label className="flex items-center gap-2 cursor-pointer ml-2">
@@ -2446,16 +2444,18 @@ function ReservasContent() {
               </label>
             </div>
             {form.cobrar_luz && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="mt-2 grid grid-cols-2 gap-3">
                 <Input label="KW Inicial (medidor)" type="number" min="0" value={form.kw_inicial || ''} onChange={(e) => setForm({ ...form, kw_inicial: Number(e.target.value) })} />
-                <div className="col-span-3 flex items-end">
+                <div className="flex items-end">
                   <p className="text-xs text-gray-500">El KW final, costo y cálculo de excedente se registran en la liquidación al finalizar la estadía.</p>
                 </div>
               </div>
             )}
           </div>
 
-          <Textarea label="Notas" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Observaciones de la reserva..." />
+          <Textarea label="Notas" value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Observaciones de la reserva..." rows={2} />
+            </div>
+          </div>
         </form>
       </Modal>
     </div>
