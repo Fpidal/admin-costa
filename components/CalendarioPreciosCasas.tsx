@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { generarFeriadosAnio } from '@/lib/calendarioArgentina'
+import { generarFeriadosAnio, obtenerFinesDeSemanaLargos } from '@/lib/calendarioArgentina'
 import type { PriceRule } from '@/lib/priceRules'
 import { demoReservas } from '@/lib/demoData'
 
@@ -40,11 +40,18 @@ const hoyISO = () => { const h = new Date(); return isoDe(h.getFullYear(), h.get
 const sumarAnio = (iso: string) => `${Number(iso.slice(0, 4)) + 1}${iso.slice(4)}`
 const corto = (c: Casa) => { const w = c.nombre.trim().split(/\s+/)[0]; return w.length <= 5 ? w : w.slice(0, 3) + '.' }
 
-function precioDelDia(reglas: PriceRule[], iso: string, dow: number): PriceRule | null {
+// Marca de un tramo sin fechas fijas: vale para los fines de semana largos
+// que caen fuera de la temporada (las fechas cambian cada año)
+const FERIADO_LARGO = 'feriado_largo'
+const enTemporada = (iso: string) => iso.slice(5) >= '12-15' || iso.slice(5) <= '02-28'
+
+function precioDelDia(reglas: PriceRule[], iso: string, dow: number, feriadosLargos: Set<string>): PriceRule | null {
   let mejor: PriceRule | null = null
   for (const r of reglas) {
     if (!r.active || iso < r.start_date || iso > r.end_date) continue
-    if (r.applies_to_days?.length && !r.applies_to_days.includes(CLAVE_DIA[dow])) continue
+    if (r.applies_to_days?.includes(FERIADO_LARGO)) {
+      if (!feriadosLargos.has(iso)) continue
+    } else if (r.applies_to_days?.length && !r.applies_to_days.includes(CLAVE_DIA[dow])) continue
     if (!mejor || r.priority > mejor.priority) mejor = r
   }
   return mejor
@@ -78,6 +85,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
   const [selB, setSelB] = useState<string | null>(null)
   const [preciosRango, setPreciosRango] = useState<Record<string, string>>({})
   const [nombreTramo, setNombreTramo] = useState('')
+  const [soloFeriados, setSoloFeriados] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [aviso, setAviso] = useState('')
 
@@ -131,6 +139,22 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     return mapa
   }, [anio])
 
+  const feriadosLargos = useMemo(() => {
+    const dias = new Set<string>()
+    for (const y of [anio - 1, anio, anio + 1]) {
+      obtenerFinesDeSemanaLargos(y).forEach(f => {
+        const d = new Date(`${f.fechaInicio}T12:00:00`)
+        const fin = new Date(`${f.fechaFin}T12:00:00`)
+        while (d <= fin) {
+          const iso = isoDe(d.getFullYear(), d.getMonth(), d.getDate())
+          if (!enTemporada(iso)) dias.add(iso)
+          d.setDate(d.getDate() + 1)
+        }
+      })
+    }
+    return dias
+  }, [anio])
+
   const estadoDe = (casaId: string, iso: string) => {
     const r = reservas.find(x => String(x.propiedad_id) === casaId && iso >= x.fecha_inicio && iso < x.fecha_fin)
     return r ? (r.estado === 'pendiente' ? 'pend' : 'res') : null
@@ -162,12 +186,12 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     for (const c of casasVisibles) {
       const propias = reglas.filter(r => r.property_id === String(c.id))
       for (let d = 1; d <= dias; d++) {
-        const r = precioDelDia(propias, isoDe(anio, mes, d), new Date(anio, mes, d).getDay())
+        const r = precioDelDia(propias, isoDe(anio, mes, d), new Date(anio, mes, d).getDay(), feriadosLargos)
         if (r?.id) usadas.add(r.id)
       }
     }
     return usadas
-  }, [reglas, casasVisibles, anio, mes])
+  }, [reglas, casasVisibles, anio, mes, feriadosLargos])
 
   function irA(iso: string) {
     setAnio(Number(iso.slice(0, 4)))
@@ -219,14 +243,19 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
   }
 
   async function aplicarRango() {
-    if (!selA || !userId) return
-    const hasta = selB || selA
+    if (!userId || (!soloFeriados && !selA)) return
+    // Feriados largos: sin fechas fijas, vale para todo el año de alquiler que se está viendo
+    const desde = soloFeriados ? cicloDesde : selA!
+    const hasta = soloFeriados ? cicloHasta : (selB || selA!)
     const filas = casasVisibles
       .filter(c => Number(preciosRango[String(c.id)]) > 0)
       .map(c => ({
-        property_id: String(c.id), name: nombreTramo.trim() || `Tramo ${dm(selA)} al ${dm(hasta)}`, category: 'alta',
-        price_per_night: Number(preciosRango[String(c.id)]), start_date: selA, end_date: hasta,
-        applies_to_days: [], min_nights: null, priority: 5, active: true, user_id: userId,
+        property_id: String(c.id),
+        name: nombreTramo.trim() || (soloFeriados ? 'Feriados largos' : `Tramo ${dm(desde)} al ${dm(hasta)}`),
+        category: soloFeriados ? 'media' : 'alta',
+        price_per_night: Number(preciosRango[String(c.id)]), start_date: desde, end_date: hasta,
+        applies_to_days: soloFeriados ? [FERIADO_LARGO] : [], min_nights: null,
+        priority: soloFeriados ? 3 : 5, active: true, user_id: userId,
       }))
     if (!filas.length) { setAviso('Poné el precio de al menos una casa'); return }
     setGuardando(true)
@@ -234,7 +263,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     setGuardando(false)
     if (error) { setAviso('No se pudo guardar: ' + error.message); return }
     setAviso('Tramo guardado')
-    setSelA(null); setSelB(null); setPreciosRango({}); setNombreTramo('')
+    setSelA(null); setSelB(null); setPreciosRango({}); setNombreTramo(''); setSoloFeriados(false)
     await cargar(); onCambio?.()
   }
 
@@ -344,7 +373,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                   {casasVisibles.map(c => {
                     const cid = String(c.id)
                     const est = estadoDe(cid, iso)
-                    const regla = precioDelDia(reglas.filter(r => r.property_id === cid), iso, dow)
+                    const regla = precioDelDia(reglas.filter(r => r.property_id === cid), iso, dow, feriadosLargos)
                     const etiqueta = !una && <span className="hidden sm:inline text-[10px] font-medium opacity-70 truncate">{corto(c)}</span>
                     const base = `flex items-center justify-between gap-1 rounded px-1 leading-tight ${una ? 'flex-1 justify-center text-sm py-1' : 'text-[10px] sm:text-[11px] py-0.5'}`
                     if (est === 'res') return <span key={cid} className={`${base} bg-[#e7e2da] text-[#5d625f] font-semibold`}>{etiqueta}<span className="truncate">{una ? <><span className="sm:hidden">Res.</span><span className="hidden sm:inline">Reservada</span></> : 'Res.'}</span></span>
@@ -396,7 +425,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                         <td className="py-1.5 pr-1">
                           <span className="font-semibold text-costa-esmeralda">{t.nombre}</span>
                           <span className="block text-[10px] text-costa-gris">
-                            {dmy(t.desde)} al {dmy(t.hasta)}{t.dias.length ? ` · solo ${t.dias.join(', ')}` : ''}
+                            {t.dias.includes(FERIADO_LARGO) ? 'Todos los fines de semana largos, fuera de temporada' : `${dmy(t.desde)} al ${dmy(t.hasta)}${t.dias.length ? ` · solo ${t.dias.join(', ')}` : ''}`}
                           </span>
                           {!isDemo && (
                             <button type="button" onClick={() => quitarTramo(t)} className="text-[10px] text-red-700 hover:underline">Quitar</button>
@@ -428,12 +457,22 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
 
           <div className="border-t border-costa-borde pt-3">
             <h4 className="text-sm font-bold text-costa-esmeralda">Nuevo tramo</h4>
-            <p className="text-xs text-costa-gris mb-2">Por ejemplo "Temporada alta" o un fin de semana largo. Elegí las fechas acá, o tocá un día y después otro en el calendario. Si se superpone con otro tramo, manda este.</p>
+            <div className="inline-flex rounded-lg border border-costa-borde bg-white p-0.5 mb-2">
+              <button type="button" onClick={() => setSoloFeriados(false)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold ${!soloFeriados ? 'bg-costa-esmeralda text-white' : 'text-costa-gris'}`}>Con fechas</button>
+              <button type="button" onClick={() => setSoloFeriados(true)}
+                className={`px-2.5 py-1 rounded-md text-xs font-semibold ${soloFeriados ? 'bg-costa-esmeralda text-white' : 'text-costa-gris'}`}>Fines de semana largos</button>
+            </div>
+            <p className="text-xs text-costa-gris mb-2">
+              {soloFeriados
+                ? `Sin fechas: se aplica solo a cada fin de semana largo fuera de temporada (de marzo ${anioCiclo} a diciembre). Los días salen del panel de feriados.`
+                : 'Elegí las fechas acá, o tocá un día y después otro en el calendario. Si se superpone con otro tramo, manda este.'}
+            </p>
             <label className="block text-xs text-costa-gris mb-2">Nombre
-              <input value={nombreTramo} onChange={e => setNombreTramo(e.target.value)} placeholder="Temporada alta" disabled={isDemo}
+              <input value={nombreTramo} onChange={e => setNombreTramo(e.target.value)} placeholder={soloFeriados ? "Feriados largos" : "Temporada alta"} disabled={isDemo}
                 className="mt-0.5 w-full rounded-md border border-costa-borde bg-white px-2 py-1.5 text-sm text-costa-esmeralda" />
             </label>
-            <div className="grid grid-cols-2 gap-2 mb-2">
+            {!soloFeriados && <div className="grid grid-cols-2 gap-2 mb-2">
               <label className="text-xs text-costa-gris">Desde
                 <input type="date" value={selA || ''} disabled={isDemo}
                   onChange={e => { const v = e.target.value || null; setSelA(v); if (v && selB && selB < v) setSelB(null) }}
@@ -444,7 +483,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                   onChange={e => setSelB(e.target.value || null)}
                   className="mt-0.5 w-full rounded-md border border-costa-borde bg-white px-2 py-1.5 text-xs text-costa-esmeralda" />
               </label>
-            </div>
+            </div>}
             <div className="grid grid-cols-2 gap-2 mb-2">
               {casasVisibles.map(c => (
                 <label key={c.id} className="text-xs text-costa-gris">
@@ -455,9 +494,9 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
                 </label>
               ))}
             </div>
-            <button type="button" onClick={aplicarRango} disabled={!selA || guardando || isDemo}
+            <button type="button" onClick={aplicarRango} disabled={(!selA && !soloFeriados) || guardando || isDemo}
               className="w-full h-9 rounded-lg bg-costa-esmeralda text-white text-xs font-semibold hover:bg-costa-esmeralda-light disabled:opacity-50">
-              {guardando ? 'Guardando…' : selA ? `Aplicar del ${dmy(selA)} al ${dmy(selB || selA)}` : 'Elegí las fechas'}
+              {guardando ? 'Guardando…' : soloFeriados ? 'Guardar precio de fines de semana largos' : selA ? `Aplicar del ${dmy(selA)} al ${dmy(selB || selA)}` : 'Elegí las fechas'}
             </button>
             {selA && (
               <button type="button" onClick={() => { setSelA(null); setSelB(null) }} className="w-full mt-1 text-xs text-costa-gris underline">
