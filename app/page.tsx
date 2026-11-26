@@ -210,6 +210,14 @@ function LandingContent() {
     fetchData()
   }, [isDemo])
 
+  // Link compartido (/casa/[id]): abrir la ficha de esa casa
+  const casaCompartida = searchParams.get('casa')
+  useEffect(() => {
+    if (!casaCompartida || propiedades.length === 0) return
+    const casa = propiedades.find(p => String(p.id) === casaCompartida)
+    if (casa) { setPropiedadModal(casa); setModalImageIndex(0) }
+  }, [casaCompartida, propiedades])
+
   // Bloquear scroll del body cuando lightbox está abierto
   useEffect(() => {
     if (lightbox) {
@@ -1123,8 +1131,8 @@ function LandingContent() {
                           onClick={() => {
                             const baseUrl = window.location.origin
                             const mensaje = language === 'es'
-                              ? `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} ${t('people')} | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
-                              : `Check out this property in Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lot ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} ${t('people')} | 🛏️ ${propiedad.habitaciones} bed | 🚿 ${propiedad.banos} bath\n\n${baseUrl}/#propiedades`
+                              ? `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} ${t('people')} | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/casa/${propiedad.id}`
+                              : `Check out this property in Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lot ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} ${t('people')} | 🛏️ ${propiedad.habitaciones} bed | 🚿 ${propiedad.banos} bath\n\n${baseUrl}/casa/${propiedad.id}`
                             window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
                           }}
                           className="flex items-center justify-center gap-1 py-2.5 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg text-xs sm:text-sm font-medium transition-colors"
@@ -1649,8 +1657,8 @@ function LandingContent() {
                   onClick={() => {
                     const baseUrl = window.location.origin
                     const mensaje = language === 'es'
-                      ? `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} ${t('people')} | 🛏️ ${propiedadModal.habitaciones} hab | 🚿 ${propiedadModal.banos} baños\n\n${baseUrl}/#propiedades`
-                      : `Check out this property in Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lot ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} ${t('people')} | 🛏️ ${propiedadModal.habitaciones} bed | 🚿 ${propiedadModal.banos} bath\n\n${baseUrl}/#propiedades`
+                      ? `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lote ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} ${t('people')} | 🛏️ ${propiedadModal.habitaciones} hab | 🚿 ${propiedadModal.banos} baños\n\n${baseUrl}/casa/${propiedadModal.id}`
+                      : `Check out this property in Costa Esmeralda! 🏠\n\n*${propiedadModal.nombre}${propiedadModal.lote ? ` - Lot ${propiedadModal.lote}` : ''}*\n📍 ${propiedadModal.direccion || propiedadModal.referencia}\n👥 ${propiedadModal.capacidad} ${t('people')} | 🛏️ ${propiedadModal.habitaciones} bed | 🚿 ${propiedadModal.banos} bath\n\n${baseUrl}/casa/${propiedadModal.id}`
                     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank')
                   }}
                   className="flex items-center justify-center gap-2 px-6 py-3 bg-costa-navy hover:bg-costa-navy/90 text-white rounded-lg font-medium transition-colors"

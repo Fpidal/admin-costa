@@ -232,7 +232,7 @@ function PropiedadesContent() {
 
   function compartirWhatsApp(propiedad: Propiedad) {
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
-    const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/#propiedades`
+    const mensaje = `¡Mirá esta propiedad en Costa Esmeralda! 🏠\n\n*${propiedad.nombre}${propiedad.lote ? ` - Lote ${propiedad.lote}` : ''}*\n📍 ${propiedad.direccion || propiedad.referencia}\n👥 ${propiedad.capacidad} personas | 🛏️ ${propiedad.habitaciones} hab | 🚿 ${propiedad.banos} baños\n\n${baseUrl}/casa/${propiedad.id}`
     const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`
     window.open(url, '_blank')
   }
