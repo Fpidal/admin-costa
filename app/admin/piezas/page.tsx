@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { useAuth } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/PageHeader'
-import { Download, FileText, Image as ImageIcon, Loader2, Save } from 'lucide-react'
+import { Download, FileText, Image as ImageIcon, Loader2, Save, Share2 } from 'lucide-react'
 
 /* ------------------------------------------------------------------ */
 /* Tipos                                                               */
@@ -1225,6 +1225,48 @@ export default function PiezasPage() {
     }
   }
 
+  // Compartir la pieza ya armada. En el celular abre el menú de compartir con
+  // la imagen adjunta (se elige WhatsApp); en la compu, donde no se pueden
+  // adjuntar archivos desde un link, se descarga y se abre WhatsApp con el texto.
+  const [compartiendo, setCompartiendo] = useState(false)
+  const compartir = async () => {
+    const cv = canvasRef.current
+    if (!cv || !sel) return
+    setCompartiendo(true)
+    try {
+      const tmp = document.createElement('canvas')
+      tmp.width = cv.width * 2
+      tmp.height = cv.height * 2
+      const c = tmp.getContext('2d')
+      if (!c) return
+      c.imageSmoothingQuality = 'high'
+      c.drawImage(cv, 0, 0, tmp.width, tmp.height)
+      const blob = await new Promise<Blob | null>((r) => tmp.toBlob(r, 'image/jpeg', 0.9))
+      if (!blob) throw new Error('sin imagen')
+      const nombreArchivo = `${sel.nombre.replace(/\s+/g, '-').toLowerCase()}-${tipo}.jpg`
+      const archivo = new File([blob], nombreArchivo, { type: 'image/jpeg' })
+      const link = `${window.location.origin}/casa/${sel.id}`
+      const texto = `${sel.nombre}${sel.lote ? ` · Lote ${sel.lote}` : ''} en Costa Esmeralda. Más fotos y detalles: ${link}`
+      if (navigator.canShare?.({ files: [archivo] })) {
+        await navigator.share({ files: [archivo], text: texto })
+      } else {
+        const a = document.createElement('a')
+        a.download = nombreArchivo
+        a.href = URL.createObjectURL(blob)
+        a.click()
+        window.open(`https://wa.me/?text=${encodeURIComponent(texto)}`, '_blank')
+        setGuardadoMsg('Se descargó la imagen: adjuntala en el chat de WhatsApp que se abrió.')
+      }
+    } catch (e) {
+      // Cancelar el menú de compartir no es un error
+      if (!(e instanceof DOMException && e.name === 'AbortError')) {
+        setGuardadoMsg('No se pudo compartir: alguna foto no permite descarga por CORS. Probá con otra imagen.')
+      }
+    } finally {
+      setCompartiendo(false)
+    }
+  }
+
   const hacerPortada = (i: number) => {
     if (i === 0) return
     const alFrente = <T,>(c: T[]) => { const x = [...c]; const [m] = x.splice(i, 1); x.unshift(m); return x }
@@ -1753,8 +1795,17 @@ export default function PiezasPage() {
           )}
 
           <button
+            onClick={compartir}
+            disabled={compartiendo || !sel}
+            className="w-full py-3 mb-2 bg-costa-esmeralda text-white rounded-lg font-semibold hover:bg-costa-esmeralda-light transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+          >
+            {compartiendo ? <Loader2 className="animate-spin" size={17} /> : <Share2 size={17} />}
+            Compartir por WhatsApp
+          </button>
+
+          <button
             onClick={descargar}
-            className="w-full py-3 bg-costa-coral text-white rounded-lg font-semibold hover:bg-costa-coral-dark transition-colors flex items-center justify-center gap-2"
+            className="w-full py-3 bg-white border-2 border-costa-navy text-costa-navy rounded-lg font-semibold hover:bg-costa-beige-light transition-colors flex items-center justify-center gap-2"
           >
             <Download size={17} /> Descargar PNG
           </button>
