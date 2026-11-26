@@ -423,19 +423,17 @@ function InquilinosContent() {
                       <th className="px-2 py-2 text-center text-xs font-medium text-costa-gris uppercase">Pers.</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Origen</th>
                       <th className="px-2 py-2 text-left text-xs font-medium text-costa-gris uppercase">Reservas</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase w-full min-w-[280px]">Observaciones</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-costa-gris uppercase w-full min-w-[220px]">Observaciones</th>
                       <th className="px-2 py-2 text-right text-xs font-medium text-costa-gris uppercase"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-costa-beige">
                     {inquilinos.map((inquilino) => (
                       <tr key={inquilino.id} className="hover:bg-costa-beige/30">
-                        <td className="px-3 py-2">
-                          <div>
-                            <p className="font-medium text-costa-navy text-sm">{inquilino.nombre}</p>
-                          </div>
+                        <td className="px-3 py-2 align-top whitespace-nowrap">
+                          <p className="font-medium text-costa-navy text-sm">{inquilino.nombre}</p>
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-3 py-2 align-top whitespace-nowrap">
                           <div className="text-xs">
                             {inquilino.telefono && (
                               <div className="flex items-center gap-1 text-costa-gris">
@@ -446,18 +444,18 @@ function InquilinosContent() {
                             {inquilino.email && (
                               <div className="flex items-center gap-1 text-costa-gris">
                                 <Mail size={10} />
-                                <span className="truncate max-w-[120px]">{inquilino.email}</span>
+                                <span className="truncate max-w-[190px]">{inquilino.email}</span>
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className="px-2 py-2 text-center">
+                        <td className="px-2 py-2 align-top text-center whitespace-nowrap">
                           <span className="text-costa-navy text-sm">{1 + (inquilino.acompanantes?.length || 0)}</span>
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-2 align-top whitespace-nowrap">
                           <Badge variant="default">{inquilino.origen || 'directo'}</Badge>
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="px-2 py-2 align-top whitespace-nowrap">
                           {inquilino.reservas && inquilino.reservas.length > 0 ? (
                             <Button variant="ghost" size="sm" onClick={() => openHistorial(inquilino)}>
                               <History size={12} />
@@ -467,7 +465,7 @@ function InquilinosContent() {
                             <span className="text-costa-gris text-xs">-</span>
                           )}
                         </td>
-                        <td className="px-3 py-2 min-w-[280px]">
+                        <td className="px-3 py-2 align-top min-w-[220px]">
                           {/* Dos renglones para que las filas queden parejas; tocando se ve completa */}
                           {inquilino.observaciones ? (
                             <p
