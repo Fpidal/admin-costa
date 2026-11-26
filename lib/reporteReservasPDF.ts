@@ -145,8 +145,9 @@ export function generarReporteReservasPDF(opts: {
     hue: { x: M + 38, align: 'left' as const, t: 'HUÉSPED' },
     ing: { x: M + 83, align: 'left' as const, t: 'INGRESO' },
     sal: { x: M + 104, align: 'left' as const, t: 'SALIDA' },
-    noc: { x: M + 131, align: 'center' as const, t: 'NOCHES' },
-    per: { x: M + 144, align: 'center' as const, t: 'PERS.' },
+    noc: { x: M + 127, align: 'center' as const, t: 'NOCHES' },
+    per: { x: M + 138, align: 'center' as const, t: 'PERS.' },
+    pxn: { x: M + 159, align: 'right' as const, t: 'POR NOCHE' },
     tot: { x: M + 178, align: 'right' as const, t: 'TOTAL' },
     cob: { x: M + 204, align: 'right' as const, t: 'COBRADO' },
     sdo: { x: M + 229, align: 'right' as const, t: 'SALDO' },
@@ -210,6 +211,7 @@ export function generarReporteReservasPDF(opts: {
 
     texto(String(nochesEntre(r.fecha_inicio, r.fecha_fin)), col.noc.x, y1, { align: 'center' })
     texto(String(r.cantidad_personas || 1), col.per.x, y1, { align: 'center' })
+    texto(r.precio_noche ? importe(Number(r.precio_noche), r.moneda || 'USD') : '—', col.pxn.x, y1, { align: 'right', color: r.precio_noche ? NAVY : GRIS })
 
     const montos = (o: PorMoneda, x: number, color: RGB, bold = false) => {
       const ls = lineas(o)
@@ -260,8 +262,8 @@ export function generarReporteReservasPDF(opts: {
   if (meses.length) {
     const yLibre = y + altoTot + 6
     const espacio = H - 14 - yLibre
-    const celdaPosible = Math.min((W - 2 * M - 16) / 3 / 7, (espacio - 16 - 9) / 6.4)
-    if (meses.length <= 3 && celdaPosible >= 5.5) dibujarCalendarios(doc, reservas, meses, yLibre, espacio)
+    const altoCelda = (espacio - 16 - 9) / 6.2
+    if (meses.length <= 3 && altoCelda >= 4.5) dibujarCalendarios(doc, reservas, meses, yLibre, espacio)
     else dibujarCalendarios(doc, reservas, meses, null, 0, `${opts.casas} · ${opts.periodo}`)
   }
 
@@ -366,48 +368,51 @@ function dibujarCalendarios(doc: jsPDF, reservas: ReservaReporte[], meses: Mes[]
   const top = yInicio === null ? 31 : yInicio + 9
   const anchoMes = (W - 2 * M - gapX * (porFila - 1)) / porFila
   const altoDisp = yInicio === null ? doc.internal.pageSize.getHeight() - top - 14 : alto - 9
-  const celda = Math.min(anchoMes / 7, (altoDisp / filas - gapY - 9) / 6.4)
-  const anchoGrid = celda * 7
+  // Las casillas ocupan todo el ancho del mes; el alto se ajusta a lo que queda
+  // en la hoja (sin pasar de un poco más que cuadradas)
+  const celdaW = anchoMes / 7
+  const celdaH = Math.min(celdaW * 0.75, (altoDisp / filas - gapY - 9) / 6.2)
+  const anchoGrid = celdaW * 7
 
   meses.forEach(({ y: yy, m: mm }, idx) => {
     const fx = idx % porFila, fy = Math.floor(idx / porFila)
-    const x0 = M + fx * (anchoMes + gapX) + (anchoMes - anchoGrid) / 2
-    const y0 = top + fy * (celda * 6.4 + 9 + gapY)
+    const x0 = M + fx * (anchoMes + gapX)
+    const y0 = top + fy * (celdaH * 6.2 + 9 + gapY)
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...NAVY)
     doc.text(`${MESES_PDF[mm]} ${yy}`, x0 + anchoGrid / 2, y0 + 3.5, { align: 'center' })
     doc.setFontSize(6.5); doc.setTextColor(...GRIS)
-    ;['L', 'M', 'M', 'J', 'V', 'S', 'D'].forEach((d, i) => doc.text(d, x0 + celda * i + celda / 2, y0 + 7.5, { align: 'center' }))
+    ;['L', 'M', 'M', 'J', 'V', 'S', 'D'].forEach((d, i) => doc.text(d, x0 + celdaW * i + celdaW / 2, y0 + 7.5, { align: 'center' }))
     const off = (new Date(yy, mm, 1).getDay() + 6) % 7
     const dias = new Date(yy, mm + 1, 0).getDate()
     for (let d = 1; d <= dias; d++) {
       const pos = off + d - 1
-      const cx = x0 + (pos % 7) * celda, cy = y0 + 9 + Math.floor(pos / 7) * celda
+      const cx = x0 + (pos % 7) * celdaW, cy = y0 + 9 + Math.floor(pos / 7) * celdaH
       const f = iso(yy, mm, d)
       const en = activas.filter(r => f >= r.fecha_inicio && f < r.fecha_fin)
       const conf = en.filter(r => r.estado !== 'pendiente')
       const pend = en.filter(r => r.estado === 'pendiente')
-      const s = celda - 0.8
+      const sw = celdaW - 0.8, sh = celdaH - 0.8
       const c1 = conf[0] && color[conf[0].propiedades?.nombre || 'Casa']
       const c2 = conf[1] && color[conf[1].propiedades?.nombre || 'Casa']
       if (c1 && c2) {
-        doc.setFillColor(...c1); doc.triangle(cx, cy, cx + s, cy, cx, cy + s, 'F')
-        doc.setFillColor(...c2); doc.triangle(cx + s, cy, cx + s, cy + s, cx, cy + s, 'F')
+        doc.setFillColor(...c1); doc.triangle(cx, cy, cx + sw, cy, cx, cy + sh, 'F')
+        doc.setFillColor(...c2); doc.triangle(cx + sw, cy, cx + sw, cy + sh, cx, cy + sh, 'F')
       } else if (c1) {
-        doc.setFillColor(...c1); doc.roundedRect(cx, cy, s, s, 0.8, 0.8, 'F')
+        doc.setFillColor(...c1); doc.roundedRect(cx, cy, sw, sh, 0.8, 0.8, 'F')
       } else {
-        doc.setDrawColor(232, 223, 210); doc.setFillColor(255, 255, 255); doc.roundedRect(cx, cy, s, s, 0.8, 0.8, 'FD')
+        doc.setDrawColor(232, 223, 210); doc.setFillColor(255, 255, 255); doc.roundedRect(cx, cy, sw, sh, 0.8, 0.8, 'FD')
       }
-      if (feriados.has(f)) { doc.setFillColor(233, 185, 143); doc.rect(cx + 0.6, cy + 0.4, s - 1.2, 0.6, 'F') }
+      if (feriados.has(f)) { doc.setFillColor(233, 185, 143); doc.rect(cx + 0.6, cy + 0.4, sw - 1.2, 0.6, 'F') }
       pend.slice(0, 2).forEach((r, k) => {
         doc.setFillColor(...color[r.propiedades?.nombre || 'Casa'])
-        const w = pend.length > 1 ? (s - 1.6) / 2 : s - 1.6
-        doc.rect(cx + 0.8 + k * w, cy + s - 1.6, w, 0.9, 'F')
+        const w = pend.length > 1 ? (sw - 1.6) / 2 : sw - 1.6
+        doc.rect(cx + 0.8 + k * w, cy + sh - 1.6, w, 0.9, 'F')
       })
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(Math.min(8, celda * 1.6))
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(Math.min(8.5, celdaH * 1.6))
       if (c1) doc.setTextColor(255, 255, 255)
       else if (feriados.has(f)) doc.setTextColor(138, 63, 18)
       else doc.setTextColor(...NAVY)
-      doc.text(String(d), cx + s / 2, cy + s / 2 + 1, { align: 'center' })
+      doc.text(String(d), cx + sw / 2, cy + sh / 2 + 1, { align: 'center' })
     }
   })
 }
