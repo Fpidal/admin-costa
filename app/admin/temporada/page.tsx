@@ -19,7 +19,8 @@ import { vencimientoSaldo } from '@/lib/cobranza'
 import { ocupacionTemporada } from '@/lib/ocupacion'
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
 import type { ServicioExtra } from '@/lib/serviciosReserva'
-import { calcularPrecioReserva, type PrecioCalendario } from '@/lib/calcularPrecio'
+import { precioEstadia, normalizarReglas, COLUMNAS_REGLAS } from '@/lib/preciosReglas'
+import type { PriceRule } from '@/lib/priceRules'
 import { parseFechaLocal } from '@/lib/fechas'
 import { OfertaHueco, type PrecioSugerido } from '@/components/OfertaHueco'
 
@@ -75,7 +76,7 @@ function TemporadaContent() {
   const [cobros, setCobros] = useState<Cobro[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [loading, setLoading] = useState(true)
-  const [precios, setPrecios] = useState<PrecioCalendario[]>([])
+  const [precios, setPrecios] = useState<PriceRule[]>([])
   // Hueco libre elegido en la línea de ocupación, para ofrecerlo por WhatsApp
   const [oferta, setOferta] = useState<{ casaId: string; desde: string; hasta: string } | null>(null)
   const [temporada, setTemporada] = useState(temporadaActual())
@@ -101,8 +102,8 @@ function TemporadaContent() {
         setPropiedades(p.data)
         const ids = p.data.map(x => x.id)
         if (ids.length) {
-          const { data: pc } = await supabase.from('precios_calendario').select('*').in('propiedad_id', ids)
-          if (pc) setPrecios(pc as PrecioCalendario[])
+          const { data: pc } = await supabase.from('price_rules').select(COLUMNAS_REGLAS).in('property_id', ids)
+          if (pc) setPrecios(normalizarReglas(pc))
         }
       }
       setLoading(false)
@@ -160,15 +161,15 @@ function TemporadaContent() {
     return p ? p.nombre : ''
   }
 
-  // Precio por noche para ofrecer un hueco: calendario de precios si cubre
+  // Precio por noche para ofrecer un hueco: los precios de la casa si cubren
   // todas las noches; si no, el precio de alquiler de la casa; si no, el
   // promedio por noche de sus reservas de esta temporada
   function precioParaHueco(casaId: string, d: string, h: string): PrecioSugerido {
-    const delaCasa = precios.filter(x => String(x.propiedad_id) === casaId)
+    const delaCasa = precios.filter(x => String(x.property_id) === casaId)
     if (delaCasa.length) {
-      const calc = calcularPrecioReserva(parseFechaLocal(d), parseFechaLocal(h), delaCasa)
-      if (calc.precioPromedio > 0 && calc.desglose.every(x => x.precio > 0)) {
-        return { precio: calc.precioPromedio, moneda: calc.moneda, origen: 'Promedio del calendario de precios' }
+      const calc = precioEstadia(d, h, delaCasa)
+      if (calc.completo && calc.precioPromedio > 0) {
+        return { precio: calc.precioPromedio, moneda: 'USD', origen: 'Precios alquileres de la casa' }
       }
     }
     const casa = propiedades.find(p => String(p.id) === casaId)

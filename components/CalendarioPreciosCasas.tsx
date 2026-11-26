@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { generarFeriadosAnio, obtenerFinesDeSemanaLargos } from '@/lib/calendarioArgentina'
+import { generarFeriadosAnio } from '@/lib/calendarioArgentina'
+import { FERIADO_LARGO, precioDelDia, diasFeriadoLargo } from '@/lib/preciosReglas'
 import type { PriceRule } from '@/lib/priceRules'
 import { demoReservas } from '@/lib/demoData'
 import { PanelFeriados } from '@/components/PanelFeriados'
@@ -29,7 +30,6 @@ interface Props {
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-const CLAVE_DIA = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab']
 // Escala de un solo verde: más oscuro, más caro
 const NIVELES = ['bg-[#f3f8f6]', 'bg-[#dcebe6]', 'bg-[#b9d7ce]', 'bg-[#8fbfb1]']
 
@@ -39,23 +39,6 @@ const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 const dmy = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`
 const hoyISO = () => { const h = new Date(); return isoDe(h.getFullYear(), h.getMonth(), h.getDate()) }
 const corto = (c: Casa) => { const w = c.nombre.trim().split(/\s+/)[0]; return w.length <= 5 ? w : w.slice(0, 3) + '.' }
-
-// Marca de un tramo sin fechas fijas: vale para los fines de semana largos
-// que caen fuera de la temporada (las fechas cambian cada año)
-const FERIADO_LARGO = 'feriado_largo'
-const enTemporada = (iso: string) => iso.slice(5) >= '12-15' || iso.slice(5) <= '02-28'
-
-function precioDelDia(reglas: PriceRule[], iso: string, dow: number, feriadosLargos: Set<string>): PriceRule | null {
-  let mejor: PriceRule | null = null
-  for (const r of reglas) {
-    if (!r.active || iso < r.start_date || iso > r.end_date) continue
-    if (r.applies_to_days?.includes(FERIADO_LARGO)) {
-      if (!feriadosLargos.has(iso)) continue
-    } else if (r.applies_to_days?.length && !r.applies_to_days.includes(CLAVE_DIA[dow])) continue
-    if (!mejor || r.priority > mejor.priority) mejor = r
-  }
-  return mejor
-}
 
 // Orden fijo de la tabla de tramos, según el nombre
 function ordenTramo(nombre: string): number {
@@ -139,21 +122,7 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
     return mapa
   }, [anio])
 
-  const feriadosLargos = useMemo(() => {
-    const dias = new Set<string>()
-    for (const y of [anio - 1, anio, anio + 1]) {
-      obtenerFinesDeSemanaLargos(y).forEach(f => {
-        const d = new Date(`${f.fechaInicio}T12:00:00`)
-        const fin = new Date(`${f.fechaFin}T12:00:00`)
-        while (d <= fin) {
-          const iso = isoDe(d.getFullYear(), d.getMonth(), d.getDate())
-          if (!enTemporada(iso)) dias.add(iso)
-          d.setDate(d.getDate() + 1)
-        }
-      })
-    }
-    return dias
-  }, [anio])
+  const feriadosLargos = useMemo(() => diasFeriadoLargo([anio - 1, anio, anio + 1]), [anio])
 
   const estadoDe = (casaId: string, iso: string) => {
     const r = reservas.find(x => String(x.propiedad_id) === casaId && iso >= x.fecha_inicio && iso < x.fecha_fin)

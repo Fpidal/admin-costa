@@ -10,7 +10,7 @@ import { Plus, Calendar, Pencil, Trash2, Users, ChevronDown, ChevronUp, Check, Z
 import { jsPDF } from 'jspdf'
 import Link from 'next/link'
 import { demoReservas, demoPropiedades, demoInquilinos, demoCobros } from '@/lib/demoData'
-import { calcularPrecioReserva, PrecioCalendario } from '@/lib/calcularPrecio'
+import { precioEstadia, normalizarReglas, COLUMNAS_REGLAS } from '@/lib/preciosReglas'
 import { serviciosConPrecio, type ServicioExtra } from '@/lib/serviciosReserva'
 import { montosReserva, sumarMontos, monedasCon, filtrarReservas, nochesEntre, describirPeriodo, temporadaDe, temporadaActual, etiquetaTemporada, rangoTemporada, FILTRO_INICIAL, type FiltroReservas, type PorMoneda, type TipoPeriodo } from '@/lib/resumenReservas'
 import { generarReporteReservasPDF } from '@/lib/reporteReservasPDF'
@@ -345,32 +345,23 @@ function ReservasContent() {
 
       setCargandoPrecio(true)
       try {
-        const { data: precios } = await supabase
-          .from('precios_calendario')
-          .select('*')
-          .eq('propiedad_id', form.propiedad_id)
-          .gte('fecha_fin', form.check_in)
-          .lte('fecha_inicio', form.check_out)
+        const { data: filas } = await supabase
+          .from('price_rules')
+          .select(COLUMNAS_REGLAS)
+          .eq('property_id', form.propiedad_id)
+          .gte('end_date', form.check_in)
+          .lte('start_date', form.check_out)
 
-        if (precios && precios.length > 0) {
-          const resultado = calcularPrecioReserva(
-            new Date(form.check_in),
-            new Date(form.check_out),
-            precios as PrecioCalendario[]
-          )
-
-          if (resultado.precioPromedio > 0) {
-            setPrecioSugerido({
-              precio: resultado.precioPromedio,
-              total: resultado.total,
-              noches: resultado.noches
-            })
-            // Auto-llenar el precio si está vacío (nueva reserva)
-            if (form.precio_noche === 0) {
-              setForm(prev => ({ ...prev, precio_noche: resultado.precioPromedio }))
-            }
-          } else {
-            setPrecioSugerido(null)
+        const resultado = precioEstadia(form.check_in, form.check_out, normalizarReglas(filas || []))
+        if (resultado.completo && resultado.precioPromedio > 0) {
+          setPrecioSugerido({
+            precio: resultado.precioPromedio,
+            total: resultado.total,
+            noches: resultado.noches
+          })
+          // Auto-llenar el precio si está vacío (nueva reserva)
+          if (form.precio_noche === 0) {
+            setForm(prev => ({ ...prev, precio_noche: resultado.precioPromedio }))
           }
         } else {
           setPrecioSugerido(null)

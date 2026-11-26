@@ -9,7 +9,8 @@ import { MapPin, Users, Bed, Bath, Waves, Snowflake, Flame, Wifi, ChevronLeft, C
 import { useLanguage } from '@/hooks/useLanguage'
 import Link from 'next/link'
 import { SelectorFechasPublico } from '@/components/SelectorFechasPublico'
-import { calcularPrecioReserva, formatPrecio, PrecioCalendario } from '@/lib/calcularPrecio'
+import { formatPrecio } from '@/lib/calcularPrecio'
+import { precioEstadia, normalizarReglas, COLUMNAS_REGLAS } from '@/lib/preciosReglas'
 
 interface Propiedad {
   id: number
@@ -128,7 +129,6 @@ function LandingContent() {
 
   // Estado para búsqueda de fechas y precios
   const [fechasBusqueda, setFechasBusqueda] = useState<{ checkIn: string; checkOut: string } | null>(null)
-  const [preciosCalendario, setPreciosCalendario] = useState<Record<number, PrecioCalendario[]>>({})
   const [preciosCalculados, setPreciosCalculados] = useState<Record<number, { total: number; noches: number; promedio: number; disponible: boolean }>>({})
   const [loadingPrecios, setLoadingPrecios] = useState(false)
 
@@ -292,45 +292,29 @@ function LandingContent() {
     async function fetchPreciosYCalcular() {
       setLoadingPrecios(true)
       try {
-        // Obtener precios de todas las propiedades
-        const { data: precios } = await supabase
-          .from('precios_calendario')
-          .select('*')
-          .gte('fecha_fin', fechasBusqueda!.checkIn)
-          .lte('fecha_inicio', fechasBusqueda!.checkOut)
+        // Precios de las casas publicadas (Casas → Precios alquileres)
+        const { data: filas } = await supabase
+          .from('price_rules')
+          .select(COLUMNAS_REGLAS)
+          .in('property_id', propiedades.map(p => p.id))
+          .gte('end_date', fechasBusqueda!.checkIn)
+          .lte('start_date', fechasBusqueda!.checkOut)
 
-        if (precios) {
-          // Agrupar precios por propiedad
-          const preciosPorPropiedad: Record<number, PrecioCalendario[]> = {}
-          precios.forEach(p => {
-            if (!preciosPorPropiedad[p.propiedad_id]) {
-              preciosPorPropiedad[p.propiedad_id] = []
-            }
-            preciosPorPropiedad[p.propiedad_id].push(p)
-          })
-          setPreciosCalendario(preciosPorPropiedad)
-
-          // Calcular precio total para cada propiedad
-          const calculados: Record<number, { total: number; noches: number; promedio: number; disponible: boolean }> = {}
-
-          propiedades.forEach(prop => {
-            const preciosProp = preciosPorPropiedad[prop.id] || []
-            if (preciosProp.length > 0) {
-              const resultado = calcularPrecioReserva(
-                new Date(fechasBusqueda!.checkIn),
-                new Date(fechasBusqueda!.checkOut),
-                preciosProp
-              )
-              calculados[prop.id] = {
-                total: resultado.total,
-                noches: resultado.noches,
-                promedio: resultado.precioPromedio,
-                disponible: resultado.disponible
-              }
-            }
-          })
-          setPreciosCalculados(calculados)
-        }
+        const reglas = normalizarReglas(filas || [])
+        const calculados: Record<number, { total: number; noches: number; promedio: number; disponible: boolean }> = {}
+        propiedades.forEach(prop => {
+          const propias = reglas.filter(r => String(r.property_id) === String(prop.id))
+          if (!propias.length) return
+          const resultado = precioEstadia(fechasBusqueda!.checkIn, fechasBusqueda!.checkOut, propias)
+          if (!resultado.completo) return
+          calculados[prop.id] = {
+            total: resultado.total,
+            noches: resultado.noches,
+            promedio: resultado.precioPromedio,
+            disponible: true,
+          }
+        })
+        setPreciosCalculados(calculados)
       } catch (error) {
         console.error('Error al cargar precios:', error)
       }
@@ -348,7 +332,6 @@ function LandingContent() {
   const handleLimpiarFechas = () => {
     setFechasBusqueda(null)
     setPreciosCalculados({})
-    setPreciosCalendario({})
   }
 
   // Check if property is currently reserved (today)
