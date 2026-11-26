@@ -1510,7 +1510,7 @@ function ReservasContent() {
       </PageHeader>
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-4 bg-costa-beige/50 p-1 rounded-lg w-fit">
+      <div className="flex gap-1 mb-4 bg-costa-beige/50 p-1 rounded-lg w-fit max-w-full overflow-x-auto whitespace-nowrap">
         <button
           onClick={() => setActiveTab('reservas')}
           className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -2268,7 +2268,7 @@ function ReservasContent() {
           <p className="text-sm font-medium text-gray-700 border-b pb-2">Propiedad y titular</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Select
-              label="Propiedad"
+              label="Casa"
               value={form.propiedad_id}
               onChange={(e) => setForm({ ...form, propiedad_id: e.target.value })}
               options={propiedades.map(p => ({ value: p.id.toString(), label: `${p.nombre}${p.lote ? ` - Lote ${p.lote}` : ''}${p.direccion ? ` (${p.direccion})` : ''}` }))}
@@ -2376,21 +2376,19 @@ function ReservasContent() {
           )}
 
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Fechas y horarios</p>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <Input label="Check-in" type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value, check_out: form.check_out && form.check_out < e.target.value ? e.target.value : form.check_out })} required />
-            <Input label="Hora ingreso" type="time" value={form.horario_ingreso} onChange={(e) => setForm({ ...form, horario_ingreso: e.target.value })} />
-            <Input label="Check-out" type="date" value={form.check_out} min={form.check_in || undefined} onChange={(e) => setForm({ ...form, check_out: e.target.value })} required />
-            <Input label="Hora salida" type="time" value={form.horario_salida} onChange={(e) => setForm({ ...form, horario_salida: e.target.value })} />
-            <div className="flex items-end">
-              <div className="w-full px-3 py-2 rounded-lg bg-blue-50 border border-blue-200 text-center">
-                <span className="text-2xl font-bold text-blue-600">{formNoches}</span>
-                <span className="text-sm text-blue-600 ml-1">noche{formNoches !== 1 ? 's' : ''}</span>
-              </div>
-            </div>
+          {/* Las fechas llevan más ancho que las horas: si no, se cortaba el año */}
+          <div className="grid grid-cols-2 md:grid-cols-[1.5fr_1fr_1.5fr_1fr] gap-4">
+            <Input label="Ingreso" type="date" value={form.check_in} onChange={(e) => setForm({ ...form, check_in: e.target.value, check_out: form.check_out && form.check_out < e.target.value ? e.target.value : form.check_out })} required />
+            <Input label="Hora" type="time" value={form.horario_ingreso} onChange={(e) => setForm({ ...form, horario_ingreso: e.target.value })} />
+            <Input label="Salida" type="date" value={form.check_out} min={form.check_in || undefined} onChange={(e) => setForm({ ...form, check_out: e.target.value })} required />
+            <Input label="Hora" type="time" value={form.horario_salida} onChange={(e) => setForm({ ...form, horario_salida: e.target.value })} />
           </div>
+          {formNoches > 0 && (
+            <p className="-mt-2 text-sm text-costa-esmeralda"><span className="text-lg font-bold">{formNoches}</span> noche{formNoches !== 1 ? 's' : ''}</p>
+          )}
 
           {/* Estado con radio buttons */}
-          <div className="flex items-center gap-6 pt-2 px-4 py-3 rounded-lg bg-costa-coral/20 border border-costa-coral/30">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3 rounded-lg bg-costa-arena border border-costa-borde">
             <span className="text-sm font-medium text-costa-navy">Estado:</span>
             {estadosReserva.map((estado) => (
               <label key={estado.value} className="flex items-center gap-2 cursor-pointer">
@@ -2400,13 +2398,16 @@ function ReservasContent() {
                   value={estado.value}
                   checked={form.estado === estado.value}
                   onChange={(e) => setForm({ ...form, estado: e.target.value })}
-                  className="w-4 h-4 text-costa-coral border-costa-coral focus:ring-costa-coral"
+                  className="w-4 h-4 accent-costa-esmeralda"
                 />
                 <span className={`text-sm ${form.estado === estado.value ? 'font-bold text-costa-navy' : 'text-gray-700'}`}>
                   {estado.label}
                 </span>
               </label>
             ))}
+            {form.estado === 'pendiente' && (
+              <span className="text-xs text-costa-gris basis-full sm:basis-auto">Pasa sola a confirmada cuando registrás la seña en Cobros</span>
+            )}
           </div>
 
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Tarifas y pagos</p>
@@ -2445,22 +2446,37 @@ function ReservasContent() {
           </div>
 
           {/* Resumen calculado */}
-          {form.check_in && form.check_out && form.precio_noche > 0 && (
-            <div className="bg-gray-50 rounded-lg p-4 grid grid-cols-3 gap-4 text-center">
-              <div>
-                <p className="text-sm text-gray-500">Noches</p>
-                <p className="text-xl font-bold text-gray-900">{formNoches}</p>
+          {/* Resumen: lo mismo que va a figurar en la tabla, el contrato y la cotización */}
+          {form.check_in && form.check_out && form.precio_noche > 0 && (() => {
+            const totalForm: Record<string, number> = { [form.moneda]: Math.round(formTotal) }
+            for (const sv of serviciosConPrecio({
+              ...form,
+              limpieza_final: form.incluye_limpieza ? Number(form.limpieza_final) || 0 : 0,
+              monto_lavadero: form.incluye_lavadero ? Number(form.monto_lavadero) || 0 : 0,
+              monto_ropa_blanca: form.ropa_blanca ? Number(form.monto_ropa_blanca) || 0 : 0,
+            })) totalForm[sv.moneda] = (totalForm[sv.moneda] || 0) + sv.monto
+            const sena = Math.round(formTotal * PORCENTAJE_RESERVA / 100)
+            return (
+              <div className="rounded-lg border border-costa-borde bg-costa-arena/60 p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                <div>
+                  <p className="text-xs text-costa-gris">Total</p>
+                  <p className="font-bold text-costa-navy">{monedasCon(totalForm).map(m => <span key={m} className="block">{formatMonto(totalForm[m], m)}</span>)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-costa-gris">Seña {PORCENTAJE_RESERVA}% del alquiler</p>
+                  <p className="font-bold text-costa-esmeralda">{formatMonto(sena, form.moneda)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-costa-gris">El saldo vence</p>
+                  <p className="font-bold text-costa-navy">{formatFecha(vencimientoSaldo(form.check_in))}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-costa-gris">Depósito</p>
+                  <p className="font-bold text-costa-navy">{formatMonto(Number(form.deposito), 'USD')}</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-gray-500">Total alquiler</p>
-                <p className="text-xl font-bold text-gray-900">{formatMonto(formTotal, form.moneda)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500">Depósito</p>
-                <p className="text-xl font-bold text-blue-600">{formatMonto(Number(form.deposito), 'USD')}</p>
-              </div>
-            </div>
-          )}
+            )
+          })()}
 
           {/* Acompañantes: para la reserva alcanza con cuántos son */}
           <div className="border rounded-lg">

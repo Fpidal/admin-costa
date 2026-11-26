@@ -131,6 +131,8 @@ function InquilinosContent() {
 
   // Estado para alerta de lista negra
   const [listaNegraAlert, setListaNegraAlert] = useState<ListaNegraItem | null>(null)
+  // Observaciones desplegadas en la tabla (por defecto van en dos renglones)
+  const [obsAbiertas, setObsAbiertas] = useState<Set<Inquilino['id']>>(new Set())
   const [checkingListaNegra, setCheckingListaNegra] = useState(false)
 
   useEffect(() => {
@@ -362,7 +364,6 @@ function InquilinosContent() {
                   <div className="flex items-start justify-between mb-2">
                     <div>
                       <p className="font-medium text-costa-navy">{inquilino.nombre}</p>
-                      {inquilino.documento && <p className="text-xs text-costa-gris">DNI: {inquilino.documento}</p>}
                     </div>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="sm" onClick={() => openModal(inquilino)}><Pencil size={16} /></Button>
@@ -384,7 +385,9 @@ function InquilinosContent() {
                     )}
                   </div>
                   {inquilino.observaciones && (
-                    <p className="mb-2 rounded-lg bg-costa-arena/70 px-3 py-2 text-xs leading-snug text-costa-navy whitespace-pre-line break-words">
+                    <p
+                      onClick={() => setObsAbiertas(prev => { const n = new Set(prev); if (n.has(inquilino.id)) n.delete(inquilino.id); else n.add(inquilino.id); return n })}
+                      className={`mb-2 rounded-lg bg-costa-arena/70 px-3 py-2 text-xs leading-snug text-costa-navy whitespace-pre-line break-words ${obsAbiertas.has(inquilino.id) ? '' : 'line-clamp-2'}`}>
                       {inquilino.observaciones}
                     </p>
                   )}
@@ -430,7 +433,6 @@ function InquilinosContent() {
                         <td className="px-3 py-2">
                           <div>
                             <p className="font-medium text-costa-navy text-sm">{inquilino.nombre}</p>
-                            {inquilino.documento && <p className="text-xs text-costa-gris">DNI: {inquilino.documento}</p>}
                           </div>
                         </td>
                         <td className="px-3 py-2">
@@ -466,9 +468,13 @@ function InquilinosContent() {
                           )}
                         </td>
                         <td className="px-3 py-2 min-w-[280px]">
-                          {/* Completas, con sus renglones: la columna toma el espacio que sobra */}
+                          {/* Dos renglones para que las filas queden parejas; tocando se ve completa */}
                           {inquilino.observaciones ? (
-                            <p className="text-xs leading-snug text-costa-navy whitespace-pre-line break-words">
+                            <p
+                              onClick={() => setObsAbiertas(prev => { const n = new Set(prev); if (n.has(inquilino.id)) n.delete(inquilino.id); else n.add(inquilino.id); return n })}
+                              title={obsAbiertas.has(inquilino.id) ? 'Tocá para achicar' : inquilino.observaciones}
+                              className={`cursor-pointer text-xs leading-snug text-costa-navy whitespace-pre-line break-words ${obsAbiertas.has(inquilino.id) ? '' : 'line-clamp-2'}`}
+                            >
                               {inquilino.observaciones}
                             </p>
                           ) : (
@@ -492,8 +498,15 @@ function InquilinosContent() {
       )}
 
       {/* Modal Formulario */}
-      <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Huésped' : 'Nuevo Huésped'} size="lg">
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <Modal isOpen={modalOpen} onClose={closeModal} title={editingId ? 'Editar Huésped' : 'Nuevo Huésped'} size="lg"
+        actions={
+          <>
+            <Button type="button" variant="secondary" size="sm" onClick={closeModal}>Cancelar</Button>
+            <Button type="submit" form="huesped-form" size="sm" disabled={saving}>{saving ? 'Guardando...' : editingId ? 'Guardar' : 'Crear'}</Button>
+          </>
+        }
+      >
+        <form id="huesped-form" onSubmit={handleSubmit} className="space-y-4">
           <p className="text-sm font-medium text-gray-700 border-b pb-2">Datos personales</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Nombre y apellido completo" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
@@ -535,7 +548,7 @@ function InquilinosContent() {
 
           <p className="text-sm font-medium text-gray-700 border-b pb-2 pt-2">Contacto</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Teléfono celular" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
+            <Input label="Teléfono celular" type="tel" inputMode="tel" placeholder="Ej: 11 2345 6789 (para WhatsApp)" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
             <Input label="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
           <Input label="Domicilio habitual" value={form.domicilio} onChange={(e) => setForm({ ...form, domicilio: e.target.value })} placeholder="Calle, número, ciudad, provincia" />
@@ -559,7 +572,7 @@ function InquilinosContent() {
               </span>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">
-                  Total: {1 + acompanantes.length} personas
+                  Total: {1 + acompanantes.length} persona{acompanantes.length ? 's' : ''}
                 </span>
                 {acompanantesExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
               </div>
