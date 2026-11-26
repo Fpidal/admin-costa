@@ -34,12 +34,12 @@ const navigation = [
   { name: 'Huéspedes', href: '/admin/inquilinos', icon: Users },
   { name: 'Casas', href: '/admin/propiedades', icon: Building2 },
   { name: 'Gastos', href: '/admin/gastos', icon: Receipt },
+  { name: 'Informes', href: '/admin', icon: LayoutDashboard },
 ]
 
 const navigationMas = [
   { name: 'Calendario', href: '/admin/calendario', icon: CalendarRange },
   { name: 'Piezas gráficas', href: '/admin/piezas', icon: Images },
-  { name: 'Resumen', href: '/admin', icon: LayoutDashboard },
   { name: 'Info útil', href: '/admin/info-util', icon: Info },
   { name: 'Mis datos', href: '/admin/mis-datos', icon: UserCog },
   { name: 'Papelera', href: '/admin/papelera', icon: Trash2 },

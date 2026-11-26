@@ -14,10 +14,15 @@ import {
   filtrarReservas, monedasCon, rangoTemporada, temporadaDe, temporadaActual, etiquetaTemporada,
   nochesEntre, FILTRO_INICIAL, type FiltroReservas, type PorMoneda,
 } from '@/lib/resumenReservas'
+import { ResultadoTemporada } from '@/components/ResultadoTemporada'
+import { EvolucionTemporadas } from '@/components/EvolucionTemporadas'
+import { normalizarReglas, COLUMNAS_REGLAS } from '@/lib/preciosReglas'
+import type { PriceRule } from '@/lib/priceRules'
 import { metricas, nochesPorMes, demandaTemporada, nochesDe, MESES_CORTOS, type ReservaEst } from '@/lib/estadisticas'
 
-// Tablero de Resumen: cuánto rinde cada temporada, qué meses y fechas se
-// piden más y cómo se compara una casa con la otra.
+// Informes: cuánto rinde cada temporada, qué meses y fechas se piden más,
+// cómo se compara una casa con la otra, cómo cambian precios y totales de una
+// temporada a otra y el resultado del año (cobrado menos gastos).
 
 // Un color fijo por casa, en el orden de la lista (validado para daltonismo)
 const COLORES_CASA = ['#009480', '#c8692b', '#5b6ad0']
@@ -28,7 +33,7 @@ interface Reserva extends ReservaEst {
   propiedades?: { nombre: string }
   inquilinos?: { nombre: string }
 }
-interface Cobro { reserva_id: number | string; monto: number; moneda: string; concepto: string; aplicar_a: string }
+interface Cobro { reserva_id: number | string; monto: number; moneda: string; concepto: string; aplicar_a: string; fecha?: string | null }
 interface Gasto { id: number | string; concepto: string; monto: number; fecha: string | null; fecha_vencimiento: string | null; pagado: boolean; propiedad_id: string | null }
 
 const importe = (v: number, moneda: string) =>
@@ -59,6 +64,7 @@ function ResumenContent() {
   const [cobros, setCobros] = useState<Cobro[]>([])
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [gastos, setGastos] = useState<Gasto[]>([])
+  const [reglas, setReglas] = useState<PriceRule[]>([])
   const [loading, setLoading] = useState(true)
   const [filtro, setFiltro] = useState<FiltroReservas>({ ...FILTRO_INICIAL, tipo: 'temporada', valor: String(temporadaActual()) })
 
@@ -75,7 +81,7 @@ function ResumenContent() {
     async function cargar() {
       const [r, c, p, g] = await Promise.all([
         supabase.from('reservas').select('*, propiedades(nombre), inquilinos(nombre)').eq('user_id', userId).is('eliminado_at', null).order('fecha_inicio'),
-        supabase.from('cobros').select('reserva_id, monto, moneda, concepto, aplicar_a, reservas!inner(eliminado_at)').eq('user_id', userId).is('reservas.eliminado_at', null),
+        supabase.from('cobros').select('reserva_id, monto, moneda, concepto, aplicar_a, fecha, reservas!inner(eliminado_at)').eq('user_id', userId).is('reservas.eliminado_at', null),
         supabase.from('propiedades').select('id, nombre, lote').eq('user_id', userId).is('eliminado_at', null).order('nombre'),
         supabase.from('gastos').select('id, concepto, monto, fecha, fecha_vencimiento, pagado, propiedad_id').eq('user_id', userId).is('eliminado_at', null),
       ])
@@ -83,6 +89,10 @@ function ResumenContent() {
       if (c.data) setCobros(c.data)
       if (p.data) setPropiedades(p.data)
       if (g.data) setGastos(g.data)
+      if (p.data?.length) {
+        const pr = await supabase.from('price_rules').select(COLUMNAS_REGLAS).in('property_id', p.data.map(x => x.id))
+        setReglas(normalizarReglas(pr.data || []))
+      }
       setLoading(false)
     }
     cargar()
@@ -170,7 +180,7 @@ function ResumenContent() {
 
   return (
     <div className="vista-compacta">
-      <PageHeader title="Resumen" description={`${periodoTexto} · ${propiedades.map(p => p.nombre).join(', ')}`}>
+      <PageHeader title="Informes" description={`${periodoTexto} · ${propiedades.map(p => p.nombre).join(', ')}`}>
         <select className={selectClase} value={filtro.tipo} aria-label="Período"
           onChange={e => {
             const tipo = e.target.value as FiltroReservas['tipo']
@@ -301,6 +311,16 @@ function ResumenContent() {
         </>
       )}
 
+      {/* De una temporada a otra y resultado del año (no dependen del período elegido arriba) */}
+      <div className="mb-4">
+        <EvolucionTemporadas reservas={reservas} cobros={cobros} reglas={reglas}
+          casas={propiedades.map(p => ({ id: String(p.id), nombre: p.nombre, color: colorDe(String(p.id)) }))} />
+      </div>
+      <div className="mb-4">
+        <ResultadoTemporada reservas={reservas as never} cobros={cobros as never}
+          casas={propiedades.map(p => ({ id: String(p.id), nombre: p.nombre }))} userId={userId} isDemo={isDemo} />
+      </div>
+
       {/* Próximas entradas y gastos pendientes */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
@@ -347,7 +367,7 @@ function ResumenContent() {
   )
 }
 
-export default function ResumenPage() {
+export default function InformesPage() {
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-64 text-costa-gris">Cargando...</div>}>
       <ResumenContent />

@@ -14,7 +14,7 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - Consulta por WhatsApp con casa, fechas, personas y link; español / inglés; modo demo (`?demo=true`)
 
 ### Panel de Administración
-- **Dashboard**: Resumen de reservas, ingresos y ocupación
+- **Informes** (antes Resumen): reservas, ingresos y ocupación del período, evolución por temporada (precio de lista, cobrado por noche, ocupación y total, con variación contra la anterior) y resultado del año (cobrado menos gastos, con acumulado)
 - **Propiedades**: CRUD completo con fotos (hasta 16), amenities, precio de alquiler y de venta, y toggle de publicación
 - **Piezas gráficas**: Generador de avisos de venta y alquiler (post 4:5, story 9:16 y ficha A4 en PDF)
 - **Temporada** (inicio): avisos de cobranza, ocupación con huecos para ofrecer por WhatsApp y **resultado por año calendario** por casa: pagos de alquiler y servicios cobrados en el año (sin depósitos) menos todos los gastos del año (expensas, mantenimiento, etc.), más el **acumulado** de todos los años; en dólares y pesos con el dólar del día (blue/MEP/oficial) o uno a mano

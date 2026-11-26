@@ -2,6 +2,10 @@
 
 ## Actualizaciones Recientes (Noviembre 2026)
 
+### Informes (antes Resumen)
+- En el menú principal; incluye el resultado del año (cobrado menos gastos, con acumulado), que antes estaba en Temporada
+- Evolución por temporada: precio de lista, cobrado por noche, noches, ocupación y total por casa, con variación contra la temporada anterior y gráfico
+
 ### Página pública nueva
 - Estilo revista (Fraunces + Manrope, verde y papel), portada y propiedades que entran en una pantalla cada una
 - Buscador de fechas en la sección de propiedades; cada casa muestra total y disponibilidad con los precios reales
