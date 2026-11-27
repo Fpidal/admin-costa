@@ -13,6 +13,7 @@ export const VERSIONES: Version[] = [
   {
     version: '2.5', fecha: '27/11/2026', titulo: 'Marca Costa Directo',
     cambios: [
+      'Web: en "Cómo reservar" el saldo se paga hasta 15 días antes de llegar, no al ingresar.',
       'Nuevo nombre y logo Costa Directo en el menú, la pantalla de ingreso, la web pública y el pie de los PDF',
       'Ícono de Costa Directo en la pestaña del navegador y cuando se comparte el link por WhatsApp (imagen de marca)',
       'Botón en el celular: "Agregar a pantalla de inicio" desde el panel abre directo el panel; desde la web, la portada',

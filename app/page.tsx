@@ -66,7 +66,7 @@ const TX = {
     ruta: [['Ruta 2 hacia la costa', 'Desde CABA, autopista hasta pasar Dolores.'], ['Ruta 11 (Interbalnearia)', 'Hacia el sur, pasando Mar de Ajó.'], ['Entrada a Costa Esmeralda', 'Sobre la Ruta 11, al norte de Pinamar. Al confirmar te mandamos la ubicación exacta de la casa.']],
     abrirMaps: 'Abrir en Google Maps', esquema: 'Esquema, no a escala',
     reservarOver: 'Cómo reservar', reservarTit: 'Simple y por escrito',
-    pasos: [['Consultás', 'Nos escribís por WhatsApp con tus fechas. Respondemos en el día.'], ['Señás el 50 %', 'Por transferencia. Te enviamos la confirmación de la reserva.'], ['Llegás', 'Abonás el saldo antes de ingresar y la casa te espera lista.']],
+    pasos: [['Consultás', 'Nos escribís por WhatsApp con tus fechas. Respondemos en el día.'], ['Señás el 50 %', 'Por transferencia. Te enviamos la confirmación de la reserva.'], ['Saldo 15 días antes', 'Transferís el resto hasta 15 días antes de llegar. Ese día la casa te espera lista.']],
     footer: 'Alquileres temporarios administrados por sus dueños — Costa Esmeralda, Buenos Aires', respondemos: 'Respondemos en el día',
   },
   en: {
@@ -88,7 +88,7 @@ const TX = {
     ruta: [['Route 2 to the coast', 'From Buenos Aires, highway past Dolores.'], ['Route 11 (Interbalnearia)', 'South, past Mar de Ajó.'], ['Costa Esmeralda entrance', 'On Route 11, north of Pinamar. We send the exact location once booked.']],
     abrirMaps: 'Open in Google Maps', esquema: 'Sketch, not to scale',
     reservarOver: 'How to book', reservarTit: 'Simple and in writing',
-    pasos: [['Ask', 'Message us on WhatsApp with your dates. We reply the same day.'], ['Pay 50 %', 'By bank transfer. We send you the booking confirmation.'], ['Arrive', 'Pay the balance before check-in and the house is ready.']],
+    pasos: [['Ask', 'Message us on WhatsApp with your dates. We reply the same day.'], ['Pay 50 %', 'By bank transfer. We send you the booking confirmation.'], ['Balance 15 days before', 'Transfer the rest up to 15 days before arrival. On the day, the house is ready for you.']],
     footer: 'Vacation rentals managed by their owners — Costa Esmeralda, Buenos Aires', respondemos: 'We reply the same day',
   },
 }
