@@ -33,8 +33,8 @@
 .pub .cta{display:inline-flex;align-items:center;height:52px;padding:0 26px;background:var(--verde);color:var(--papel)!important;font-weight:600;letter-spacing:.02em}
 .pub .cta:hover{background:var(--verde2)}
 .pub .cta2{display:inline-flex;align-items:center;height:52px;padding:0 22px;border:1px solid var(--verde);color:var(--verde);font-weight:600}
-.pub .portada{position:relative;min-height:0}
-.pub .portada img{width:100%;height:100%;object-fit:cover;object-position:30% 60%}
+.pub .portada{position:relative;min-height:0;clip-path:polygon(12% 0,100% 0,100% 100%,0 100%)}
+.pub .portada img{display:block;width:100%;height:100%;object-fit:cover;object-position:30% 60%}
 .pub .portada .pie{position:absolute;left:0;bottom:0;right:0;padding:40px 18px 14px;font-size:12px;color:#fff;background:linear-gradient(transparent,rgba(16,59,55,.75))}
 /* propiedades: también en una pantalla */
 .pub .hoja-casas{background:var(--papel2);min-height:calc(100vh - 60px);padding:22px 0 28px;scroll-margin-top:60px}
@@ -165,7 +165,7 @@
   .pub .wrap{padding:0 18px}
   .pub .hnav{display:none}
   .pub .hero{grid-template-columns:1fr;gap:22px;padding-top:0}
-  .pub .portada{order:-1;margin:0 -18px;height:230px}
+  .pub .portada{order:-1;margin:0 -18px;height:230px;clip-path:none}
   .pub .intro h1{font-size:36px;margin-top:8px}
   .pub .hechos{grid-template-columns:1fr 1fr}
   .pub .hoja-casas{min-height:0}
