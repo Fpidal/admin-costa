@@ -6,6 +6,9 @@
 - [x] Logo en menú, ingreso, web pública y PDFs; favicon, ícono para celular (manifest propio del panel en /admin) e imagen para links compartidos
 - Archivos de marca en `public/marca/` y `public/` (kit en Escritorio/Costa Esmeralda/Costa Directo)
 
+### Mails de invitación y cambio de clave (pendiente)
+- [ ] Seguir docs/MAILS-E-INVITACIONES.md (Workspace en costadirecto.ar, SMTP de Gmail en Supabase, plantillas de docs/mails/, página /auth/confirm). Arrancar por el paso 1 y mostrar propuesta antes de tocar código
+
 ### Feriados en Calendario (v2.5)
 - [x] PanelFeriados se mudó de Casas → Precios a Calendario (abierto, sigue el año del tablero y refresca los feriados del tablero al editar)
 
