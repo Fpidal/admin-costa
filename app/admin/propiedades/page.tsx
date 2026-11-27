@@ -12,6 +12,8 @@ import { Plus, MapPin, Bed, Bath, Car, Upload, X, Star, ChevronLeft, ChevronRigh
 import Link from 'next/link'
 import { CalendarioPreciosCasas } from '@/components/CalendarioPreciosCasas'
 import { PriceRule } from '@/lib/priceRules'
+import { useAcceso } from '@/lib/acceso'
+import { puede } from '@/lib/permisos'
 
 interface Propiedad {
   id: number
@@ -159,7 +161,11 @@ function PropiedadesContent() {
   const [lightbox, setLightbox] = useState<{ images: string[], index: number } | null>(null)
 
   // Estados para tabs y calendario de precios
-  const [activeTab, setActiveTab] = useState<'propiedades' | 'precios'>('propiedades')
+  // Pestañas según permisos: Casas para cargar/publicar, Precios para los precios
+  const acceso = useAcceso()
+  const verCasas = puede(acceso, 'casas')
+  const verPrecios = puede(acceso, 'precios')
+  const [activeTab, setActiveTab] = useState<'propiedades' | 'precios'>(verCasas ? 'propiedades' : 'precios')
   const [selectedPropiedadId, setSelectedPropiedadId] = useState<string | null>(null)
   const [priceRules, setPriceRules] = useState<PriceRule[]>([])
   const [reservasPropiedad, setReservasPropiedad] = useState<Reserva[]>([])
@@ -660,7 +666,7 @@ function PropiedadesContent() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-costa-borde">
-        <button
+        {verCasas && <button
           onClick={() => setActiveTab('propiedades')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
             activeTab === 'propiedades'
@@ -669,8 +675,8 @@ function PropiedadesContent() {
           }`}
         >
           Propiedades
-        </button>
-        <button
+        </button>}
+        {verPrecios && <button
           onClick={() => setActiveTab('precios')}
           className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1.5 ${
             activeTab === 'precios'
@@ -679,7 +685,7 @@ function PropiedadesContent() {
           }`}
         >
           Precios alquileres
-        </button>
+        </button>}
       </div>
 
       {/* TAB: PROPIEDADES */}

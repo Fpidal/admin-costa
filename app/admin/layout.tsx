@@ -1,9 +1,11 @@
 'use client'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import Sidebar from '@/components/Sidebar'
+import { puedeVer, inicioPara, type Acceso } from '@/lib/permisos'
+import { AccesoContext } from '@/lib/acceso'
 import { Lock, Eye, EyeOff, Mail, User, MapPin, Home, Clock } from 'lucide-react'
 
 function AdminLayoutContent({
@@ -20,6 +22,8 @@ function AdminLayoutContent({
   const [isResettingPassword, setIsResettingPassword] = useState(false)
   const [isSettingNewPassword, setIsSettingNewPassword] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [permisos, setPermisos] = useState<string[]>([])
+  const pathname = usePathname()
   const [isInactive, setIsInactive] = useState(false)
   const [isPendingAuth, setIsPendingAuth] = useState(false)
   const [userName, setUserName] = useState('')
@@ -53,7 +57,7 @@ function AdminLayoutContent({
     if (session) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('activo, is_admin, autorizado, nombre, email')
+        .select('activo, is_admin, autorizado, nombre, email, permisos')
         .eq('id', session.user.id)
         .single()
 
@@ -70,6 +74,7 @@ function AdminLayoutContent({
       } else {
         setIsAuthenticated(true)
         setIsAdmin(profile.is_admin || false)
+        setPermisos(profile.permisos || [])
         setUserName(profile.nombre || '')
         setUserEmail(profile.email || session.user.email || '')
       }
@@ -89,7 +94,11 @@ function AdminLayoutContent({
 
     // Escuchar cambios de autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
+      // Invitación aceptada (link del mail): primero crea su contraseña
+      if (event === 'SIGNED_IN' && window.location.search.includes('bienvenida')) {
+        setIsSettingNewPassword(true)
+        setIsLoading(false)
+      } else if (event === 'PASSWORD_RECOVERY') {
         setIsSettingNewPassword(true)
         setIsAuthenticated(false)
         setIsLoading(false)
@@ -122,7 +131,7 @@ function AdminLayoutContent({
       // Obtener perfil directamente
       const { data: profile } = await supabase
         .from('profiles')
-        .select('activo, is_admin, autorizado, nombre, email')
+        .select('activo, is_admin, autorizado, nombre, email, permisos')
         .eq('id', data.user.id)
         .single()
 
@@ -147,11 +156,12 @@ function AdminLayoutContent({
       }
 
       setIsAdmin(profile.is_admin || false)
+      setPermisos(profile.permisos || [])
       setUserName(profile.nombre || '')
       setUserEmail(profile.email || data.user.email || '')
       setIsAuthenticated(true)
       setSubmitting(false)
-      router.push('/admin/temporada')
+      router.push(inicioPara({ esAdmin: !!profile.is_admin, permisos: profile.permisos || [] }))
     }
   }
 
@@ -258,8 +268,13 @@ function AdminLayoutContent({
       setConfirmPassword('')
       setIsSettingNewPassword(false)
       setSubmitting(false)
-      // Redirigir al admin
-      router.push('/admin/temporada')
+      // Entra a la primera sección que tiene habilitada
+      await checkSession()
+      const { data: { session } } = await supabase.auth.getSession()
+      const { data: perfil } = session
+        ? await supabase.from('profiles').select('is_admin, permisos').eq('id', session.user.id).single()
+        : { data: null }
+      router.push(inicioPara({ esAdmin: !!perfil?.is_admin, permisos: perfil?.permisos || [] }))
     }
   }
 
@@ -617,23 +632,19 @@ function AdminLayoutContent({
             )}
 
             {/* Toggle login/register */}
-            <div className="mt-4 text-center">
-              <button
-                onClick={() => {
-                  setIsRegistering(!isRegistering)
-                  setIsResettingPassword(false)
-                  setError('')
-                  setMessage('')
-                }}
-                className="text-sm text-costa-navy hover:underline"
-              >
-                {isResettingPassword
-                  ? 'Volver a iniciar sesión'
-                  : isRegistering
-                    ? '¿Ya tenés cuenta? Iniciá sesión'
-                    : '¿No tenés cuenta? Registrate'}
-              </button>
-            </div>
+            {/* Sin registro: solo entra quien invita el administrador */}
+            {isResettingPassword ? (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => { setIsResettingPassword(false); setError(''); setMessage('') }}
+                  className="text-sm text-costa-navy hover:underline"
+                >
+                  Volver a iniciar sesión
+                </button>
+              </div>
+            ) : (
+              <p className="mt-4 text-center text-xs text-costa-gris">¿No tenés cuenta? Pedile una invitación al administrador.</p>
+            )}
 
             {/* Link to public */}
             <div className="mt-4 text-center">
@@ -650,19 +661,29 @@ function AdminLayoutContent({
     )
   }
 
+  const acceso: Acceso = { esAdmin: isDemo || isAdmin, permisos }
+  const permitido = puedeVer(acceso, pathname)
+
   return (
-    <>
+    <AccesoContext.Provider value={acceso}>
       {/* Fondo arena liso: la foto de la playa competía con tablas y montos.
           La imagen sigue en Supabase Storage por si se quiere volver a usar */}
       <div className="tema-admin flex min-h-screen max-w-full">
-        <Sidebar onLogout={handleLogout} isDemo={isDemo} isAdmin={isAdmin} userName={userName} userEmail={userEmail} />
+        <Sidebar onLogout={handleLogout} isDemo={isDemo} isAdmin={isAdmin} userName={userName} userEmail={userEmail} acceso={acceso} />
         <main className="flex-1 lg:ml-64 min-w-0">
           <div className="p-4 lg:p-8 pt-20 lg:pt-8 max-w-full">
-            {children}
+            {permitido ? children : (
+              <div className="mx-auto mt-16 max-w-md rounded-xl border border-costa-borde bg-costa-superficie p-8 text-center">
+                <Lock size={28} className="mx-auto mb-3 text-costa-gris" />
+                <h1 className="text-lg font-bold text-costa-esmeralda mb-1">No tenés acceso a esta sección</h1>
+                <p className="text-sm text-costa-gris mb-5">Si la necesitás, pedile al administrador que te la habilite.</p>
+                <button onClick={() => router.push(inicioPara(acceso))} className="rounded-lg bg-costa-esmeralda px-4 py-2 text-sm font-semibold text-white">Ir al inicio</button>
+              </div>
+            )}
           </div>
         </main>
       </div>
-    </>
+    </AccesoContext.Provider>
   )
 }
 

@@ -1,440 +1,246 @@
 'use client'
 
+// Usuarios (solo super admin): invitar dueños y elegir qué secciones puede usar
+// cada uno. Cada dueño ve solo sus casas; la base controla lo mismo que se
+// tilda acá (sql/27), así que no alcanza con esconder el menú.
+
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { PageHeader } from '@/components/PageHeader'
-import { Card, CardContent, Button, Badge, Modal, Textarea } from '@/components/ui'
-import { Users, Shield, ShieldOff, UserCheck, UserX, Mail, Calendar, MapPin, Home, Clock, CheckCircle, Trash2, MessageSquare } from 'lucide-react'
+import { Button } from '@/components/ui'
+import { PERMISOS, ATAJOS, type Permiso } from '@/lib/permisos'
+import { useAcceso } from '@/lib/acceso'
 
-interface Profile {
+interface Perfil {
   id: string
   email: string
-  nombre: string
-  telefono: string
-  barrio: string
-  lote: string
+  nombre: string | null
   is_admin: boolean
-  activo: boolean
-  autorizado: boolean
+  activo: boolean | null
+  autorizado: boolean | null
+  permisos: string[] | null
   created_at: string
+}
+interface Resumen { id: string; casas: number; ultimo_ingreso: string | null; invitado: string | null; confirmado: boolean }
+
+const dmy = (iso: string | null) => (iso ? iso.slice(0, 10).split('-').reverse().join('/') : '')
+
+// Llama a una ruta del servidor con la sesión del admin
+async function llamar(ruta: string, cuerpo: object) {
+  const { data: { session } } = await supabase.auth.getSession()
+  const r = await fetch(ruta, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token || ''}` },
+    body: JSON.stringify(cuerpo),
+  })
+  return r.json() as Promise<{ error?: string; link?: string; ok?: boolean }>
 }
 
 export default function UsuariosPage() {
-  const [usuarios, setUsuarios] = useState<Profile[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isAdmin, setIsAdmin] = useState(false)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [mensajeModal, setMensajeModal] = useState<{ userId: string; nombre: string } | null>(null)
-  const [textoMensaje, setTextoMensaje] = useState('')
-  const [enviandoMensaje, setEnviandoMensaje] = useState(false)
+  const { esAdmin } = useAcceso()
+  const [perfiles, setPerfiles] = useState<Perfil[]>([])
+  const [resumen, setResumen] = useState<Record<string, Resumen>>({})
+  const [yo, setYo] = useState<string | null>(null)
+  const [elegido, setElegido] = useState<string | 'nuevo' | null>(null)
+  const [form, setForm] = useState({ nombre: '', email: '', permisos: [] as string[] })
+  const [aviso, setAviso] = useState<{ tipo: 'ok' | 'error'; texto: string; link?: string } | null>(null)
+  const [guardando, setGuardando] = useState(false)
 
-  useEffect(() => {
-    checkAdminAndFetch()
-  }, [])
-
-  async function checkAdminAndFetch() {
-    // Obtener usuario actual
+  async function cargar() {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      setLoading(false)
-      return
+    setYo(user?.id || null)
+    const [{ data: ps }, { data: rs }] = await Promise.all([
+      supabase.from('profiles').select('id, email, nombre, is_admin, activo, autorizado, permisos, created_at').order('created_at'),
+      supabase.rpc('resumen_usuarios'),
+    ])
+    setPerfiles((ps || []) as Perfil[])
+    setResumen(Object.fromEntries(((rs || []) as Resumen[]).map(r => [r.id, r])))
+  }
+  useEffect(() => { if (esAdmin) cargar() }, [esAdmin])
+
+  const actual = perfiles.find(p => p.id === elegido)
+
+  function abrir(p: Perfil | 'nuevo') {
+    setAviso(null)
+    if (p === 'nuevo') { setElegido('nuevo'); setForm({ nombre: '', email: '', permisos: ['casas', 'precios'] }); return }
+    setElegido(p.id)
+    setForm({ nombre: p.nombre || '', email: p.email, permisos: p.permisos || [] })
+  }
+
+  const tildar = (k: Permiso) =>
+    setForm(f => ({ ...f, permisos: f.permisos.includes(k) ? f.permisos.filter(x => x !== k) : [...f.permisos, k] }))
+
+  async function guardar() {
+    setGuardando(true); setAviso(null)
+    if (elegido === 'nuevo') {
+      const r = await llamar('/api/admin/invitar', form)
+      if (r.error) setAviso({ tipo: 'error', texto: r.error })
+      else { setAviso({ tipo: 'ok', texto: `Listo: le mandamos un mail a ${form.email} para que cree su contraseña.` }); setElegido(null); await cargar() }
+    } else if (actual) {
+      const { error } = await supabase.from('profiles').update({ nombre: form.nombre || null, permisos: form.permisos }).eq('id', actual.id)
+      setAviso(error ? { tipo: 'error', texto: 'No se pudo guardar: ' + error.message } : { tipo: 'ok', texto: 'Permisos guardados.' })
+      if (!error) await cargar()
     }
+    setGuardando(false)
+  }
 
-    setCurrentUserId(user.id)
-
-    // Verificar si es admin
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile?.is_admin) {
-      setIsAdmin(false)
-      setLoading(false)
-      return
+  async function linkInvitacion() {
+    if (!actual && elegido !== 'nuevo') return
+    setGuardando(true); setAviso(null)
+    const r = await llamar('/api/admin/invitar', { ...form, soloLink: true, reenviar: elegido !== 'nuevo' })
+    if (r.error || !r.link) setAviso({ tipo: 'error', texto: r.error || 'No se pudo generar el link' })
+    else {
+      await navigator.clipboard?.writeText(r.link).catch(() => {})
+      setAviso({ tipo: 'ok', texto: 'Link copiado: pegáselo por WhatsApp. Sirve una sola vez.', link: r.link })
+      if (elegido === 'nuevo') await cargar()
     }
-
-    setIsAdmin(true)
-
-    // Obtener todos los usuarios
-    const { data: usuarios } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    if (usuarios) setUsuarios(usuarios)
-    setLoading(false)
+    setGuardando(false)
   }
 
-  async function toggleActivo(userId: string, activo: boolean) {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ activo: !activo })
-      .eq('id', userId)
-
-    if (error) {
-      alert('Error al cambiar estado: ' + error.message)
-    } else {
-      setUsuarios(usuarios.map(u =>
-        u.id === userId ? { ...u, activo: !activo } : u
-      ))
-    }
+  async function cambiarActivo() {
+    if (!actual) return
+    const nuevo = actual.activo === false
+    const { error } = await supabase.from('profiles').update({ activo: nuevo }).eq('id', actual.id)
+    setAviso(error ? { tipo: 'error', texto: error.message } : { tipo: 'ok', texto: nuevo ? 'Usuario activado.' : 'Usuario desactivado: ya no puede entrar.' })
+    await cargar()
   }
 
-  async function rechazarUsuario(userId: string, nombre: string) {
-    if (!confirm(`¿Estás seguro de rechazar y eliminar a "${nombre}"?\n\nEsto eliminará su solicitud permanentemente.`)) return
-
-    try {
-      // Intentar eliminar completamente (profiles + auth)
-      const response = await fetch('/api/admin/delete-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, adminId: currentUserId })
-      })
-
-      if (response.ok) {
-        setUsuarios(usuarios.filter(u => u.id !== userId))
-        return
-      }
-    } catch {
-      // Si falla la API, continuar con el método alternativo
-    }
-
-    // Fallback: eliminar solo de profiles (el usuario deberá eliminarse manualmente de Supabase Auth)
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId)
-
-    if (error) {
-      alert('Error al eliminar: ' + error.message)
-    } else {
-      setUsuarios(usuarios.filter(u => u.id !== userId))
-    }
+  async function borrar() {
+    if (!actual || !confirm(`¿Borrar la cuenta de ${actual.email}? No se puede deshacer.`)) return
+    const r = await llamar('/api/admin/delete-user', { userId: actual.id })
+    if (r.error) setAviso({ tipo: 'error', texto: r.error })
+    else { setElegido(null); setAviso({ tipo: 'ok', texto: 'Cuenta borrada.' }); await cargar() }
   }
 
-  async function toggleAdmin(userId: string, isAdmin: boolean) {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_admin: !isAdmin })
-      .eq('id', userId)
+  if (!esAdmin) return <p className="text-costa-gris">Solo el administrador puede ver esta sección.</p>
 
-    if (!error) {
-      setUsuarios(usuarios.map(u =>
-        u.id === userId ? { ...u, is_admin: !isAdmin } : u
-      ))
-    }
+  const estado = (p: Perfil) => {
+    if (p.is_admin) return { t: 'Super admin', c: 'bg-costa-esmeralda text-white' }
+    if (p.activo === false) return { t: 'Desactivado', c: 'bg-red-50 text-red-700' }
+    if (!resumen[p.id]?.confirmado) return { t: 'Sin aceptar', c: 'bg-amber-50 text-amber-700' }
+    return { t: 'Activo', c: 'bg-costa-arena text-costa-gris' }
+  }
+  const detalle = (p: Perfil) => {
+    const r = resumen[p.id]
+    const casas = r ? `${r.casas} casa${r.casas === 1 ? '' : 's'}` : ''
+    if (p.is_admin) return [casas, 'todo'].filter(Boolean).join(' · ')
+    if (r && !r.confirmado) return `invitado el ${dmy(r.invitado || p.created_at)}`
+    return [casas, r?.ultimo_ingreso ? `entró el ${dmy(r.ultimo_ingreso)}` : ''].filter(Boolean).join(' · ')
   }
 
-  async function enviarMensaje() {
-    if (!mensajeModal || !currentUserId || !textoMensaje.trim()) return
-
-    setEnviandoMensaje(true)
-    const { error } = await supabase
-      .from('mensajes_usuarios')
-      .insert([{ user_id: mensajeModal.userId, de_admin_id: currentUserId, mensaje: textoMensaje.trim() }])
-
-    setEnviandoMensaje(false)
-
-    if (error) {
-      alert('Error al enviar mensaje: ' + error.message)
-      return
-    }
-
-    setMensajeModal(null)
-    setTextoMensaje('')
-  }
-
-  async function toggleAutorizado(userId: string, autorizado: boolean) {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ autorizado: !autorizado })
-      .eq('id', userId)
-
-    if (!error) {
-      setUsuarios(usuarios.map(u =>
-        u.id === userId ? { ...u, autorizado: !autorizado } : u
-      ))
-    }
-  }
-
-  // Separar usuarios pendientes de autorizados
-  const usuariosPendientes = usuarios.filter(u => u.autorizado === false)
-  const usuariosAutorizados = usuarios.filter(u => u.autorizado !== false)
-
-  const formatFecha = (fecha: string) => {
-    return new Date(fecha).toLocaleDateString('es-AR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Cargando...</div>
-      </div>
-    )
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Card>
-          <CardContent className="py-12 text-center">
-            <ShieldOff size={48} className="mx-auto text-costa-coral mb-4" />
-            <h2 className="text-xl font-bold text-costa-navy mb-2">Acceso Restringido</h2>
-            <p className="text-costa-gris">No tenés permisos para ver esta sección.</p>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const editable = elegido === 'nuevo' || (actual && !actual.is_admin)
 
   return (
     <div>
-      <PageHeader
-        title="Gestión de Usuarios"
-        description="Administrá los usuarios registrados en la plataforma"
-      >
-        <div className="flex items-center gap-4 text-sm">
-          {usuariosPendientes.length > 0 && (
-            <span className="flex items-center gap-1 text-amber-600 font-medium">
-              <Clock size={16} />
-              {usuariosPendientes.length} pendiente{usuariosPendientes.length > 1 ? 's' : ''}
-            </span>
-          )}
-          <span className="flex items-center gap-1 text-costa-gris">
-            <Users size={16} />
-            {usuarios.length} total
-          </span>
-        </div>
+      <PageHeader title="Usuarios" description="Solo lo ves vos. Cada dueño ve únicamente sus casas y las secciones que le habilites.">
+        <Button onClick={() => abrir('nuevo')}>+ Invitar usuario</Button>
       </PageHeader>
 
-      {/* Solicitudes pendientes */}
-      {usuariosPendientes.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-bold text-amber-600 mb-4 flex items-center gap-2">
-            <Clock size={20} />
-            Solicitudes Pendientes de Autorización
-          </h2>
-          <div className="grid gap-4">
-            {usuariosPendientes.map((usuario) => (
-              <Card key={usuario.id} className="border-amber-200 bg-amber-50/50">
-                <CardContent className="py-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center bg-amber-100 text-amber-600">
-                        <Clock size={24} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-costa-navy">
-                            {usuario.nombre || 'Sin nombre'}
-                          </h3>
-                          <Badge variant="warning">Pendiente</Badge>
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-costa-gris mt-1">
-                          <span className="flex items-center gap-1">
-                            <Mail size={14} />
-                            {usuario.email}
-                          </span>
-                          {usuario.barrio && (
-                            <span className="flex items-center gap-1">
-                              <MapPin size={14} />
-                              {usuario.barrio}
-                            </span>
-                          )}
-                          {usuario.lote && (
-                            <span className="flex items-center gap-1">
-                              <Home size={14} />
-                              Lote {usuario.lote}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 text-sm text-costa-gris mt-1">
-                          <span className="flex items-center gap-1">
-                            <Calendar size={14} />
-                            {formatFecha(usuario.created_at)}
-                          </span>
-                          {usuario.telefono && (
-                            <span>Tel: {usuario.telefono}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={() => toggleAutorizado(usuario.id, false)}
-                        className="bg-costa-olivo hover:bg-costa-olivo/90"
-                      >
-                        <CheckCircle size={16} />
-                        Autorizar
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        onClick={() => rechazarUsuario(usuario.id, usuario.nombre || usuario.email)}
-                        title="Rechazar y eliminar solicitud"
-                      >
-                        <UserX size={16} />
-                        Rechazar
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+      <div className="grid gap-5 lg:grid-cols-[380px_1fr] items-start">
+        {/* Lista */}
+        <div className="rounded-xl border border-costa-borde bg-costa-superficie overflow-hidden">
+          {perfiles.map(p => {
+            const e = estado(p)
+            return (
+              <button key={p.id} type="button" onClick={() => abrir(p)}
+                className={`flex w-full items-center justify-between gap-3 border-b border-costa-borde/60 px-4 py-3 text-left last:border-0 ${elegido === p.id ? 'bg-costa-esmeralda-suave' : 'hover:bg-costa-arena/50'}`}>
+                <span className="min-w-0">
+                  <span className="block font-bold text-costa-navy truncate">{p.nombre || p.email}{p.id === yo ? ' (vos)' : ''}</span>
+                  <span className="block text-xs text-costa-gris truncate">{p.nombre ? `${p.email} · ` : ''}{detalle(p)}</span>
+                </span>
+                <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold ${e.c}`}>{e.t}</span>
+              </button>
+            )
+          })}
         </div>
-      )}
 
-      {/* Usuarios autorizados */}
-      <div>
-        <h2 className="text-lg font-bold text-costa-navy mb-4 flex items-center gap-2">
-          <Users size={20} />
-          Usuarios Autorizados
-        </h2>
-        <div className="grid gap-4">
-          {usuariosAutorizados.map((usuario) => (
-            <Card key={usuario.id} className={!usuario.activo ? 'opacity-60' : ''}>
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${usuario.is_admin ? 'bg-costa-navy text-white' : 'bg-costa-beige text-costa-navy'}`}>
-                      {usuario.is_admin ? <Shield size={24} /> : <Users size={24} />}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-costa-navy">
-                          {usuario.nombre || 'Sin nombre'}
-                        </h3>
-                        {usuario.is_admin && (
-                          <Badge variant="info">Admin</Badge>
-                        )}
-                        {!usuario.activo && (
-                          <Badge variant="danger">Inactivo</Badge>
-                        )}
-                        {usuario.id === currentUserId && (
-                          <Badge variant="success">Tú</Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-costa-gris mt-1">
-                        <span className="flex items-center gap-1">
-                          <Mail size={14} />
-                          {usuario.email}
-                        </span>
-                        {usuario.barrio && (
-                          <span className="flex items-center gap-1">
-                            <MapPin size={14} />
-                            {usuario.barrio}
-                          </span>
-                        )}
-                        {usuario.lote && (
-                          <span className="flex items-center gap-1">
-                            <Home size={14} />
-                            Lote {usuario.lote}
-                          </span>
-                        )}
-                        <span className="flex items-center gap-1">
-                          <Calendar size={14} />
-                          {formatFecha(usuario.created_at)}
-                        </span>
-                      </div>
-                      {usuario.telefono && (
-                        <p className="text-sm text-costa-gris mt-1">Tel: {usuario.telefono}</p>
-                      )}
-                    </div>
-                  </div>
+        {/* Detalle / invitar */}
+        <div className="rounded-xl border border-costa-borde bg-costa-superficie p-5">
+          {aviso && (
+            <div className={`mb-4 rounded-lg px-3 py-2 text-sm ${aviso.tipo === 'ok' ? 'bg-costa-esmeralda-suave text-costa-esmeralda' : 'bg-red-50 text-red-700'}`}>
+              {aviso.texto}
+              {aviso.link && <span className="mt-1 block break-all text-xs text-costa-gris">{aviso.link}</span>}
+            </div>
+          )}
 
-                  {usuario.id !== currentUserId && (
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setMensajeModal({ userId: usuario.id, nombre: usuario.nombre || usuario.email })}
-                        title="Enviar mensaje"
-                      >
-                        <MessageSquare size={16} className="text-costa-navy" />
-                      </Button>
-                      <Button
-                        variant={usuario.activo ? 'secondary' : 'primary'}
-                        size="sm"
-                        onClick={() => toggleActivo(usuario.id, usuario.activo)}
-                        title={usuario.activo ? 'Desactivar usuario' : 'Activar usuario'}
-                      >
-                        {usuario.activo ? (
-                          <>
-                            <UserX size={16} />
-                            Desactivar
-                          </>
-                        ) : (
-                          <>
-                            <UserCheck size={16} />
-                            Activar
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleAdmin(usuario.id, usuario.is_admin)}
-                        title={usuario.is_admin ? 'Quitar admin' : 'Hacer admin'}
-                      >
-                        {usuario.is_admin ? (
-                          <ShieldOff size={16} className="text-costa-coral" />
-                        ) : (
-                          <Shield size={16} className="text-costa-navy" />
-                        )}
-                      </Button>
-                      {!usuario.activo && (
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => rechazarUsuario(usuario.id, usuario.nombre || usuario.email)}
-                          title="Eliminar usuario"
-                        >
-                          <Trash2 size={16} />
-                          Eliminar
-                        </Button>
-                      )}
-                    </div>
+          {!elegido && <p className="text-sm text-costa-gris">Elegí un usuario de la lista o tocá <b>Invitar usuario</b>.</p>}
+
+          {elegido && (actual?.is_admin ? (
+            <div>
+              <h2 className="text-lg font-bold text-costa-esmeralda">{actual.nombre || actual.email}</h2>
+              <p className="mt-1 text-sm text-costa-gris">Super admin: tiene todas las secciones y es el único que ve Usuarios.</p>
+            </div>
+          ) : editable && (
+            <div>
+              <h2 className="mb-4 text-lg font-bold text-costa-esmeralda">{elegido === 'nuevo' ? 'Invitar usuario' : (actual?.nombre || actual?.email)}</h2>
+              <div className="mb-4 grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="mb-1 block text-sm font-semibold text-costa-navy">Nombre</span>
+                  <input value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })}
+                    className="w-full rounded-lg border border-costa-borde bg-white px-3 py-2" placeholder="Juan Pérez" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-sm font-semibold text-costa-navy">Email</span>
+                  <input type="email" value={form.email} disabled={elegido !== 'nuevo'} onChange={e => setForm({ ...form, email: e.target.value })}
+                    className="w-full rounded-lg border border-costa-borde bg-white px-3 py-2 disabled:bg-costa-arena/40 disabled:text-costa-gris" placeholder="dueno@mail.com" />
+                </label>
+              </div>
+
+              <span className="mb-1 block text-sm font-semibold text-costa-navy">Qué puede usar</span>
+              <div className="mb-2 flex flex-wrap gap-1.5">
+                {ATAJOS.map(a => (
+                  <button key={a.nombre} type="button" onClick={() => setForm({ ...form, permisos: [...a.permisos] })}
+                    className="rounded-full border border-costa-borde bg-white px-3 py-1 text-xs font-semibold text-costa-gris hover:text-costa-esmeralda">{a.nombre}</button>
+                ))}
+              </div>
+              <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                {PERMISOS.map(p => {
+                  const on = form.permisos.includes(p.clave)
+                  return (
+                    <label key={p.clave} className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 ${on ? 'border-costa-esmeralda bg-costa-esmeralda-suave/50' : 'border-costa-borde bg-white'}`}>
+                      <input type="checkbox" checked={on} onChange={() => tildar(p.clave)} className="mt-0.5 h-4 w-4 accent-[#14504c]" />
+                      <span>
+                        <span className="block text-sm font-bold text-costa-navy">{p.nombre}</span>
+                        <span className="block text-xs text-costa-gris">{p.detalle}</span>
+                      </span>
+                    </label>
+                  )
+                })}
+              </div>
+
+              <p className="mb-4 rounded-lg border border-costa-borde bg-costa-arena/40 px-3 py-2 text-xs text-costa-gris">
+                {form.permisos.length
+                  ? <>Va a ver en el menú solo <b>{PERMISOS.filter(p => form.permisos.includes(p.clave)).map(p => p.nombre).join(', ')}</b> (más Info útil y Mis datos). Lo que no está tildado tampoco lo puede leer desde la base, aunque escriba la dirección a mano.</>
+                  : 'Sin secciones tildadas solo puede entrar a Mis datos e Info útil.'}
+              </p>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-costa-borde pt-4">
+                <div className="flex flex-wrap gap-3 text-sm">
+                  {actual && (
+                    <>
+                      <button type="button" onClick={cambiarActivo} className="font-semibold text-red-700 hover:underline">
+                        {actual.activo === false ? 'Activar usuario' : 'Desactivar usuario'}
+                      </button>
+                      {!resumen[actual.id]?.casas && <button type="button" onClick={borrar} className="text-costa-gris hover:underline">Borrar cuenta</button>}
+                    </>
+                  )}
+                  {(elegido === 'nuevo' || (actual && !resumen[actual.id]?.confirmado)) && (
+                    <button type="button" onClick={linkInvitacion} disabled={guardando || !form.email} className="font-semibold text-costa-esmeralda hover:underline">
+                      Copiar link para WhatsApp
+                    </button>
                   )}
                 </div>
-              </CardContent>
-            </Card>
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => { setElegido(null); setAviso(null) }}>Cancelar</Button>
+                  <Button onClick={guardar} disabled={guardando || (elegido === 'nuevo' && !form.email)}>
+                    {guardando ? 'Guardando…' : elegido === 'nuevo' ? 'Enviar invitación' : 'Guardar'}
+                  </Button>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </div>
-
-      <Modal
-        isOpen={mensajeModal !== null}
-        onClose={() => { setMensajeModal(null); setTextoMensaje('') }}
-        title={`Mensaje para ${mensajeModal?.nombre || ''}`}
-        size="sm"
-      >
-        <Textarea
-          value={textoMensaje}
-          onChange={(e) => setTextoMensaje(e.target.value)}
-          placeholder="Escribí el mensaje..."
-          rows={4}
-        />
-        <div className="flex justify-end gap-2 mt-4">
-          <Button variant="secondary" onClick={() => { setMensajeModal(null); setTextoMensaje('') }}>
-            Cancelar
-          </Button>
-          <Button variant="primary" onClick={enviarMensaje} disabled={enviandoMensaje || !textoMensaje.trim()}>
-            {enviandoMensaje ? 'Enviando...' : 'Enviar'}
-          </Button>
-        </div>
-      </Modal>
     </div>
   )
 }

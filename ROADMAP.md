@@ -2,6 +2,11 @@
 
 ## Actualizaciones Recientes (Noviembre 2026)
 
+### Usuarios con permisos (v2.4)
+- Super admin invita dueños (mail o link para WhatsApp) y tilda secciones: casas, precios, reservas, gastos, informes, piezas (`lib/permisos.ts`)
+- La base controla lo mismo con `tiene_permiso()` en cada policy (sql/27); sin registro público
+- Se cerraron grants de anon, TRUNCATE, contactos abiertos, auto-ascenso a admin y fotos sin dueño
+
 ### Gastos en dólares
 - Cada gasto tiene moneda (pesos o dólares) y el dólar del día en que se pagó (sql/26); el formulario trae el blue de la fecha y muestra el equivalente
 - La lista muestra el dólar y el valor en dólares; el balance suma cada gasto con su propio dólar

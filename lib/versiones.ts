@@ -11,6 +11,16 @@ export interface Version {
 
 export const VERSIONES: Version[] = [
   {
+    version: '2.4', fecha: '27/11/2026', titulo: 'Usuarios con permisos',
+    cambios: [
+      'Usuarios: invitás a cada dueño por mail o con un link para WhatsApp y tildás qué secciones puede usar (Casas, Precios, Reservas y cobros, Gastos, Informes, Piezas gráficas)',
+      'Cada dueño ve solo sus casas y en el menú solo lo habilitado; la base controla lo mismo, aunque escriba la dirección a mano',
+      'Ya no hay "registrarse": solo entra quien invita el administrador, y al aceptar la invitación crea su contraseña',
+      'Seguridad: se cerraron permisos de más de la base (visitantes sin login con escritura, contactos abiertos, perfiles que se podían hacer admin, fotos que cualquiera podía borrar)',
+      'La web pública siempre muestra todas las casas publicadas, aunque estés logueado en el panel',
+    ],
+  },
+  {
     version: '2.3', fecha: '26/11/2026', titulo: 'Huéspedes y resultado por año',
     cambios: [
       'Resumen pasa a llamarse Informes y va en el menú principal; el resultado del año se mudó de Temporada a Informes',

@@ -25,7 +25,7 @@ Sistema de administración de propiedades para alquileres temporarios en Costa E
 - **Inquilinos / Huéspedes**: Base de datos de inquilinos con validación contra lista negra e historial de reservas
 - **Link para el huésped**: `/huespedes/[código]` para que cargue nombre, apellido, edad y DNI de sus acompañantes (autorización del barrio); en la reserva se copia la lista lista para mandar
 - **Gastos**: Control de gastos por propiedad, en pesos o en dólares, con el dólar blue del día de cada gasto (se completa solo desde argentinadatos.com) y su valor en dólares
-- **Usuarios**: Panel de administración de usuarios (solo admin)
+- **Usuarios**: el super admin invita dueños (mail o link para WhatsApp) y tilda qué secciones puede usar cada uno; cada dueño ve solo sus casas y la base controla los permisos (sql/27)
 - **Info útil**: Información de servicios, contactos y lista negra
 - **Papelera**: Recuperación de elementos eliminados (soft delete)
 - **Versiones**: historial de cambios del sistema (`lib/versiones.ts`), con la versión actual al pie del menú

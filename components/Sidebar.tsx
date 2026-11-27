@@ -25,6 +25,7 @@ import {
 import { VERSION_ACTUAL } from '@/lib/versiones'
 import { useState } from 'react'
 import { CampanitaMensajes } from './CampanitaMensajes'
+import { puedeVer, type Acceso } from '@/lib/permisos'
 
 // Lo de todos los días, arriba; el resto en "Más". Solo cambia el menú:
 // las direcciones de cada pantalla siguen siendo las mismas
@@ -52,9 +53,10 @@ interface SidebarProps {
   isAdmin?: boolean
   userName?: string
   userEmail?: string
+  acceso?: Acceso
 }
 
-export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, userName = '', userEmail = '' }: SidebarProps) {
+export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, userName = '', userEmail = '', acceso }: SidebarProps) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
@@ -62,9 +64,12 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
   const getHref = (href: string) => isDemo ? `${href}?demo=true` : href
 
   // Navegación con item de admin condicional
-  const fullNavigationMas = isAdmin
+  // Solo las secciones que el usuario tiene habilitadas
+  const habilitada = (href: string) => !acceso || puedeVer(acceso, href)
+  const navPrincipal = navigation.filter(i => habilitada(i.href))
+  const fullNavigationMas = (isAdmin
     ? [...navigationMas, { name: 'Usuarios', href: '/admin/usuarios', icon: Shield }]
-    : navigationMas
+    : navigationMas).filter(i => habilitada(i.href))
 
   return (
     <>
@@ -154,7 +159,7 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
 
           {/* Navigation */}
           <nav className="flex-1 min-h-0 px-3 py-3 space-y-0.5 overflow-y-auto">
-            {navigation.map((item) => {
+            {navPrincipal.map((item) => {
               const isActive = pathname === item.href
               return (
                 <Link

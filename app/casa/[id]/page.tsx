@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { supabase } from '@/lib/supabase'
+import { supabasePublico as supabase } from '@/lib/supabase'
 import { IrALaCasa } from './IrALaCasa'
 
 // Link para compartir una casa por WhatsApp. WhatsApp lee estas etiquetas

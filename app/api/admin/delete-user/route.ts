@@ -1,64 +1,23 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { getSupabaseAdmin, adminDelPedido } from '@/lib/adminServidor'
 
-// Función para crear el cliente admin (solo cuando se necesita)
-function getSupabaseAdmin() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!serviceRoleKey) {
-    throw new Error('SUPABASE_SERVICE_ROLE_KEY no está configurada')
-  }
-  return createClient(
-    'https://dpghrdgippisgzvlahwi.supabase.co',
-    serviceRoleKey,
-    {
-      auth: {
-        autoRefreshToken: false,
-        persistSession: false
-      }
-    }
-  )
-}
-
+// Borra un usuario. Solo el administrador, verificado por su sesión.
 export async function POST(request: NextRequest) {
   try {
-    const { userId, adminId } = await request.json()
+    const sb = getSupabaseAdmin()
+    const adminId = await adminDelPedido(request, sb)
+    if (!adminId) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-    if (!userId || !adminId) {
-      return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
-    }
+    const { userId } = await request.json()
+    if (!userId) return NextResponse.json({ error: 'Falta el usuario' }, { status: 400 })
+    if (userId === adminId) return NextResponse.json({ error: 'No podés borrar tu propia cuenta' }, { status: 400 })
 
-    const supabaseAdmin = getSupabaseAdmin()
+    const { count } = await sb.from('propiedades').select('id', { count: 'exact', head: true }).eq('user_id', userId)
+    if (count) return NextResponse.json({ error: 'Tiene casas cargadas: desactivalo en vez de borrarlo' }, { status: 400 })
 
-    // Verificar que quien hace la solicitud es admin
-    const { data: adminProfile, error: adminError } = await supabaseAdmin
-      .from('profiles')
-      .select('is_admin')
-      .eq('id', adminId)
-      .single()
-
-    if (adminError || !adminProfile?.is_admin) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-    }
-
-    // Eliminar el perfil de la tabla profiles
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .delete()
-      .eq('id', userId)
-
-    if (profileError) {
-      console.error('Error eliminando perfil:', profileError)
-      return NextResponse.json({ error: 'Error eliminando perfil: ' + profileError.message }, { status: 500 })
-    }
-
-    // Eliminar el usuario de Supabase Auth
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId)
-
-    if (authError) {
-      console.error('Error eliminando usuario de Auth:', authError)
-      return NextResponse.json({ error: 'Error eliminando usuario de Auth: ' + authError.message }, { status: 500 })
-    }
-
+    await sb.from('profiles').delete().eq('id', userId)
+    const { error } = await sb.auth.admin.deleteUser(userId)
+    if (error) return NextResponse.json({ error: 'No se pudo borrar: ' + error.message }, { status: 500 })
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Error en delete-user:', error)
