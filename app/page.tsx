@@ -56,7 +56,7 @@ const TX = {
     props: 'Propiedades', elegi: 'Elegí tu casa', llegada: 'Llegada', salida: 'Salida', personas: 'Personas', barrio: 'Barrio', todos: 'Todos',
     verPrecios: 'Ver precios', limpiar: 'Limpiar', vacio: 'No hay propiedades para esa búsqueda.',
     personasC: 'personas', dormC: 'dormitorios', banosC: 'baños', m2C: 'm² cubiertos',
-    desde: '/ noche, desde', noches: (n: number) => `${n} noche${n !== 1 ? 's' : ''} en tus fechas`, consultaPrecio: 'Consultá el precio',
+    desde: 'Desde', porNoche: '/ noche', noches: (n: number) => `${n} noche${n !== 1 ? 's' : ''} en tus fechas`, consultaPrecio: 'Consultá el precio',
     libre: (a: string, b: string) => `Libre del ${a} al ${b}`, ocupada: 'Ocupada algunas noches · consultanos', elegiFechas: 'Elegí fechas para ver el total',
     capacidad: (n: number) => `Hasta ${n} personas`, consultar: 'Consultar', verFicha: 'Ver ficha completa', compartir: 'Compartir', copiado: 'Link copiado',
     lote: 'Lote', plantas: 'plantas',
@@ -78,7 +78,7 @@ const TX = {
     props: 'Homes', elegi: 'Choose your home', llegada: 'Check-in', salida: 'Check-out', personas: 'Guests', barrio: 'Area', todos: 'All',
     verPrecios: 'See prices', limpiar: 'Clear', vacio: 'No homes match your search.',
     personasC: 'guests', dormC: 'bedrooms', banosC: 'bathrooms', m2C: 'm² built',
-    desde: '/ night, from', noches: (n: number) => `${n} night${n !== 1 ? 's' : ''} on your dates`, consultaPrecio: 'Ask for the price',
+    desde: 'From', porNoche: '/ night', noches: (n: number) => `${n} night${n !== 1 ? 's' : ''} on your dates`, consultaPrecio: 'Ask for the price',
     libre: (a: string, b: string) => `Available ${a} – ${b}`, ocupada: 'Some nights taken · ask us', elegiFechas: 'Choose dates to see the total',
     capacidad: (n: number) => `Up to ${n} guests`, consultar: 'Ask', verFicha: 'See full details', compartir: 'Share', copiado: 'Link copied',
     lote: 'Lot', plantas: 'floors',
@@ -346,7 +346,7 @@ function LandingContent() {
                       <div className="amen">{amen.map(([txt, top]) => <span key={txt} className={top ? 'top' : ''}>{txt}</span>)}</div>
                       <div className="abajo">
                         <div className="precio">
-                          <div className="m">{desde ? <>U$D {fmt(desde)} <small>{t.desde}</small></> : <small>{t.consultaPrecio}</small>}</div>
+                          <div className="m">{desde ? <><small>{t.desde}</small> U$D {fmt(desde)} <small>{t.porNoche}</small></> : <small>{t.consultaPrecio}</small>}</div>
                           {est && (est.completo || desde > 0) && <div className="t">{t.noches(est.noches)}<b>{est.completo ? `U$D ${fmt(est.total)}` : t.consultaPrecio}</b></div>}
                         </div>
                         <div className="cierre">
@@ -499,7 +499,7 @@ function LandingContent() {
                 {ficha.descripcion && <div className="desc">{ficha.descripcion}</div>}
                 {tj && (
                   <div className="precio">
-                    <div className="m">{tj.desde ? <>U$D {fmt(tj.desde)} <small>{t.desde}</small></> : <small>{t.consultaPrecio}</small>}</div>
+                    <div className="m">{tj.desde ? <><small>{t.desde}</small> U$D {fmt(tj.desde)} <small>{t.porNoche}</small></> : <small>{t.consultaPrecio}</small>}</div>
                     {tj.est && <div className="t">{t.noches(tj.est.noches)}<b>{tj.est.completo ? `U$D ${fmt(tj.est.total)}` : t.consultaPrecio}</b></div>}
                   </div>
                 )}
