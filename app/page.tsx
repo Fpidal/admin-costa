@@ -260,7 +260,6 @@ function LandingContent() {
         <nav className="hnav">{['#casas', '#barrio', '#llegar', '#reservar', '#datos'].map((h, i) => <a key={h} href={h}>{t.nav[i]}</a>)}</nav>
         <div className="hder">
           <button type="button" onClick={toggleLanguage} aria-label="Idioma">{en ? <>ES / <b>EN</b></> : <><b>ES</b> / EN</>}</button>
-          <Link href={isDemo ? '/admin?demo=true' : '/admin'}>{t.acceso}</Link>
         </div>
       </div></header>
 
