@@ -33,9 +33,10 @@
 .pub .cta{display:inline-flex;align-items:center;height:52px;padding:0 26px;background:var(--verde);color:var(--papel)!important;font-weight:600;letter-spacing:.02em}
 .pub .cta:hover{background:var(--verde2)}
 .pub .cta2{display:inline-flex;align-items:center;height:52px;padding:0 22px;border:1px solid var(--verde);color:var(--verde);font-weight:600}
-.pub .portada{position:relative;min-height:0;clip-path:polygon(12% 0,100% 0,100% 100%,0 100%)}
+/* borde izquierdo curvo: entra arriba, sale hasta el 65 % de la altura y vuelve hacia la base */
+.pub .portada{position:relative;min-height:0;--borde:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M14 0H100V100H7C4 92 0 80 0 65C0 45 10 25 14 0Z'/%3E%3C/svg%3E");-webkit-mask:var(--borde) 0 0/100% 100% no-repeat;mask:var(--borde) 0 0/100% 100% no-repeat}
 .pub .portada img{display:block;width:100%;height:100%;object-fit:cover;object-position:30% 60%}
-.pub .portada .pie{position:absolute;left:0;bottom:0;right:0;padding:40px 18px 14px;font-size:12px;color:#fff;background:linear-gradient(transparent,rgba(16,59,55,.75))}
+.pub .portada .pie{position:absolute;left:0;bottom:0;right:0;padding:40px 18px 14px calc(8% + 18px);font-size:12px;color:#fff;background:linear-gradient(transparent,rgba(16,59,55,.75))}
 /* propiedades: también en una pantalla */
 .pub .hoja-casas{background:var(--papel2);min-height:calc(100vh - 60px);padding:22px 0 28px;scroll-margin-top:60px}
 .pub .cab-casas{display:flex;align-items:end;justify-content:space-between;gap:28px;margin-bottom:16px}
@@ -165,7 +166,8 @@
   .pub .wrap{padding:0 18px}
   .pub .hnav{display:none}
   .pub .hero{grid-template-columns:1fr;gap:22px;padding-top:0}
-  .pub .portada{order:-1;margin:0 -18px;height:230px;clip-path:none}
+  .pub .portada{order:-1;margin:0 -18px;height:230px;-webkit-mask:none;mask:none}
+  .pub .portada .pie{padding-left:18px}
   .pub .intro h1{font-size:36px;margin-top:8px}
   .pub .hechos{grid-template-columns:1fr 1fr}
   .pub .hoja-casas{min-height:0}
