@@ -65,8 +65,8 @@ const TX = {
     llegarOver: 'Cómo llegar', llegarTit: 'A unas 4 horas de Buenos Aires',
     ruta: [['Ruta 2 hacia la costa', 'Desde CABA, autopista hasta pasar Dolores.'], ['Ruta 11 (Interbalnearia)', 'Hacia el sur, pasando Mar de Ajó.'], ['Entrada a Costa Esmeralda', 'Sobre la Ruta 11, al norte de Pinamar. Al confirmar te mandamos la ubicación exacta de la casa.']],
     abrirMaps: 'Abrir en Google Maps', esquema: 'Esquema, no a escala',
-    reservarOver: 'Cómo reservar', reservarTit: 'Simple y por escrito',
-    pasos: [['Consultás', 'Nos escribís por WhatsApp con tus fechas. Respondemos en el día.'], ['Señás el 50 %', 'Por transferencia. Te enviamos la confirmación de la reserva.'], ['Saldo 15 días antes', 'Transferís el resto hasta 15 días antes de llegar. Ese día la casa te espera lista.']],
+    reservarOver: 'Cómo reservar', reservarTit: 'Tu reserva, paso a paso',
+    pasos: [['Consultá disponibilidad', 'Elegí tu casa y escribile al propietario por WhatsApp con las fechas y la cantidad de huéspedes.'], ['Confirmá con el 50 %', 'Una vez acordadas las condiciones, abonás el 50 % por transferencia y recibís la confirmación de tu reserva por escrito.'], ['Completá el pago', 'Abonás el saldo al menos 15 días antes del ingreso y coordinás con el propietario los detalles de tu llegada.']],
     footer: 'Alquileres temporarios administrados por sus dueños — Costa Esmeralda, Buenos Aires', respondemos: 'Respondemos en el día',
   },
   en: {
@@ -87,8 +87,8 @@ const TX = {
     llegarOver: 'Getting there', llegarTit: 'About 4 hours from Buenos Aires',
     ruta: [['Route 2 to the coast', 'From Buenos Aires, highway past Dolores.'], ['Route 11 (Interbalnearia)', 'South, past Mar de Ajó.'], ['Costa Esmeralda entrance', 'On Route 11, north of Pinamar. We send the exact location once booked.']],
     abrirMaps: 'Open in Google Maps', esquema: 'Sketch, not to scale',
-    reservarOver: 'How to book', reservarTit: 'Simple and in writing',
-    pasos: [['Ask', 'Message us on WhatsApp with your dates. We reply the same day.'], ['Pay 50 %', 'By bank transfer. We send you the booking confirmation.'], ['Balance 15 days before', 'Transfer the rest up to 15 days before arrival. On the day, the house is ready for you.']],
+    reservarOver: 'How to book', reservarTit: 'Your booking, step by step',
+    pasos: [['Check availability', 'Choose your house and message the owner on WhatsApp with your dates and number of guests.'], ['Confirm with 50 %', 'Once the terms are agreed, you pay 50 % by bank transfer and receive your booking confirmation in writing.'], ['Complete the payment', 'You pay the balance at least 15 days before check-in and arrange the details of your arrival with the owner.']],
     footer: 'Vacation rentals managed by their owners — Costa Esmeralda, Buenos Aires', respondemos: 'We reply the same day',
   },
 }
