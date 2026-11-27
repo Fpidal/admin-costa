@@ -233,7 +233,7 @@ const initialForm = {
   ropa_blanca: false,
   limpieza_final: 0,
   monto_lavadero: 0,
-  moneda_limpieza: 'ARS',
+  moneda_limpieza: 'USD', // la limpieza final se cobra en dólares, como el alquiler
   moneda_lavadero: 'ARS',
   incluye_limpieza: false,
   incluye_lavadero: false,

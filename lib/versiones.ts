@@ -18,6 +18,7 @@ export const VERSIONES: Version[] = [
       'Ya no hay "registrarse": solo entra quien invita el administrador, y al aceptar la invitación crea su contraseña',
       'Seguridad: se cerraron permisos de más de la base (visitantes sin login con escritura, contactos abiertos, perfiles que se podían hacer admin, fotos que cualquiera podía borrar)',
       'La web pública siempre muestra todas las casas publicadas, aunque estés logueado en el panel',
+      'Nueva reserva: la limpieza final arranca en dólares (antes venía en pesos y era fácil cargarla mal)',
     ],
   },
   {
