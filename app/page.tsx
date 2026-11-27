@@ -8,6 +8,7 @@ import './publica.css'
 import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import { datosUtiles } from '@/lib/datosUtiles'
 import { supabasePublico as supabase } from '@/lib/supabase'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { useLanguage } from '@/hooks/useLanguage'
@@ -47,7 +48,7 @@ interface Reserva { propiedad_id: string | number; fecha_inicio: string; fecha_f
 // ---------- Textos ES / EN ----------
 const TX = {
   es: {
-    marcaSub: 'Directo con los dueños', nav: ['Propiedades', 'El barrio', 'Cómo llegar', 'Cómo reservar'], acceso: 'Acceso dueños',
+    marcaSub: 'Directo con los dueños', nav: ['Propiedades', 'El barrio', 'Cómo llegar', 'Cómo reservar', 'Datos útiles'], acceso: 'Acceso dueños',
     over: 'Costa Esmeralda · Buenos Aires', h1a: 'Casas para tus vacaciones, entre ', h1b: 'pinos', h1c: ' y mar.',
     sub: 'Alquileres temporarios en Costa Esmeralda, administrados directamente por sus dueños. Propiedades seleccionadas, equipadas y con atención personal de principio a fin.',
     hechos: [['Playa amplia', 'sin edificios'], ['Bosque y médanos', 'calles de arena'], ['Barrio cerrado', 'seguridad 24 h'], ['Golf y deportes', 'dentro del barrio'], ['A 380 km de CABA', 'por Ruta 2 y 11'], ['Trato directo', 'sin comisiones']],
@@ -69,7 +70,7 @@ const TX = {
     footer: 'Alquileres temporarios administrados por sus dueños — Costa Esmeralda, Buenos Aires', respondemos: 'Respondemos en el día',
   },
   en: {
-    marcaSub: 'Direct with the owners', nav: ['Homes', 'The area', 'Getting there', 'How to book'], acceso: 'Owners',
+    marcaSub: 'Direct with the owners', nav: ['Homes', 'The area', 'Getting there', 'How to book', 'Useful info'], acceso: 'Owners',
     over: 'Costa Esmeralda · Buenos Aires', h1a: 'Holiday homes between ', h1b: 'pines', h1c: ' and sea.',
     sub: 'Vacation rentals in Costa Esmeralda, managed directly by their owners. Selected, fully equipped homes with personal attention from start to finish.',
     hechos: [['Wide beach', 'no buildings'], ['Forest and dunes', 'sand streets'], ['Gated community', '24 h security'], ['Golf and sports', 'inside the area'], ['380 km from Buenos Aires', 'Routes 2 and 11'], ['Direct deal', 'no fees']],
@@ -153,6 +154,7 @@ function LandingContent() {
   const { language, toggleLanguage } = useLanguage()
   const en = language === 'en'
   const t = en ? TX.en : TX.es
+  const du = datosUtiles(en)
 
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
@@ -255,7 +257,7 @@ function LandingContent() {
     <div className="pub">
       <header><div className="wrap">
         <Link className="marca" href={isDemo ? '/?demo=true' : '/'} aria-label="Costa Directo">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/marca/costa-directo-horizontal-con-bajada-color.svg" alt="Costa Directo" /></Link>
-        <nav className="hnav">{['#casas', '#barrio', '#llegar', '#reservar'].map((h, i) => <a key={h} href={h}>{t.nav[i]}</a>)}</nav>
+        <nav className="hnav">{['#casas', '#barrio', '#llegar', '#reservar', '#datos'].map((h, i) => <a key={h} href={h}>{t.nav[i]}</a>)}</nav>
         <div className="hder">
           <button type="button" onClick={toggleLanguage} aria-label="Idioma">{en ? <>ES / <b>EN</b></> : <><b>ES</b> / EN</>}</button>
           <Link href={isDemo ? '/admin?demo=true' : '/admin'}>{t.acceso}</Link>
@@ -417,6 +419,26 @@ function LandingContent() {
           <div className="wrap">
             <div className="sec-tit"><div><div className="over">{t.reservarOver}</div><h2>{t.reservarTit}</h2></div></div>
             <div className="pasos">{t.pasos.map(([b, s], i) => <div key={b}><div className="n">{i + 1}</div><h4>{b}</h4><p>{s}</p></div>)}</div>
+          </div>
+        </section>
+
+        {/* Datos útiles: teléfonos del barrio y de Pinamar */}
+        <section className="sec datos" id="datos">
+          <div className="wrap">
+            <div className="sec-tit"><div><div className="over">{du.over}</div><h2>{du.titulo}</h2></div><p>{du.sub}</p></div>
+            <div className="tel-grupos">
+              {du.telefonos.map(g => (
+                <div key={g.titulo}>
+                  <h4>{g.titulo}</h4>
+                  <ul>{g.items.map(it => (
+                    <li key={it.nombre}><span><b>{it.nombre}</b>{it.nota && <small>{it.nota}</small>}</span><a href={`tel:${it.tel}`}>{it.numero}</a></li>
+                  ))}</ul>
+                </div>
+              ))}
+            </div>
+            <h4 className="consejos-tit">{du.consejosTit}</h4>
+            <div className="consejos">{du.consejos.map(([b, s]) => <div key={b}><b>{b}</b><p>{s}</p></div>)}</div>
+            <p className="fuente">{du.fuente}</p>
           </div>
         </section>
       </main>

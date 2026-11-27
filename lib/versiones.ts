@@ -16,6 +16,7 @@ export const VERSIONES: Version[] = [
       'Nuevo nombre y logo Costa Directo en el menú, la pantalla de ingreso, la web pública y el pie de los PDF',
       'Ícono de Costa Directo en la pestaña del navegador y cuando se comparte el link por WhatsApp (imagen de marca)',
       'Botón en el celular: "Agregar a pantalla de inicio" desde el panel abre directo el panel; desde la web, la portada',
+      'Web pública: nueva sección Datos útiles con los teléfonos del barrio (guardia, ambulancia, proveeduría, paradores), salud y Pinamar, y lo que el huésped tiene que saber (ingreso, basura, ruidos, mascotas). Se toca el número y llama',
     ],
   },
   {
