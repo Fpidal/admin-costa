@@ -275,7 +275,7 @@ export function generarReporteReservasPDF(opts: {
     doc.setFontSize(6.5)
     doc.setTextColor(...GRIS)
     doc.text('Total = alquiler + servicios con cargo. Cobrado no incluye el depósito en garantía; las devoluciones de seña restan.', M, H - 7)
-    doc.text(paginas > 1 ? `Admin Costa · Hoja ${p} de ${paginas}` : 'Admin Costa', W - M, H - 7, { align: 'right' })
+    doc.text(paginas > 1 ? `Costa Directo · Hoja ${p} de ${paginas}` : 'Costa Directo', W - M, H - 7, { align: 'right' })
   }
 
   const nombreArchivo = `Reporte_reservas_${opts.periodo.replace(/[^\w]+/g, '_')}_${hoy.replace(/\//g, '-')}.pdf`

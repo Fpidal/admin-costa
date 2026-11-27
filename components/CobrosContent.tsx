@@ -689,7 +689,7 @@ export function CobrosContent({ reservaId, showNavigation = true, showHeader = t
     doc.text('Aclaración', pageWidth - margin - 40, y + 8)
 
     doc.setFontSize(8)
-    doc.text('Admin Costa - Gestión de Alquileres', pageWidth / 2, 280, { align: 'center' })
+    doc.text('Costa Directo - Gestión de Alquileres', pageWidth / 2, 280, { align: 'center' })
     doc.text(`Generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 285, { align: 'center' })
 
     doc.save(`Recibo_001-${numRecibo}_${reserva.inquilinos?.nombre?.replace(/\s/g, '_') || 'pago'}.pdf`)

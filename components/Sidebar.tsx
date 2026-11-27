@@ -82,7 +82,8 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
         </button>
         <div className="flex items-center gap-2 min-w-0 flex-1 justify-center">
-          <span className="text-base font-bold text-white truncate">Admin Costa</span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/marca/costa-directo-horizontal-negativo.svg" alt="Costa Directo" className="h-[18px] w-auto" />
           {isDemo && (
             <span className="px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full flex-shrink-0">DEMO</span>
           )}
@@ -123,16 +124,13 @@ export default function Sidebar({ onLogout, isDemo = false, isAdmin = false, use
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="py-3.5 flex flex-col items-center justify-center px-4 border-b border-white/15 text-center">
-            <h1 className="text-xl font-bold tracking-tight text-white">Admin Costa</h1>
-            {isDemo ? (
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/marca/costa-directo-horizontal-con-bajada-negativo.svg" alt="Costa Directo" className="w-[200px] h-auto my-1" />
+            {isDemo && (
               <div className="flex items-center gap-1.5 mt-2 px-3 py-1 bg-amber-100 rounded-full">
                 <Eye size={14} className="text-amber-600" />
                 <span className="text-xs font-medium text-amber-700">Modo Demo</span>
               </div>
-            ) : (
-              <p className="text-xs font-semibold uppercase tracking-widest mt-1 text-white/60">
-                Administrada por sus dueños
-              </p>
             )}
           </div>
 

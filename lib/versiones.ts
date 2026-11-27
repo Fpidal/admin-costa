@@ -11,6 +11,14 @@ export interface Version {
 
 export const VERSIONES: Version[] = [
   {
+    version: '2.5', fecha: '27/11/2026', titulo: 'Marca Costa Directo',
+    cambios: [
+      'Nuevo nombre y logo Costa Directo en el menú, la pantalla de ingreso, la web pública y el pie de los PDF',
+      'Ícono de Costa Directo en la pestaña del navegador y cuando se comparte el link por WhatsApp (imagen de marca)',
+      'Botón en el celular: "Agregar a pantalla de inicio" desde el panel abre directo el panel; desde la web, la portada',
+    ],
+  },
+  {
     version: '2.4', fecha: '27/11/2026', titulo: 'Usuarios con permisos',
     cambios: [
       'Usuarios: invitás a cada dueño por mail o con un link para WhatsApp y tildás qué secciones puede usar (Casas, Precios, Reservas y cobros, Gastos, Informes, Piezas gráficas)',

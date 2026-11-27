@@ -1,4 +1,6 @@
-# Admin Costa Esmeralda
+# Costa Directo (admin-costa)
+
+Alquileres en Costa Esmeralda administrados por sus dueños. Marca: logos e íconos en `public/marca/` y `public/` (favicon, apple-touch-icon, manifests `site.webmanifest` y `admin.webmanifest`).
 
 Sistema de administración de propiedades para alquileres temporarios en Costa Esmeralda.
 

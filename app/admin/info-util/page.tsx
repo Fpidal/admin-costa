@@ -444,7 +444,7 @@ export default function InfoUtilPage() {
       doc.setPage(i)
       doc.setFontSize(7)
       doc.setTextColor(150, 150, 150)
-      doc.text(`Página ${i} de ${totalPages}  |  Documento confidencial  |  Admin Costa Esmeralda`, pageWidth / 2, pageHeight - 10, { align: 'center' })
+      doc.text(`Página ${i} de ${totalPages}  |  Documento confidencial  |  Costa Directo`, pageWidth / 2, pageHeight - 10, { align: 'center' })
     }
 
     doc.save('inquilinos-no-recomendados.pdf')

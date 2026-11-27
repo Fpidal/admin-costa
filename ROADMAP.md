@@ -2,6 +2,10 @@
 
 ## Actualizaciones Recientes (Noviembre 2026)
 
+### Marca Costa Directo (v2.5)
+- [x] Logo en menú, ingreso, web pública y PDFs; favicon, ícono para celular (manifest propio del panel en /admin) e imagen para links compartidos
+- Archivos de marca en `public/marca/` y `public/` (kit en Escritorio/Costa Esmeralda/Costa Directo)
+
 ### Usuarios con permisos (v2.4)
 - Super admin invita dueños (mail o link para WhatsApp) y tilda secciones: casas, precios, reservas, gastos, informes, piezas (`lib/permisos.ts`)
 - La base controla lo mismo con `tiene_permiso()` en cada policy (sql/27); sin registro público

@@ -12,6 +12,7 @@
 .pub header{border-bottom:1px solid var(--linea);background:var(--papel);position:sticky;top:0;z-index:30}
 .pub header .wrap{display:flex;align-items:center;justify-content:space-between;height:60px;gap:24px}
 .pub .marca{font-family:var(--font-fraunces),serif;font-size:20px;color:var(--verde);line-height:1.1}
+.pub .marca img{height:36px;width:auto}
 .pub .marca small{display:block;font-family:var(--font-manrope),sans-serif;font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--tx2)}
 .pub .hnav{display:flex;gap:26px;font-size:13px;color:var(--tx2)}
 .pub .hnav a:hover{color:var(--verde)}
@@ -116,7 +117,8 @@
 .pub .pasos p{color:var(--tx2);font-size:14px}
 .pub footer{background:var(--verde);color:rgba(250,246,239,.75);padding:44px 0 36px;font-size:13px}
 .pub footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:end}
-.pub footer .marca-f{font-family:var(--font-fraunces),serif;font-size:24px;color:var(--papel);font-weight:300}
+.pub footer .marca-f{margin-bottom:12px}
+.pub footer .marca-f img{height:42px;width:auto}
 .pub .barra-wa{display:none}
 /* ficha de una casa */
 .pub .ficha-fondo{position:fixed;inset:0;z-index:50;background:rgba(16,30,28,.6);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -138,6 +140,9 @@
   .pub .cab-casas{flex-direction:column;align-items:stretch}
 }
 @media (max-width:760px){
+  .pub .marca img{height:26px}
+  .pub header .wrap{gap:12px}
+  .pub .hder{gap:12px;white-space:nowrap;font-size:12.5px}
   .pub .wrap{padding:0 18px}
   .pub .hnav{display:none}
   .pub .hero{grid-template-columns:1fr;gap:22px;padding-top:0}

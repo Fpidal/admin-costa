@@ -1137,7 +1137,7 @@ function ReservasContent() {
       doc.setTextColor(150, 150, 150)
       doc.setFontSize(8)
       doc.setFont('helvetica', 'normal')
-      doc.text('Admin Costa - Sistema de Gestión de Alquileres', pageWidth / 2, 280, { align: 'center' })
+      doc.text('Costa Directo - Gestión de Alquileres', pageWidth / 2, 280, { align: 'center' })
       doc.text(`Generado el ${new Date().toLocaleString('es-AR')}`, pageWidth / 2, 285, { align: 'center' })
     }
 

@@ -254,7 +254,7 @@ function LandingContent() {
   return (
     <div className="pub">
       <header><div className="wrap">
-        <Link className="marca" href={isDemo ? '/?demo=true' : '/'}>Alquileres Costa Esmeralda<small>{t.marcaSub}</small></Link>
+        <Link className="marca" href={isDemo ? '/?demo=true' : '/'} aria-label="Costa Directo">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/marca/costa-directo-horizontal-con-bajada-color.svg" alt="Costa Directo" /></Link>
         <nav className="hnav">{['#casas', '#barrio', '#llegar', '#reservar'].map((h, i) => <a key={h} href={h}>{t.nav[i]}</a>)}</nav>
         <div className="hder">
           <button type="button" onClick={toggleLanguage} aria-label="Idioma">{en ? <>ES / <b>EN</b></> : <><b>ES</b> / EN</>}</button>
@@ -422,7 +422,7 @@ function LandingContent() {
       </main>
 
       <footer><div className="wrap">
-        <div><div className="marca-f">Alquileres Costa Esmeralda</div>{t.footer}</div>
+        <div><div className="marca-f">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/marca/costa-directo-horizontal-con-bajada-negativo.svg" alt="Costa Directo" /></div>{t.footer}</div>
         <div><Link href="/admin">{t.acceso}</Link></div>
       </div></footer>
 
