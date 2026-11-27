@@ -14,6 +14,7 @@ export const VERSIONES: Version[] = [
     version: '2.5', fecha: '27/11/2026', titulo: 'Marca Costa Directo',
     cambios: [
       'Web: textos nuevos en "Tu reserva, paso a paso" (consultá, confirmá con el 50 %, completá el pago al menos 15 días antes)',
+      'Web: mapa nuevo en "Cómo llegar" (por Ruta 2 y por Rutas 36 y 11, hasta Costa Esmeralda)',
       'Web: la foto de la portada tiene el borde izquierdo curvo (entra arriba, sale hacia la izquierda y vuelve suave hacia la base), para que no sea un rectángulo común',
       'Web: "Acceso dueños" queda solo al pie de la página; arriba, el menú y el idioma',
       'Web: el precio de cada casa dice "Desde U$D 220 / noche".',

@@ -64,7 +64,7 @@ const TX = {
     amen: [['Playa con paradores', 'Kilómetros de costa y guardavidas'], ['Golf', 'Cancha propia dentro del barrio'], ['Club hípico', 'Cabalgatas y equitación'], ['Tenis y pádel', 'Canchas en la zona deportiva'], ['Club house', 'Restaurante y encuentro'], ['Área comercial', 'Proveeduría, cafés y servicios'], ['Bicisendas y senderos', 'Para recorrer el bosque'], ['Seguridad 24 h', 'Acceso controlado y vigilancia']],
     llegarOver: 'Cómo llegar', llegarTit: 'A unas 4 horas de Buenos Aires',
     ruta: [['Ruta 2 hacia la costa', 'Desde CABA, autopista hasta pasar Dolores.'], ['Ruta 11 (Interbalnearia)', 'Hacia el sur, pasando Mar de Ajó.'], ['Entrada a Costa Esmeralda', 'Sobre la Ruta 11, al norte de Pinamar. Al confirmar te mandamos la ubicación exacta de la casa.']],
-    abrirMaps: 'Abrir en Google Maps', esquema: 'Esquema, no a escala',
+    abrirMaps: 'Abrir en Google Maps',
     reservarOver: 'Cómo reservar', reservarTit: 'Tu reserva, paso a paso',
     pasos: [['Consultá disponibilidad', 'Elegí tu casa y escribile al propietario por WhatsApp con las fechas y la cantidad de huéspedes.'], ['Confirmá con el 50 %', 'Una vez acordadas las condiciones, abonás el 50 % por transferencia y recibís la confirmación de tu reserva por escrito.'], ['Completá el pago', 'Abonás el saldo al menos 15 días antes del ingreso y coordinás con el propietario los detalles de tu llegada.']],
     footer: 'Alquileres temporarios administrados por sus dueños — Costa Esmeralda, Buenos Aires', respondemos: 'Respondemos en el día',
@@ -86,7 +86,7 @@ const TX = {
     amen: [['Beach clubs', 'Miles of coast and lifeguards'], ['Golf', 'Its own course'], ['Riding club', 'Horse rides and lessons'], ['Tennis and padel', 'Courts in the sports area'], ['Club house', 'Restaurant and meeting point'], ['Shopping area', 'Grocery, cafés and services'], ['Bike paths and trails', 'Through the forest'], ['24 h security', 'Controlled access']],
     llegarOver: 'Getting there', llegarTit: 'About 4 hours from Buenos Aires',
     ruta: [['Route 2 to the coast', 'From Buenos Aires, highway past Dolores.'], ['Route 11 (Interbalnearia)', 'South, past Mar de Ajó.'], ['Costa Esmeralda entrance', 'On Route 11, north of Pinamar. We send the exact location once booked.']],
-    abrirMaps: 'Open in Google Maps', esquema: 'Sketch, not to scale',
+    abrirMaps: 'Open in Google Maps',
     reservarOver: 'How to book', reservarTit: 'Your booking, step by step',
     pasos: [['Check availability', 'Choose your house and message the owner on WhatsApp with your dates and number of guests.'], ['Confirm with 50 %', 'Once the terms are agreed, you pay 50 % by bank transfer and receive your booking confirmation in writing.'], ['Complete the payment', 'You pay the balance at least 15 days before check-in and arrange the details of your arrival with the owner.']],
     footer: 'Vacation rentals managed by their owners — Costa Esmeralda, Buenos Aires', respondemos: 'We reply the same day',
@@ -379,30 +379,7 @@ function LandingContent() {
         <section className="sec" id="llegar">
           <div className="wrap mapa-grid">
             <div className="mapa">
-              <svg viewBox="0 0 520 400" role="img" aria-label={t.llegarTit}>
-                <rect width="520" height="400" fill="#f4efe6" />
-                <path d="M300 0 C 300 40 250 70 270 110 C 300 160 380 190 400 240 C 420 290 400 330 430 400 L520 400 L520 0Z" fill="#dbe7e6" />
-                <path d="M300 0 C 300 40 250 70 270 110 C 300 160 380 190 400 240 C 420 290 400 330 430 400" fill="none" stroke="#b9cfcd" strokeWidth="2" />
-                <text x="418" y="120" fontStyle="italic" fontSize="15" fill="#7c9a97">Mar Argentino</text>
-                <text x="300" y="40" fontStyle="italic" fontSize="13" fill="#7c9a97">Río de la Plata</text>
-                <path d="M110 60 C 150 120 175 170 200 230 C 215 265 260 270 300 250 C 340 235 365 240 392 262" fill="none" stroke="#c9a86a" strokeWidth="5" strokeLinecap="round" />
-                <path d="M290 110 C 330 160 360 190 380 230 C 388 245 392 255 392 262" fill="none" stroke="#c9a86a" strokeWidth="3" strokeDasharray="2 6" strokeLinecap="round" />
-                <rect x="150" y="128" width="54" height="20" rx="3" fill="#103b37" /><text x="177" y="142" textAnchor="middle" fontSize="11" fontWeight="600" fill="#fff">Ruta 2</text>
-                <rect x="300" y="246" width="60" height="20" rx="3" fill="#103b37" /><text x="330" y="260" textAnchor="middle" fontSize="11" fontWeight="600" fill="#fff">Ruta 11</text>
-                <g fontSize="12" fill="#4a5451">
-                  <circle cx="110" cy="60" r="6" fill="#103b37" /><text x="122" y="64" fontWeight="600" fill="#103b37">CABA</text>
-                  <circle cx="200" cy="230" r="3.5" fill="#8b9490" /><text x="130" y="234">Dolores</text>
-                  <circle cx="290" cy="110" r="3.5" fill="#8b9490" /><text x="226" y="105">San Clemente</text>
-                  <circle cx="345" cy="185" r="3.5" fill="#8b9490" /><text x="268" y="190">Mar de Ajó</text>
-                  <circle cx="412" cy="292" r="3.5" fill="#8b9490" /><text x="420" y="300">Pinamar</text>
-                  <circle cx="425" cy="345" r="3.5" fill="#8b9490" /><text x="433" y="352">Villa Gesell</text>
-                </g>
-                <circle cx="392" cy="262" r="16" fill="#1f7a4d" opacity=".18" />
-                <circle cx="392" cy="262" r="8" fill="#1f7a4d" stroke="#fff" strokeWidth="2.5" />
-                <rect x="396" y="196" width="118" height="30" rx="4" fill="#fff" stroke="#1f7a4d" />
-                <text x="455" y="216" textAnchor="middle" fontSize="14" fill="#103b37">Costa Esmeralda</text>
-                <text x="20" y="385" fontSize="11" fill="#8b9490">{t.esquema}</text>
-              </svg>
+              <img src="/como-llegar.jpg" alt={t.llegarTit} width={1100} height={1100} loading="lazy" />
             </div>
             <div>
               <div className="over">{t.llegarOver}</div>

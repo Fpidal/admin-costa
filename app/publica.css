@@ -103,7 +103,7 @@
 .pub .amenities span{font-size:13px;color:rgba(250,246,239,.7)}
 .pub .mapa-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:48px;align-items:center}
 .pub .mapa{background:#fff;border:1px solid var(--linea);padding:10px}
-.pub .mapa svg{width:100%;height:auto;display:block}
+.pub .mapa img{width:100%;height:auto;display:block}
 .pub .ruta{list-style:none;padding:0;counter-reset:p}
 .pub .ruta li{counter-increment:p;display:grid;grid-template-columns:44px 1fr;gap:12px;padding:16px 0;border-bottom:1px solid var(--linea)}
 .pub .ruta li:before{content:counter(p);font-family:var(--font-fraunces),serif;font-style:italic;font-size:34px;color:var(--verde);line-height:1}
