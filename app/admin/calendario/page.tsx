@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui'
 import { ChevronLeft, ChevronRight, Home } from 'lucide-react'
 import { demoPropiedades, demoReservas } from '@/lib/demoData'
 import { obtenerInfoMesConCustom, FeriadoCustom } from '@/lib/calendarioArgentina'
+import { PanelFeriados } from '@/components/PanelFeriados'
 import { nochesEntre } from '@/lib/resumenReservas'
 
 // Tablero del mes: una fila por casa y una columna por día, todas juntas.
@@ -52,6 +53,7 @@ function CalendarioContent() {
   const [propiedades, setPropiedades] = useState<Propiedad[]>([])
   const [reservas, setReservas] = useState<Reserva[]>([])
   const [feriadosCustom, setFeriadosCustom] = useState<FeriadoCustom[]>([])
+  const [recargarFeriados, setRecargarFeriados] = useState(0)
   const [loading, setLoading] = useState(true)
   const [mes, setMes] = useState(new Date().getMonth())
   const [anio, setAnio] = useState(new Date().getFullYear())
@@ -91,7 +93,7 @@ function CalendarioContent() {
     supabase.from('feriados_custom').select('*').eq('user_id', userId)
       .gte('fecha', `${anio}-01-01`).lte('fecha', `${anio}-12-31`).order('fecha')
       .then(({ data }) => { if (data) setFeriadosCustom(data) })
-  }, [anio, userId, isDemo])
+  }, [anio, userId, isDemo, recargarFeriados])
 
   const feriados = useMemo(() => obtenerInfoMesConCustom(anio, mes, feriadosCustom), [anio, mes, feriadosCustom])
 
@@ -230,7 +232,7 @@ function CalendarioContent() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
+          <div className="space-y-4">
             <Card>
               <CardContent className="py-3">
                 <h3 className="mb-2 font-bold text-costa-esmeralda">Reservas de {MESES[mes].toLowerCase()}</h3>
@@ -256,21 +258,10 @@ function CalendarioContent() {
                 )}
               </CardContent>
             </Card>
+            {/* Feriados del año: oficiales, fines de semana largos y los propios */}
             <Card>
               <CardContent className="py-3">
-                <h3 className="mb-2 font-bold text-costa-esmeralda">Feriados de {MESES[mes].toLowerCase()}</h3>
-                {feriados.size === 0 ? (
-                  <p className="py-4 text-sm text-costa-gris">Sin feriados este mes.</p>
-                ) : (
-                  <ul className="space-y-1.5 text-sm">
-                    {Array.from(feriados.values()).sort((a, b) => a.fecha.localeCompare(b.fecha)).map(f => (
-                      <li key={f.fecha} className="flex gap-3">
-                        <span className="w-12 shrink-0 font-semibold tabular-nums text-sky-800">{formatFecha(f.fecha).slice(0, 5)}</span>
-                        <span className="text-costa-navy">{f.nombre}{f.esFinDeSemanaLargo && <span className="text-costa-gris"> · fin de semana largo</span>}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+                <PanelFeriados key={anio} year={anio} abierto onFeriadosChange={() => setRecargarFeriados(n => n + 1)} />
               </CardContent>
             </Card>
           </div>

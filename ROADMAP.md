@@ -6,6 +6,9 @@
 - [x] Logo en menú, ingreso, web pública y PDFs; favicon, ícono para celular (manifest propio del panel en /admin) e imagen para links compartidos
 - Archivos de marca en `public/marca/` y `public/` (kit en Escritorio/Costa Esmeralda/Costa Directo)
 
+### Feriados en Calendario (v2.5)
+- [x] PanelFeriados se mudó de Casas → Precios a Calendario (abierto, sigue el año del tablero y refresca los feriados del tablero al editar)
+
 ### Datos útiles en la web (v2.5)
 - [x] Sección #datos en la portada con teléfonos y consejos, en `lib/datosUtiles.ts` (fuente: libreta Info Útil 2024 de Costa Esmeralda y pinamar.tur.ar). Revisar antes de cada temporada
 - [ ] Si se quiere editar desde el panel: pasarlo a la tabla info_util con lectura pública por columnas

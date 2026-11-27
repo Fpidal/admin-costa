@@ -16,13 +16,15 @@ import { ChevronDown, ChevronUp, Calendar, Flag, Plus, Pencil, Trash2, Save, X }
 interface PanelFeriadosProps {
   year: number
   onFeriadosChange?: (feriados: FeriadoCustom[]) => void
+  /** Arranca con la lista desplegada */
+  abierto?: boolean
 }
 
-export function PanelFeriados({ year: anioInicial, onFeriadosChange }: PanelFeriadosProps) {
+export function PanelFeriados({ year: anioInicial, onFeriadosChange, abierto = false }: PanelFeriadosProps) {
   // Se puede pasar de año desde el propio panel
   const [year, setYear] = useState(anioInicial)
   const { userId } = useAuth()
-  const [expanded, setExpanded] = useState(false)
+  const [expanded, setExpanded] = useState(abierto)
   const [feriadosCustom, setFeriadosCustom] = useState<FeriadoCustom[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -230,7 +232,7 @@ export function PanelFeriados({ year: anioInicial, onFeriadosChange }: PanelFeri
               Todos los feriados
               <span className="font-normal text-costa-gris ml-1">(los que agregaste vos se pueden editar)</span>
             </h4>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 max-h-64 overflow-y-auto">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {Object.entries(feriadosPorMes).map(([mes, feriadosMes]) => (
                 <div key={mes}>
                   <div className="text-[10px] font-bold text-costa-gris uppercase tracking-wider mb-1">{mes}</div>

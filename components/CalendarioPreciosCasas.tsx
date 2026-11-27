@@ -7,7 +7,6 @@ import { generarFeriadosAnio } from '@/lib/calendarioArgentina'
 import { FERIADO_LARGO, precioDelDia, diasFeriadoLargo } from '@/lib/preciosReglas'
 import type { PriceRule } from '@/lib/priceRules'
 import { demoReservas } from '@/lib/demoData'
-import { PanelFeriados } from '@/components/PanelFeriados'
 
 // Calendario de precios de todas las casas a la vez (o de una sola): cada día
 // muestra el precio por noche que sale de las reglas de precios, o si ya está
@@ -379,11 +378,6 @@ export function CalendarioPreciosCasas({ casas, userId, isDemo, casaInicial, onC
             <span className="flex items-center gap-1.5"><i className="w-3.5 h-3 rounded border border-dashed border-[#a9a297]" />Sin confirmar</span>
             <span className="flex items-center gap-1.5"><i className="w-3.5 h-3 rounded bg-[#f6e1cf]" />Feriado</span>
             <span>— sin precio cargado</span>
-          </div>
-
-          {/* Feriados, dentro del mismo recuadro del calendario */}
-          <div className="mt-4 border-t border-costa-borde pt-3">
-            <PanelFeriados key={anio} year={anio} />
           </div>
         </div>
 
