@@ -422,7 +422,7 @@ function LandingContent() {
 
       <footer><div className="wrap">
         <div><div className="marca-f">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/marca/costa-directo-horizontal-con-bajada-negativo.svg" alt="Costa Directo" /></div>{t.footer}</div>
-        <div><Link href="/admin">{t.acceso}</Link></div>
+        <div><Link href="/admin" className="acceso-f">{t.acceso} →</Link></div>
       </div></footer>
 
       {/* Celular: WhatsApp siempre a mano */}

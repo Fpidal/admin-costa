@@ -167,6 +167,8 @@
 .pub footer .wrap{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:end}
 .pub footer .marca-f{margin-bottom:12px}
 .pub footer .marca-f img{height:42px;width:auto}
+.pub footer .acceso-f{display:inline-flex;align-items:center;height:44px;padding:0 20px;border:1px solid rgba(250,246,239,.55);color:var(--papel);font-weight:600;font-size:14px;text-decoration:none}
+.pub footer .acceso-f:hover{background:var(--papel);color:var(--verde)}
 .pub .barra-wa{display:none}
 /* ficha de una casa */
 .pub .ficha-fondo{position:fixed;inset:0;z-index:50;background:rgba(16,30,28,.6);display:flex;align-items:center;justify-content:center;padding:24px}
