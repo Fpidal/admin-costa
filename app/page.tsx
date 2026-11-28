@@ -58,7 +58,7 @@ const TX = {
     props: 'Propiedades', elegi: 'Elegí tu casa', llegada: 'Llegada', salida: 'Salida', personas: 'Personas', barrio: 'Barrio', todos: 'Todos',
     verPrecios: 'Ver precios', limpiar: 'Limpiar', vacio: 'No hay propiedades para esa búsqueda.',
     personasC: 'personas', dormC: 'dormitorios', banosC: 'baños', m2C: 'm² cubiertos',
-    desde: 'Desde', porNoche: '/ noche', noches: (n: number) => `${n} noche${n !== 1 ? 's' : ''} en tus fechas`, consultaPrecio: 'Consultá el precio',
+    desde: 'Desde', porNoche: '/ noche', noches: (n: number) => `${n} noche${n !== 1 ? 's' : ''} en tus fechas`, consultaPrecio: 'Consultá el precio', notaExtras: 'Precio por la estadía. Para más detalles y gastos adicionales, como la limpieza final, comunicate con el dueño.',
     libre: (a: string, b: string) => `Libre del ${a} al ${b}`, ocupada: 'Ocupada algunas noches · consultanos', elegiFechas: 'Elegí fechas para ver el total',
     capacidad: (n: number) => `Hasta ${n} personas`, consultar: 'Consultar', verFicha: 'Ver ficha completa', compartir: 'Compartir', copiado: 'Link copiado',
     lote: 'Lote', plantas: 'plantas',
@@ -80,7 +80,7 @@ const TX = {
     props: 'Homes', elegi: 'Choose your home', llegada: 'Check-in', salida: 'Check-out', personas: 'Guests', barrio: 'Area', todos: 'All',
     verPrecios: 'See prices', limpiar: 'Clear', vacio: 'No homes match your search.',
     personasC: 'guests', dormC: 'bedrooms', banosC: 'bathrooms', m2C: 'm² built',
-    desde: 'From', porNoche: '/ night', noches: (n: number) => `${n} night${n !== 1 ? 's' : ''} on your dates`, consultaPrecio: 'Ask for the price',
+    desde: 'From', porNoche: '/ night', noches: (n: number) => `${n} night${n !== 1 ? 's' : ''} on your dates`, consultaPrecio: 'Ask for the price', notaExtras: 'Price for your stay. For more details and additional costs, such as final cleaning, please contact the owner.',
     libre: (a: string, b: string) => `Available ${a} – ${b}`, ocupada: 'Some nights taken · ask us', elegiFechas: 'Choose dates to see the total',
     capacidad: (n: number) => `Up to ${n} guests`, consultar: 'Ask', verFicha: 'See full details', compartir: 'Share', copiado: 'Link copied',
     lote: 'Lot', plantas: 'floors',
@@ -232,12 +232,18 @@ function LandingContent() {
   const conPrecio = tarjetas.map(x => x.desde).filter(Boolean)
   const desdeGeneral = conPrecio.length ? Math.min(...conPrecio) : 0
 
-  // "Hola, consulto por Deportiva 1 para 8 personas del 03/01 al 10/01"
+  // Mensaje de WhatsApp: casa, personas, fechas y, si hay, el total que vio en la web
   function mensaje(p: Propiedad) {
-    const fechas = hayFechas ? (en ? ` from ${dm(llegada)} to ${dm(salida)}` : ` del ${dm(llegada)} al ${dm(salida)}`) : ''
+    const est = tarjetas.find(x => String(x.p.id) === String(p.id))?.est
+    const total = est?.completo ? `U$D ${fmt(est.total)}` : ''
+    const pers = en ? `${personas} ${personas !== 1 ? 'people' : 'person'}` : `${personas} ${personas !== 1 ? 'personas' : 'persona'}`
+    if (!hayFechas) return en
+      ? `Hi, how are you? I saw ${p.nombre} on Costa Directo and I'm interested for ${pers}. Which dates are available?`
+      : `Hola, ¿cómo estás? Vi ${p.nombre} en Costa Directo y me interesa para ${pers}. ¿Qué fechas tenés disponibles?`
+    const n = est?.noches || 0
     return en
-      ? `Hi, I'm asking about ${p.nombre} for ${personas} ${personas !== 1 ? 'people' : 'person'}${fechas}`
-      : `Hola, consulto por ${p.nombre} para ${personas} ${personas !== 1 ? 'personas' : 'persona'}${fechas}`
+      ? `Hi, how are you? I saw ${p.nombre} on Costa Directo and I'm interested for ${pers}, from ${dm(llegada)} to ${dm(salida)} (${n} night${n !== 1 ? 's' : ''}).${total ? ` The website shows ${total} for the stay.` : ''} Could you confirm availability and whether there are any additional costs?`
+      : `Hola, ¿cómo estás? Vi ${p.nombre} en Costa Directo y me interesa para ${pers}, del ${dm(llegada)} al ${dm(salida)} (${n} noche${n !== 1 ? 's' : ''}).${total ? ` En la web figura ${total} por la estadía.` : ''} ¿Me confirmás disponibilidad y si hay algún costo adicional?`
   }
   const linkWA = (p: Propiedad) => `https://wa.me/${telWA(p.telefono_contacto)}?text=${encodeURIComponent(mensaje(p))}`
 
@@ -349,6 +355,7 @@ function LandingContent() {
                             : desde ? <><small>{t.desde}</small> U$D {fmt(desde)} <small>{t.porNoche}</small></> : <small>{t.consultaPrecio}</small>}</div>
                           {est && (est.completo || desde > 0) && <div className="t">{t.noches(est.noches)}<b>{est.completo ? `U$D ${fmt(est.total)}` : t.consultaPrecio}</b></div>}
                         </div>
+                        {est?.completo && <p className="nota-extras">{t.notaExtras}</p>}
                         <div className="cierre">
                           <div className={`disp ${!hayFechas ? '' : ocupada ? 'no' : 'si'}`}><i />
                             {!entra ? t.capacidad(p.capacidad) : !hayFechas ? t.elegiFechas : ocupada ? t.ocupada : t.libre(dm(llegada), dm(salida))}
@@ -476,10 +483,13 @@ function LandingContent() {
                 {ficha.descripcion && <div className="desc">{ficha.descripcion}</div>}
                 {tj && (
                   <div className="precio">
-                    <div className="m">{tj.desde ? <><small>{t.desde}</small> U$D {fmt(tj.desde)} <small>{t.porNoche}</small></> : <small>{t.consultaPrecio}</small>}</div>
+                    <div className="m">{tj.est?.completo
+                      ? <>U$D {fmt(tj.est.precioPromedio)} <small>{t.porNoche}</small></>
+                      : tj.desde ? <><small>{t.desde}</small> U$D {fmt(tj.desde)} <small>{t.porNoche}</small></> : <small>{t.consultaPrecio}</small>}</div>
                     {tj.est && <div className="t">{t.noches(tj.est.noches)}<b>{tj.est.completo ? `U$D ${fmt(tj.est.total)}` : t.consultaPrecio}</b></div>}
                   </div>
                 )}
+                {tj?.est?.completo && <p className="nota-extras" style={{ margin: '-6px 0 0' }}>{t.notaExtras}</p>}
                 <div className="acciones">
                   <a className="wa" style={{ flex: 1 }} href={linkWA(ficha)} target="_blank" rel="noopener noreferrer"><IcoWA />{t.consultar}</a>
                   <button type="button" onClick={() => compartir(ficha)}>{copiado ? t.copiado : t.compartir}</button>
