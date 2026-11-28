@@ -15,6 +15,7 @@ export const VERSIONES: Version[] = [
     cambios: [
       'Web: calendario nuevo para elegir llegada y salida (se marca el rango y las noches; en el celular sale desde abajo). Los cuadros de Llegada y Salida vuelven a tener el alto de antes',
       'Web: con fechas elegidas, cada casa muestra el precio promedio por noche de esas fechas (ej. U$D 328 / noche) en vez del "Desde" del año',
+      'Web: el botón Consultar muestra bien el logo de WhatsApp (antes se veía como una mancha)',
       'Web: "Acceso dueños" al pie ahora es un botón con borde, más fácil de ver',
       'Web: mensaje de WhatsApp nuevo: "Hola, ¿cómo estás? Vi la casa en Costa Directo y me interesa para 2 personas, del 03/01 al 08/01 (5 noches). En la web figura U$D 1.640 por la estadía. ¿Me confirmás disponibilidad y si hay algún costo adicional?"; el botón pasa al verde de la marca',
       'Web: debajo del precio de la estadía, aclaración: para más detalles y gastos adicionales, como la limpieza final, comunicarse con el dueño',
