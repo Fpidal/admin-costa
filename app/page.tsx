@@ -343,7 +343,10 @@ function LandingContent() {
                       <div className="amen">{amen.map(([txt, top]) => <span key={txt} className={top ? 'top' : ''}>{txt}</span>)}</div>
                       <div className="abajo">
                         <div className="precio">
-                          <div className="m">{desde ? <><small>{t.desde}</small> U$D {fmt(desde)} <small>{t.porNoche}</small></> : <small>{t.consultaPrecio}</small>}</div>
+                          {/* Con fechas: el promedio por noche de esas fechas; sin fechas: el más bajo cargado */}
+                          <div className="m">{est?.completo
+                            ? <>U$D {fmt(est.precioPromedio)} <small>{t.porNoche}</small></>
+                            : desde ? <><small>{t.desde}</small> U$D {fmt(desde)} <small>{t.porNoche}</small></> : <small>{t.consultaPrecio}</small>}</div>
                           {est && (est.completo || desde > 0) && <div className="t">{t.noches(est.noches)}<b>{est.completo ? `U$D ${fmt(est.total)}` : t.consultaPrecio}</b></div>}
                         </div>
                         <div className="cierre">
