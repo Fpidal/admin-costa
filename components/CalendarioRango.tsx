@@ -72,11 +72,11 @@ export default function CalendarioRango({ llegada, salida, onCambio, en = false 
     <div className="cal-campos" ref={caja}>
       <button type="button" className={`c cal-campo ${abierto === 'llegada' ? 'on' : ''}`} onClick={() => abrir('llegada')}>
         <span className="lbl">{T.lle}</span>
-        <span className={`val ${llegada ? '' : 'vacio'}`}>{llegada ? dmy(llegada) : T.elegir}</span>
+        <span className={`val ${llegada ? '' : 'sin'}`}>{llegada ? dmy(llegada) : T.elegir}</span>
       </button>
       <button type="button" className={`c cal-campo ${abierto === 'salida' ? 'on' : ''}`} onClick={() => abrir('salida')}>
         <span className="lbl">{T.sal}</span>
-        <span className={`val ${salida ? '' : 'vacio'}`}>{salida ? dmy(salida) : T.elegir}</span>
+        <span className={`val ${salida ? '' : 'sin'}`}>{salida ? dmy(salida) : T.elegir}</span>
       </button>
 
       {abierto && <>

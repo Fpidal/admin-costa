@@ -13,7 +13,7 @@ export const VERSIONES: Version[] = [
   {
     version: '2.5', fecha: '27/11/2026', titulo: 'Marca Costa Directo',
     cambios: [
-      'Web: calendario nuevo para elegir llegada y salida (se marca el rango y las noches; en el celular sale desde abajo)',
+      'Web: calendario nuevo para elegir llegada y salida (se marca el rango y las noches; en el celular sale desde abajo). Los cuadros de Llegada y Salida vuelven a tener el alto de antes',
       'Web: el mensaje de WhatsApp es más corto: "Hola, consulto por la casa para 8 personas del 03/01 al 10/01"; el botón pasa al verde de la marca',
       'Web: el botón de Google Maps en "Cómo llegar" abre directo la ruta en auto hasta Costa Esmeralda',
       'Web: textos nuevos en "Tu reserva, paso a paso" (consultá, confirmá con el 50 %, completá el pago al menos 15 días antes)',
