@@ -1,5 +1,5 @@
 /* Página pública (sin login). Todo cuelga de .pub para no tocar el panel. */
-.pub{--verde:#103b37;--verde2:#1c5550;--papel:#faf6ef;--papel2:#f1eadf;--tx:#222927;--tx2:#67706c;--linea:#dcd3c5;--wa:#1f7a4d;
+.pub{--verde:#103b37;--verde2:#1c5550;--papel:#faf6ef;--papel2:#f1eadf;--tx:#222927;--tx2:#67706c;--linea:#dcd3c5;--wa:#103b37;
   font-family:var(--font-manrope),system-ui,sans-serif;background:var(--papel);color:var(--tx);line-height:1.55;font-size:15px;-webkit-font-smoothing:antialiased}
 .pub *{box-sizing:border-box}
 .pub img{display:block;max-width:100%}
@@ -37,17 +37,49 @@
 .pub .portada{position:relative;min-height:0;--borde:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cpath d='M14 0H100V100H7C4 92 0 80 0 65C0 45 10 25 14 0Z'/%3E%3C/svg%3E");-webkit-mask:var(--borde) 0 0/100% 100% no-repeat;mask:var(--borde) 0 0/100% 100% no-repeat}
 .pub .portada img{display:block;width:100%;height:100%;object-fit:cover;object-position:30% 60%}
 .pub .portada .pie{position:absolute;left:0;bottom:0;right:0;padding:40px 18px 14px calc(8% + 18px);font-size:12px;color:#fff;background:linear-gradient(transparent,rgba(16,59,55,.75))}
+/* Calendario de llegada y salida (components/CalendarioRango.tsx) */
+.pub .cal-campos{display:contents}
+.pub .cal-campo{border:0;border-right:1px solid var(--linea);background:none;text-align:left;cursor:pointer;font:inherit;color:inherit}
+.pub .cal-campo .lbl{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx2)}
+.pub .cal-campo .val{display:block;font:400 16px var(--font-fraunces),serif;color:var(--tx);padding-top:2px;white-space:nowrap}
+.pub .cal-campo .val.vacio{color:var(--tx2)}
+.pub .cal-campo.on{box-shadow:inset 0 -2px 0 var(--verde)}
+.pub .cal-fondo{display:none}
+.pub .cal{position:absolute;top:calc(100% + 8px);left:0;z-index:25;width:340px;background:#fff;border:1px solid var(--linea);box-shadow:0 14px 34px rgba(16,59,55,.14);padding:16px 18px 14px}
+.pub .cal-guia{margin:0 0 6px;font-size:12px;color:var(--tx2)}
+.pub .cal-cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.pub .cal-cab b{font:400 20px var(--font-fraunces),serif;color:var(--verde);text-transform:capitalize}
+.pub .cal-cab button{width:36px;height:36px;border-radius:50%;border:1px solid var(--linea);background:#fff;color:var(--verde);font-size:18px;line-height:1;cursor:pointer}
+.pub .cal-cab button:disabled{opacity:.3;cursor:default}
+.pub .cal-grilla{display:grid;grid-template-columns:repeat(7,1fr);row-gap:2px}
+.pub .cal-dsem{text-align:center;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--tx2);padding:4px 0 6px}
+.pub .cal-dia{position:relative;height:42px;border:0;background:none;padding:0;cursor:pointer;font:500 14.5px var(--font-manrope),sans-serif;color:var(--tx);font-variant-numeric:tabular-nums}
+.pub .cal-dia span{position:relative;z-index:1;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:50%}
+.pub .cal-dia:hover:not(:disabled) span{background:var(--papel2)}
+.pub .cal-dia:disabled{color:#c4bdb2;cursor:default}
+.pub .cal-dia.hoy span{box-shadow:inset 0 0 0 1px var(--linea)}
+.pub .cal-dia.medio{background:var(--papel2)}
+.pub .cal-dia.con-rango{background:linear-gradient(90deg,transparent 50%,var(--papel2) 50%)}
+.pub .cal-dia.fin{background:linear-gradient(90deg,var(--papel2) 50%,transparent 50%)}
+.pub .cal-dia.ini span,.pub .cal-dia.fin span{background:var(--verde)!important;color:var(--papel);font-weight:700}
+.pub .cal-pie{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid var(--linea);margin-top:10px;padding-top:12px;font-size:13px;color:var(--tx2)}
+.pub .cal-pie div{display:flex;gap:8px}
+.pub .cal-pie button{height:38px;padding:0 16px;font:600 13px var(--font-manrope),sans-serif;cursor:pointer}
+.pub .buscador .cal-pie .borrar{background:#fff;color:var(--tx2);border:1px solid var(--linea)}
+.pub .buscador .cal-pie .listo{background:var(--verde);color:var(--papel);border:0}
+.pub .buscador .cal-cab button{padding:0}
+
 /* propiedades: también en una pantalla */
 .pub .hoja-casas{background:var(--papel2);min-height:calc(100vh - 60px);padding:22px 0 28px;scroll-margin-top:60px}
 .pub .cab-casas{display:flex;align-items:end;justify-content:space-between;gap:28px;margin-bottom:16px}
 .pub .cab-casas h2{font-size:38px;line-height:1;margin-top:6px}
-.pub .buscador{display:grid;grid-template-columns:1fr 1fr .7fr auto;background:#fff;border:1px solid var(--linea);flex:1;max-width:800px}
+.pub .buscador{position:relative;display:grid;grid-template-columns:1fr 1fr .7fr auto;background:#fff;border:1px solid var(--linea);flex:1;max-width:800px}
 .pub .buscador.con-barrio{grid-template-columns:1fr 1fr .6fr .9fr auto}
 .pub .buscador .c{padding:8px 14px;border-right:1px solid var(--linea);min-width:0}
 .pub .buscador label{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--tx2)}
 .pub .buscador input,.pub .buscador select{border:0;background:none;font:400 16px var(--font-fraunces),serif;color:var(--tx);outline:none;width:100%;padding-top:2px}
-.pub .buscador button{border:0;background:var(--verde);color:var(--papel);font:600 14px var(--font-manrope),sans-serif;padding:0 26px;cursor:pointer}
-.pub .buscador button.limpiar{background:#fff;color:var(--tx2);font-weight:500;padding:0 14px;border-left:1px solid var(--linea)}
+.pub .buscador>button{border:0;background:var(--verde);color:var(--papel);font:600 14px var(--font-manrope),sans-serif;padding:0 26px;cursor:pointer}
+.pub .buscador>button.limpiar{background:#fff;color:var(--tx2);font-weight:500;padding:0 14px;border-left:1px solid var(--linea)}
 .pub .casas{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}
 .pub .vacio{grid-column:1/-1;text-align:center;color:var(--tx2);padding:60px 0}
 .pub .casa{background:#fff;border:1px solid var(--linea);display:flex;flex-direction:column;min-width:0}
@@ -84,7 +116,7 @@
 .pub .disp.si i{background:#2f8a5f}.pub .disp.no i{background:#a8773f}
 .pub .disp button{border:0;background:none;color:var(--verde);font:inherit;font-weight:700;cursor:pointer;padding:0;text-decoration:underline}
 .pub .wa{display:inline-flex;align-items:center;justify-content:center;gap:9px;height:44px;padding:0 18px;background:var(--wa);color:#fff!important;font-weight:600;font-size:14px;flex:none}
-.pub .wa:hover{background:#18653f}
+.pub .wa:hover{background:var(--verde2)}
 .pub .wa svg{width:18px;height:18px}
 /* secciones */
 .pub .sec{padding:76px 0}
@@ -103,7 +135,7 @@
 .pub .amenities span{font-size:13px;color:rgba(250,246,239,.7)}
 .pub .mapa-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:48px;align-items:center}
 .pub .mapa{background:#fff;border:1px solid var(--linea);padding:10px}
-.pub .mapa img{width:100%;height:auto;display:block}
+.pub .mapa svg{width:100%;height:auto;display:block}
 .pub .ruta{list-style:none;padding:0;counter-reset:p}
 .pub .ruta li{counter-increment:p;display:grid;grid-template-columns:44px 1fr;gap:12px;padding:16px 0;border-bottom:1px solid var(--linea)}
 .pub .ruta li:before{content:counter(p);font-family:var(--font-fraunces),serif;font-style:italic;font-size:34px;color:var(--verde);line-height:1}
@@ -172,9 +204,13 @@
   .pub .hechos{grid-template-columns:1fr 1fr}
   .pub .hoja-casas{min-height:0}
   .pub .buscador,.pub .buscador.con-barrio{grid-template-columns:1fr 1fr}
-  .pub .buscador .c:nth-child(2){border-right:0}
-  .pub .buscador .c:nth-child(n+3){grid-column:1/-1;border-right:0;border-top:1px solid var(--linea)}
-  .pub .buscador button{grid-column:1/-1;height:48px}
+  .pub .buscador .cal-campo:nth-child(2){border-right:0}
+  .pub .buscador>.c{grid-column:1/-1;border-right:0;border-top:1px solid var(--linea)}
+  .pub .cal-fondo{display:block;position:fixed;inset:0;z-index:40;background:rgba(16,30,28,.35)}
+  .pub .cal{position:fixed;top:auto;left:0;right:0;bottom:0;z-index:41;width:auto;border:0;border-radius:18px 18px 0 0;padding:18px max(18px,env(safe-area-inset-left,0px)) calc(16px + env(safe-area-inset-bottom,0px))}
+  .pub .cal-dia{height:46px}
+  .pub .cal-dia span{width:42px;height:42px}
+  .pub .buscador>button{grid-column:1/-1;height:48px}
   .pub .casas{grid-template-columns:minmax(0,1fr)}
   .pub .gal .grande{height:240px}
   .pub .lead{white-space:normal}

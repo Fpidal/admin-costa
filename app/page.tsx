@@ -4,6 +4,8 @@
 // publicadas. Las fechas se eligen en la sección de propiedades y cada casa
 // muestra si está libre y el total con sus precios (Casas → Precios alquileres).
 
+import MapaComoLlegar from '@/components/MapaComoLlegar'
+import CalendarioRango from '@/components/CalendarioRango'
 import './publica.css'
 import { useEffect, useMemo, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
@@ -230,13 +232,12 @@ function LandingContent() {
   const conPrecio = tarjetas.map(x => x.desde).filter(Boolean)
   const desdeGeneral = conPrecio.length ? Math.min(...conPrecio) : 0
 
+  // "Hola, consulto por Deportiva 1 para 8 personas del 03/01 al 10/01"
   function mensaje(p: Propiedad) {
-    const link = typeof window !== 'undefined' ? `${window.location.origin}/casa/${p.id}` : ''
-    const casa = `${p.nombre}${p.lote ? ` (${t.lote} ${p.lote})` : ''}`
     const fechas = hayFechas ? (en ? ` from ${dm(llegada)} to ${dm(salida)}` : ` del ${dm(llegada)} al ${dm(salida)}`) : ''
     return en
-      ? `Hi! I saw ${casa} in Costa Esmeralda on your website and would like to ask about availability and price${fechas}. We are ${personas} people. ${link}`
-      : `¡Hola! Vi en la web ${casa} en Costa Esmeralda y quería consultar disponibilidad y precio${fechas}. Somos ${personas} personas. ${link}`
+      ? `Hi, I'm asking about ${p.nombre} for ${personas} ${personas !== 1 ? 'people' : 'person'}${fechas}`
+      : `Hola, consulto por ${p.nombre} para ${personas} ${personas !== 1 ? 'personas' : 'persona'}${fechas}`
   }
   const linkWA = (p: Propiedad) => `https://wa.me/${telWA(p.telefono_contacto)}?text=${encodeURIComponent(mensaje(p))}`
 
@@ -290,10 +291,7 @@ function LandingContent() {
             <div className="cab-casas">
               <div><div className="over">{t.props}</div><h2>{t.elegi}</h2></div>
               <form className={`buscador ${barrios.length > 1 ? 'con-barrio' : ''}`} onSubmit={e => e.preventDefault()}>
-                <div className="c"><label htmlFor="lle">{t.llegada}</label>
-                  <input id="lle" type="date" value={llegada} min={hoyISO()} onChange={e => { setLlegada(e.target.value); if (salida && salida <= e.target.value) setSalida('') }} /></div>
-                <div className="c"><label htmlFor="sal">{t.salida}</label>
-                  <input id="sal" type="date" value={salida} min={llegada || hoyISO()} onChange={e => setSalida(e.target.value)} /></div>
+                <CalendarioRango llegada={llegada} salida={salida} en={en} onCambio={(a, b) => { setLlegada(a); setSalida(b) }} />
                 <div className="c"><label htmlFor="per">{t.personas}</label>
                   <select id="per" value={personas} onChange={e => setPersonas(Number(e.target.value))}>
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12].map(n => <option key={n} value={n}>{n}</option>)}
@@ -379,13 +377,13 @@ function LandingContent() {
         <section className="sec" id="llegar">
           <div className="wrap mapa-grid">
             <div className="mapa">
-              <img src="/como-llegar.jpg" alt={t.llegarTit} width={1100} height={1100} loading="lazy" />
+              <MapaComoLlegar en={en} />
             </div>
             <div>
               <div className="over">{t.llegarOver}</div>
               <h2 style={{ fontSize: 42, margin: '10px 0 18px' }}>{t.llegarTit}</h2>
               <ol className="ruta">{t.ruta.map(([b, s]) => <li key={b}><span><b>{b}</b>{s}</span></li>)}</ol>
-              <a className="btn2" href="https://www.google.com/maps/search/?api=1&query=Costa+Esmeralda+Buenos+Aires" target="_blank" rel="noopener noreferrer">{t.abrirMaps}</a>
+              <a className="btn2" href="https://www.google.com/maps/dir/?api=1&destination=Costa+Esmeralda,+Ruta+11+km+380,+Buenos+Aires,+Argentina&travelmode=driving" target="_blank" rel="noopener noreferrer">{t.abrirMaps}</a>
             </div>
           </div>
         </section>
